@@ -298,7 +298,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             <button
               onClick={() => handleGoogleSignIn(false)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 border-2 border-gray-300 rounded-full text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
@@ -369,7 +369,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             <button
               onClick={() => handleGoogleSignIn(false)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 border-2 border-gray-300 rounded-full text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
@@ -528,7 +528,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             <button
               onClick={() => handleGoogleSignIn(true)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-6 py-3 border-2 border-gray-300 rounded-full text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
