@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "SAAS Onboarding Dashboard with React and Tailwind CSS",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
