@@ -251,8 +251,8 @@ const OnboardingDashboard = ({ onComplete }) => {
         ))}
       </div>
       {/* Left side - Form content */}
-      <div className="flex items-center justify-start pl-16 lg:pl-24 pr-6 py-6 relative overflow-y-auto">
-        <div className="flex flex-col w-full">
+      <div className="flex items-center justify-center px-8 sm:px-12 lg:px-16 py-6 relative overflow-y-auto">
+        <div className={`flex flex-col w-full ${currentView === 'site-step5' || currentView === 'checkout' ? 'max-w-4xl' : 'max-w-md'}`}>
         {/* Shared back button — always same position */}
         {(() => {
           const backTarget = {
@@ -282,8 +282,8 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'index' && (
           <div className="w-full max-w-md">
             {/* Logo */}
-            <div className="mb-12">
-              <img src={theralysLogo} alt="Theralys" className="h-8" />
+            <div className="mb-6">
+              <img src={theralysLogo} alt="Theralys" className="h-7" />
             </div>
 
             {/* Title and subtitle */}
@@ -353,8 +353,8 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'signup' && (
           <div className="w-full max-w-md">
             {/* Logo */}
-            <div className="mb-8">
-              <img src={theralysLogo} alt="Theralys" className="h-8" />
+            <div className="mb-6">
+              <img src={theralysLogo} alt="Theralys" className="h-7" />
             </div>
 
             {/* Title and subtitle */}
@@ -413,7 +413,7 @@ const OnboardingDashboard = ({ onComplete }) => {
               }}
             >
               <div>
-                <label htmlFor="email" className="block text-sm text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-xs text-gray-500 mb-1">
                   E-mail
                 </label>
                 <input
@@ -421,13 +421,13 @@ const OnboardingDashboard = ({ onComplete }) => {
                   id="email"
                   name="email"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="prenom" className="block text-sm text-gray-700 mb-2">
+                  <label htmlFor="prenom" className="block text-xs text-gray-500 mb-1">
                     Prénom
                   </label>
                   <input
@@ -435,11 +435,11 @@ const OnboardingDashboard = ({ onComplete }) => {
                     id="prenom"
                     name="prenom"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label htmlFor="nom" className="block text-sm text-gray-700 mb-2">
+                  <label htmlFor="nom" className="block text-xs text-gray-500 mb-1">
                     Nom
                   </label>
                   <input
@@ -447,13 +447,13 @@ const OnboardingDashboard = ({ onComplete }) => {
                     id="nom"
                     name="nom"
                     required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
+                <label htmlFor="password" className="block text-xs text-gray-500 mb-1">
                   Mot de passe
                 </label>
                 <input
@@ -461,7 +461,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   id="password"
                   name="password"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
 
@@ -512,8 +512,8 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'signin' && (
           <div className="w-full max-w-md">
             {/* Logo */}
-            <div className="mb-8">
-              <img src={theralysLogo} alt="Theralys" className="h-8" />
+            <div className="mb-6">
+              <img src={theralysLogo} alt="Theralys" className="h-7" />
             </div>
 
             {/* Title and subtitle */}
@@ -561,24 +561,24 @@ const OnboardingDashboard = ({ onComplete }) => {
             {/* Sign-in form */}
             <form className="space-y-4 mb-6">
               <div>
-                <label htmlFor="signin-email" className="block text-sm text-gray-700 mb-2">
+                <label htmlFor="signin-email" className="block text-xs text-gray-500 mb-1">
                   E-mail
                 </label>
                 <input
                   type="email"
                   id="signin-email"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label htmlFor="signin-password" className="block text-sm text-gray-700 mb-2">
+                <label htmlFor="signin-password" className="block text-xs text-gray-500 mb-1">
                   Mot de passe
                 </label>
                 <input
                   type="password"
                   id="signin-password"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
 
@@ -619,8 +619,8 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'email-verification' && (
           <div className="w-full max-w-md">
             {/* Logo */}
-            <div className="mb-12">
-              <img src={theralysLogo} alt="Theralys" className="h-8" />
+            <div className="mb-6">
+              <img src={theralysLogo} alt="Theralys" className="h-7" />
             </div>
 
             {/* Title and subtitle */}
@@ -793,7 +793,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   id="profession"
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
 
@@ -806,7 +806,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   id="ville"
                   value={ville}
                   onChange={(e) => setVille(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
               </div>
             </div>
@@ -1510,7 +1510,7 @@ const OnboardingDashboard = ({ onComplete }) => {
       </div>
 
       {/* Right side - Illustration */}
-      {currentView !== 'site-step5' && currentView !== 'checkout' && <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 bg-grid-pattern p-6 lg:p-10 overflow-hidden">
+      {currentView !== 'site-step5' && currentView !== 'checkout' && <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 bg-grid-pattern px-8 lg:px-12 py-6 overflow-hidden">
         {currentView === 'site-step4' ? (
           <div className="w-full max-w-2xl max-h-full flex flex-col items-center overflow-hidden">
             {/* Estimation chart — coded SVG */}
