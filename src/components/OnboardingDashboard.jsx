@@ -251,11 +251,10 @@ const OnboardingDashboard = ({ onComplete }) => {
         ))}
       </div>
       {/* Left side - Form content */}
-      <div className="flex items-center justify-center p-6 lg:p-10 relative overflow-hidden">
+      <div className="flex items-center justify-start pl-16 lg:pl-24 pr-6 py-6 relative overflow-y-auto">
         {/* Shared back button — always same position */}
         {(() => {
           const backTarget = {
-            signup: 'index',
             objectives: 'email-verification',
             'site-step1': 'objectives',
             'site-step2': 'site-step1',
@@ -269,7 +268,7 @@ const OnboardingDashboard = ({ onComplete }) => {
           return (
             <button
               onClick={() => setCurrentView(backTarget)}
-              className="absolute top-8 left-8 lg:top-16 lg:left-16 text-gray-600 hover:text-color-1 flex items-center gap-2 text-sm z-10"
+              className="absolute top-6 left-16 lg:left-24 text-gray-600 hover:text-color-1 flex items-center gap-2 text-sm z-10"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
@@ -287,10 +286,10 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Bienvenue sur Theralys
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Créez votre site internet professionnel et lancez votre stratégie de référencement local en quelques clics.
             </p>
 
@@ -358,10 +357,10 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre compte Theralys
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Essayez gratuitement Theralys. En quelques clics, créez votre site internet et lancer sa technologie de référencement locale.
             </p>
 
@@ -517,10 +516,10 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Se connecter
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Entrez vos informations pour vous connecter à votre compte Theralys
             </p>
 
@@ -624,10 +623,10 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Vérifiez votre e-mail
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Nous avons envoyé un e-mail à{' '}
               <span className="font-semibold">{userEmail}</span>. Connectez vous à votre
               boîte mail et cliquez sur le lien pour vérifier votre e-mail.
@@ -703,10 +702,10 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'objectives' && (
           <div className="w-full max-w-md">
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Quels sont vos objectifs ?
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Personnalisez votre expérience et dépassez vos objectifs en un temps record ! (plusieurs reponses possibles)
             </p>
 
@@ -752,7 +751,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 console.log('Objectifs sélectionnés:', selectedObjectives)
                 setCurrentView('site-step1')
               }}
-              className={`w-full max-w-xs px-6 py-3 rounded-full text-white font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
                 selectedObjectives.length === 0
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -767,10 +766,10 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'site-step1' && (
           <div className="w-full max-w-md">
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
@@ -818,7 +817,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 console.log('Profession:', profession, 'Ville:', ville)
                 setCurrentView('site-step2')
               }}
-              className={`w-full max-w-xs px-6 py-3 rounded-full text-white font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
                 !profession.trim() || !ville.trim()
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -833,15 +832,15 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'site-step2' && (
           <div className="w-full max-w-md">
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
             {/* Step indicator */}
-            <h3 className="text-lg font-bold text-color-1 mb-6">
+            <h3 className="text-base font-bold text-color-1 mb-4">
               Étape 2/3 : Préparation du site
             </h3>
 
@@ -880,7 +879,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 console.log('Préparation terminée')
                 setCurrentView('site-step3')
               }}
-              className={`w-full max-w-xs px-6 py-3 rounded-full text-white font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
                 loadedTasks < preparationTasks.length
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -893,46 +892,46 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Site Step 3 - Designs du site */}
         {currentView === 'site-step3' && (
-          <div className="w-full max-w-lg">
+          <div className="w-full max-w-md">
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
             {/* Step indicator */}
-            <h3 className="text-lg font-bold text-color-1 mb-6">
+            <h3 className="text-base font-bold text-color-1 mb-4">
               Étape 3/3 : Designs du site
             </h3>
 
             {/* Couleurs + Style side by side */}
-            <div className="flex gap-8 mb-6">
+            <div className="flex gap-6 mb-4">
               {/* Color palettes */}
               <div>
-                <span className="text-sm font-medium text-color-1 block mb-3">Couleurs</span>
-                <div className="grid grid-cols-2 gap-2">
+                <span className="text-xs font-medium text-color-1 block mb-2">Couleurs</span>
+                <div className="grid grid-cols-2 gap-1.5">
                   {colorPalettes.map((palette) => (
                     <button
                       key={palette.id}
                       onClick={() => setSelectedPalette(palette.id)}
-                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                      className={`p-2 rounded-lg border-2 transition-all text-left ${
                         selectedPalette === palette.id
                           ? 'border-color-2 bg-orange-50'
                           : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                       }`}
                     >
-                      <div className="flex gap-1 mb-2">
+                      <div className="flex gap-1 mb-1">
                         {palette.colors.map((color, i) => (
                           <div
                             key={i}
-                            className="w-5 h-5 rounded-full border border-black/10"
+                            className="w-4 h-4 rounded-full border border-black/10"
                             style={{ backgroundColor: color }}
                           />
                         ))}
                       </div>
-                      <span className="text-xs font-medium text-color-1">{palette.name}</span>
+                      <span className="text-[10px] font-medium text-color-1">{palette.name}</span>
                     </button>
                   ))}
                 </div>
@@ -940,13 +939,13 @@ const OnboardingDashboard = ({ onComplete }) => {
 
               {/* Typography + Radius */}
               <div>
-                <span className="text-sm font-medium text-color-1 block mb-3">Style</span>
-                <div className="grid grid-cols-2 gap-2 mb-4">
+                <span className="text-xs font-medium text-color-1 block mb-2">Style</span>
+                <div className="grid grid-cols-2 gap-1.5 mb-3">
                   {typographyPairs.map((typo) => (
                     <button
                       key={typo.id}
                       onClick={() => setSelectedTypography(typo.id)}
-                      className={`p-3 rounded-lg border-2 transition-all text-left ${
+                      className={`p-2 rounded-lg border-2 transition-all text-left ${
                         selectedTypography === typo.id
                           ? 'border-color-2 bg-orange-50'
                           : 'border-gray-200 bg-gray-50 hover:border-gray-300'
@@ -954,33 +953,33 @@ const OnboardingDashboard = ({ onComplete }) => {
                     >
                       <link rel="stylesheet" href={`https://fonts.googleapis.com/css2?family=${typo.googleFont}&display=swap`} />
                       <div
-                        className="text-2xl font-semibold mb-1"
+                        className="text-xl font-semibold mb-0.5"
                         style={{ fontFamily: `"${typo.display}", serif` }}
                       >
                         Aa
                       </div>
-                      <span className="text-xs text-gray-500">{typo.label}</span>
+                      <span className="text-[10px] text-gray-500">{typo.label}</span>
                     </button>
                   ))}
                 </div>
 
                 {/* Border radius */}
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   {radiusOptions.map((radius) => (
                     <button
                       key={radius.id}
                       onClick={() => setSelectedRadius(radius.id)}
-                      className={`flex-1 p-2 flex flex-col items-center gap-1.5 border-2 transition-all rounded-lg ${
+                      className={`flex-1 p-1.5 flex flex-col items-center gap-1 border-2 transition-all rounded-lg ${
                         selectedRadius === radius.id
                           ? 'border-color-2 bg-orange-50'
                           : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                       }`}
                     >
                       <div
-                        className="w-8 h-5 bg-gray-300"
+                        className="w-7 h-4 bg-gray-300"
                         style={{ borderRadius: radius.value }}
                       />
-                      <span className="text-[10px] text-gray-500">{radius.label}</span>
+                      <span className="text-[9px] text-gray-500">{radius.label}</span>
                     </button>
                   ))}
                 </div>
@@ -988,8 +987,8 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Image upload */}
-            <div className="mb-8">
-              <span className="text-sm font-medium text-color-1 block mb-3">
+            <div className="mb-4">
+              <span className="text-xs font-medium text-color-1 block mb-2">
                 Importez une image professionelle de vous
               </span>
               <input
@@ -1004,23 +1003,23 @@ const OnboardingDashboard = ({ onComplete }) => {
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                className={`border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition-colors ${
                   isDragging
                     ? 'border-color-2 bg-orange-50'
                     : 'border-gray-300 hover:border-color-2 hover:bg-gray-50'
                 }`}
               >
                 {uploadedImage ? (
-                  <div className="space-y-2">
-                    <img src={uploadedImage} alt="Photo" className="max-h-20 mx-auto rounded object-contain" />
-                    <p className="text-xs text-gray-500">Cliquez pour remplacer</p>
+                  <div className="space-y-1">
+                    <img src={uploadedImage} alt="Photo" className="max-h-14 mx-auto rounded object-contain" />
+                    <p className="text-[10px] text-gray-500">Cliquez pour remplacer</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <svg className="w-8 h-8 mx-auto text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <div className="space-y-1">
+                    <svg className="w-6 h-6 mx-auto text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                     </svg>
-                    <p className="text-sm text-gray-500">Glissez une image ou cliquez</p>
+                    <p className="text-xs text-gray-500">Glissez une image ou cliquez</p>
                   </div>
                 )}
               </div>
@@ -1043,15 +1042,15 @@ const OnboardingDashboard = ({ onComplete }) => {
         {currentView === 'site-step4' && (
           <div className="w-full max-w-md">
             {/* Title and subtitle */}
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
             {/* Summary heading */}
-            <h3 className="text-lg font-bold text-color-1 mb-6">
+            <h3 className="text-base font-bold text-color-1 mb-4">
               Tout est prêt !
             </h3>
 
@@ -1094,7 +1093,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 console.log('Résumé terminé')
                 setCurrentView('site-step5')
               }}
-              className={`w-full max-w-xs px-6 py-3 rounded-full text-white font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
                 loadedSummaryTasks < summaryTasks.filter(t => t.auto).length
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -1155,48 +1154,46 @@ const OnboardingDashboard = ({ onComplete }) => {
               </div>
 
               {/* Pricing cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl">
                 {/* Starter */}
-                <div className="border-2 border-gray-200 rounded-3xl p-9 flex flex-col">
-                  {/* Top: title + description — fixed height zone */}
-                  <div className="min-h-[120px]">
-                    <h3 className="text-2xl font-bold text-color-1 mb-3">Starter</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">
+                <div className="border-2 border-gray-200 rounded-2xl p-6 flex flex-col">
+                  <div className="min-h-[80px]">
+                    <h3 className="text-lg font-bold text-color-1 mb-2">Starter</h3>
+                    <p className="text-xs text-gray-400 leading-relaxed">
                       Idéal pour un site vitrine design et optimisé pour transformer vos visiteurs en rendez-vous.
                     </p>
                   </div>
 
-                  <p className="text-sm font-semibold text-color-1 mb-4 mt-4">Prix tout inclus</p>
+                  <p className="text-xs font-semibold text-color-1 mb-3 mt-3">Prix tout inclus</p>
 
-                  <div className="space-y-5">
+                  <div className="space-y-3">
                     {[
                       '1 page',
                       'Aide au copywriting et au positionnement',
                       'Avis Google automatique',
                       'Hébergement + domaine + maintenance 5/7',
                     ].map((feature) => (
-                      <div key={feature} className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-color-2 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                      <div key={feature} className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-color-2 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
                             <path d="M20 6L9 17l-5-5"/>
                           </svg>
                         </div>
-                        <span className="text-[15px] text-gray-700">{feature}</span>
+                        <span className="text-sm text-gray-700">{feature}</span>
                       </div>
                     ))}
                   </div>
 
-                  {/* Bottom: price + CTA pushed down */}
-                  <div className="mt-auto pt-10">
-                    <div className="flex items-baseline gap-3 mb-6">
-                      <span className="text-5xl font-extrabold text-color-1">{currentStarter}€</span>
-                      <span className="text-gray-400 text-sm">{currentSuffix}</span>
-                      <span className="text-gray-400 text-sm">engagement 1 an</span>
+                  <div className="mt-auto pt-6">
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-3xl font-extrabold text-color-1">{currentStarter}€</span>
+                      <span className="text-gray-400 text-xs">{currentSuffix}</span>
+                      <span className="text-gray-400 text-xs">engagement 1 an</span>
                     </div>
 
                     <button
                       onClick={() => { setSelectedPlan('starter'); setCurrentView('checkout') }}
-                      className="w-full px-6 py-4 border-2 border-color-2 text-color-2 rounded-full font-semibold text-[15px] hover:bg-orange-50 transition-colors cursor-pointer"
+                      className="w-full px-5 py-3 border-2 border-color-2 text-color-2 rounded-full font-semibold text-sm hover:bg-orange-50 transition-colors cursor-pointer"
                     >
                       Commencer l'essai gratuit
                     </button>
@@ -1204,36 +1201,34 @@ const OnboardingDashboard = ({ onComplete }) => {
                 </div>
 
                 {/* Visibilité */}
-                <div className="border-2 border-color-2 rounded-3xl p-9 flex flex-col relative bg-orange-50/40">
-                  {/* Badge */}
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-color-2 text-white text-sm font-semibold px-5 py-2 rounded-full whitespace-nowrap flex items-center gap-1.5">
+                <div className="border-2 border-color-2 rounded-2xl p-6 flex flex-col relative bg-orange-50/40">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-color-2 text-white text-xs font-semibold px-4 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1.5">
                     <span>🚀</span> Référencement 3,5x plus rapide
                   </div>
 
-                  {/* Top: title + description — fixed height zone */}
-                  <div className="min-h-[120px] mt-2">
-                    <h3 className="text-2xl font-bold text-color-2 mb-3">Visibilité</h3>
-                    <p className="text-sm text-gray-400 leading-relaxed">
+                  <div className="min-h-[80px] mt-1">
+                    <h3 className="text-lg font-bold text-color-2 mb-2">Visibilité</h3>
+                    <p className="text-xs text-gray-400 leading-relaxed">
                       Idéal vous référencer durablement sur Google et capter les recherches les plus qualifiées de votre secteur.
                     </p>
                   </div>
 
-                  <p className="text-sm font-bold text-color-1 mb-4 mt-4">Tout le forfait basique plus...</p>
+                  <p className="text-xs font-bold text-color-1 mb-3 mt-3">Tout le forfait basique plus...</p>
 
-                  <div className="space-y-5">
+                  <div className="space-y-3">
                     {[
                       { text: 'Pages ', highlight: 'illimitées' },
                       { text: 'SEO ', highlight: 'accéléré', rest: ' : 30 articles de blog/mois' },
                       { text: 'Analyse des ', highlight: 'mots clés + ranking', rest: ' en temps réel' },
                       { text: 'Statistiques avancées' },
                     ].map((feature, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-color-2 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                      <div key={i} className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-color-2 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
                             <path d="M20 6L9 17l-5-5"/>
                           </svg>
                         </div>
-                        <span className="text-[15px] text-gray-700">
+                        <span className="text-sm text-gray-700">
                           {feature.text}
                           {feature.highlight && <span className="text-color-2 font-semibold">{feature.highlight}</span>}
                           {feature.rest || ''}
@@ -1242,17 +1237,16 @@ const OnboardingDashboard = ({ onComplete }) => {
                     ))}
                   </div>
 
-                  {/* Bottom: price + CTA pushed down */}
-                  <div className="mt-auto pt-10">
-                    <div className="flex items-baseline gap-3 mb-6">
-                      <span className="text-5xl font-extrabold text-color-1">{currentVisibilite}€</span>
-                      <span className="text-gray-400 text-sm">{currentSuffix}</span>
-                      <span className="text-gray-400 text-sm">engagement 1 an</span>
+                  <div className="mt-auto pt-6">
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-3xl font-extrabold text-color-1">{currentVisibilite}€</span>
+                      <span className="text-gray-400 text-xs">{currentSuffix}</span>
+                      <span className="text-gray-400 text-xs">engagement 1 an</span>
                     </div>
 
                     <button
                       onClick={() => { setSelectedPlan('visibilite'); setCurrentView('checkout') }}
-                      className="w-full px-6 py-4 bg-color-2 text-white rounded-full font-semibold text-[15px] hover:opacity-90 transition-opacity cursor-pointer"
+                      className="w-full px-5 py-3 bg-color-2 text-white rounded-full font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
                     >
                       Commencer l'essai gratuit
                     </button>
@@ -1457,10 +1451,10 @@ const OnboardingDashboard = ({ onComplete }) => {
         {/* Vue Survey — Comment nous avez-vous connus ? */}
         {currentView === 'survey' && (
           <div className="w-full max-w-md">
-            <h2 className="text-h1 font-bold text-color-1 mb-4">
+            <h2 className="text-xl font-bold text-color-1 mb-2">
               Comment nous avez-vous connus ?
             </h2>
-            <p className="text-body text-gray-600 mb-8">
+            <p className="text-sm text-gray-600 mb-4">
               Personnalisez votre expérience et dépassez vos objectifs en un temps record !
             </p>
 
@@ -1500,7 +1494,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             <button
               disabled={!selectedReferral}
               onClick={() => onComplete && onComplete({ prenom: userPrenom, profession, ville })}
-              className={`w-full max-w-xs px-6 py-3 rounded-full text-white font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
                 !selectedReferral
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -1594,10 +1588,11 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
           </div>
         ) : currentView === 'site-step3' ? (
-          <div className="flex flex-col items-center space-y-5">
-            <h3 className="text-lg font-semibold text-color-1">Aperçu mobile</h3>
-            {/* Mobile preview with iPhone frame */}
-            <div className="relative" style={{ width: 400, height: 820 }}>
+          <div className="flex flex-col items-center space-y-3 max-h-full overflow-hidden">
+            <h3 className="text-sm font-semibold text-color-1">Aperçu mobile</h3>
+            {/* Mobile preview with iPhone frame — scaled down via transform */}
+            <div style={{ width: 280, height: 574 }}>
+              <div className="relative origin-top-left" style={{ width: 400, height: 820, transform: 'scale(0.7)' }}>
               {/* iPhone frame overlay */}
               <img
                 src={iphoneFrame}
@@ -1742,6 +1737,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         ) : currentView === 'site-step2' ? (

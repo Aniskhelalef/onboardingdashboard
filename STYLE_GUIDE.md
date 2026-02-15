@@ -28,13 +28,12 @@ This document outlines the design system used in the SAAS Onboarding Dashboard.
 ### Font Sizes
 | Element | Size | Tailwind Class | Usage |
 |---------|------|----------------|--------|
-| H1 | 32px | `text-h1` | Main page titles |
-| H2 | 24px | `text-h2` | Section headings |
-| H3 | 20px | `text-h3` | Subsection headings |
-| H4 | 18px | `text-h4` | Card titles, labels |
-| Body | 16px | `text-body` | Main content, paragraphs |
-| Small | 14px | `text-small` | Helper text, meta info |
-| Caption | 12px | `text-caption` | Labels, timestamps |
+| H1 | 20px | `text-xl` | Main page titles |
+| H2 | 18px | `text-lg` | Section headings |
+| H3 | 16px | `text-base` | Subsection headings, step indicators |
+| Body | 14px | `text-sm` | Main content, paragraphs, descriptions |
+| Small | 12px | `text-xs` | Labels, helper text, meta info |
+| Caption | 10px | `text-[10px]` | Tiny labels, badges |
 
 ### Font Weights
 - Regular: 400 (default)
