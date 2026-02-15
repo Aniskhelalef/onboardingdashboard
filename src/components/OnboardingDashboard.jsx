@@ -235,14 +235,14 @@ const OnboardingDashboard = ({ onComplete }) => {
   ]
 
   return (
-    <div className={`min-h-screen bg-white grid grid-cols-1 ${currentView === 'site-step5' || currentView === 'checkout' ? '' : 'lg:grid-cols-2'}`}>
+    <div className={`h-screen overflow-hidden bg-white grid grid-cols-1 ${currentView === 'site-step5' || currentView === 'checkout' ? '' : 'lg:grid-cols-2'}`}>
       {/* Dev nav */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex gap-1 bg-gray-900/90 backdrop-blur rounded-b-lg px-2 py-1.5">
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex gap-0.5 bg-gray-900/90 backdrop-blur rounded-b-lg px-1.5 py-1">
         {pages.map((p) => (
           <button
             key={p.id}
             onClick={() => setCurrentView(p.id)}
-            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+            className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
               currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -251,7 +251,7 @@ const OnboardingDashboard = ({ onComplete }) => {
         ))}
       </div>
       {/* Left side - Form content */}
-      <div className="flex items-center justify-center p-8 lg:p-16 relative">
+      <div className="flex items-center justify-center p-6 lg:p-10 relative overflow-hidden">
         {/* Shared back button — always same position */}
         {(() => {
           const backTarget = {
@@ -1117,17 +1117,17 @@ const OnboardingDashboard = ({ onComplete }) => {
           const currentSuffix = suffix[billingPeriod]
 
           return (
-            <div className="w-full max-w-5xl mx-auto">
+            <div className="w-full max-w-5xl mx-auto max-h-full overflow-hidden">
               {/* Title */}
-              <h2 className="text-3xl font-bold text-color-1 mb-3">
+              <h2 className="text-2xl font-bold text-color-1 mb-2">
                 Choisissez votre forfait
               </h2>
-              <p className="text-base text-gray-500 mb-10">
+              <p className="text-sm text-gray-500 mb-6">
                 Profitez de 3 jours d'essai gratuit pour découvrir Theralys, période sans engagement.
               </p>
 
               {/* Billing toggle */}
-              <div className="inline-flex items-center gap-1 mb-10 bg-gray-100 rounded-full p-1.5">
+              <div className="inline-flex items-center gap-1 mb-6 bg-gray-100 rounded-full p-1.5">
                 {[
                   { id: 'monthly', label: 'Mensuel' },
                   { id: 'quarterly', label: 'Trimestriel', badge: '-10%' },
@@ -1275,8 +1275,8 @@ const OnboardingDashboard = ({ onComplete }) => {
           const trialEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
           return (
-            <div className="w-full max-w-5xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[600px] rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+            <div className="w-full max-w-5xl mx-auto max-h-full overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                 {/* Left — Order summary */}
                 <div className="bg-gray-50 p-10 flex flex-col">
                   {/* Brand */}
@@ -1514,9 +1514,9 @@ const OnboardingDashboard = ({ onComplete }) => {
       </div>
 
       {/* Right side - Illustration */}
-      {currentView !== 'site-step5' && currentView !== 'checkout' && <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 bg-grid-pattern p-8 lg:p-16">
+      {currentView !== 'site-step5' && currentView !== 'checkout' && <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 bg-grid-pattern p-6 lg:p-10 overflow-hidden">
         {currentView === 'site-step4' ? (
-          <div className="w-full max-w-2xl flex flex-col items-center">
+          <div className="w-full max-w-2xl max-h-full flex flex-col items-center overflow-hidden">
             {/* Estimation chart — coded SVG */}
             <div className="w-full rounded-2xl shadow-lg bg-white p-8">
               {/* Header */}
@@ -1745,9 +1745,9 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
           </div>
         ) : currentView === 'site-step2' ? (
-          <div className="w-full max-w-lg flex flex-col items-start space-y-8">
+          <div className="w-full max-w-lg max-h-full flex flex-col items-start space-y-6 overflow-hidden">
             {/* Stat text */}
-            <p className="text-xl leading-relaxed">
+            <p className="text-lg leading-relaxed">
               <span className="font-bold text-color-2">La technologie Theralys</span>{' '}
               <span className="text-color-1">sont référencés sur la première page de Google grâce à sa technologie de référencement automatique.</span>
             </p>
@@ -1764,9 +1764,9 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
           </div>
         ) : currentView === 'site-step1' ? (
-          <div className="w-full max-w-lg flex flex-col items-start space-y-8">
+          <div className="w-full max-w-lg max-h-full flex flex-col items-start space-y-6 overflow-hidden">
             {/* Stat text */}
-            <p className="text-xl leading-relaxed">
+            <p className="text-lg leading-relaxed">
               <span className="font-bold text-color-2">Sur + de 400 praticiens, 95% des sites theralys</span>{' '}
               <span className="text-color-1">sont référencés sur la première page de Google grâce à sa technologie de référencement automatique.</span>
             </p>
@@ -1783,7 +1783,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
           </div>
         ) : currentView === 'objectives' ? (
-          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-12">
+          <div className="w-full max-w-lg max-h-full flex flex-col items-center text-center space-y-8 overflow-hidden">
             {/* Vision text */}
             <p className="text-xl leading-relaxed">
               <span className="font-bold text-color-2">La vision de Theralys</span>{' '}
@@ -1791,20 +1791,20 @@ const OnboardingDashboard = ({ onComplete }) => {
             </p>
 
             {/* Mountain climber illustration */}
-            <img src={mountainClimber} alt="Illustration d'une personne au sommet d'une montagne" className="w-full max-w-sm" />
+            <img src={mountainClimber} alt="Illustration d'une personne au sommet d'une montagne" className="w-full max-w-sm max-h-[50vh] object-contain" />
           </div>
         ) : currentView === 'survey' ? (
-          <div className="w-full max-w-lg flex flex-col items-start space-y-8">
-            <p className="text-xl leading-relaxed">
+          <div className="w-full max-w-lg max-h-full flex flex-col items-start space-y-6 overflow-hidden">
+            <p className="text-lg leading-relaxed">
               <span className="font-bold text-color-2">Theralys vous remercie pour votre confiance.</span>{' '}
               <span className="text-gray-700">L'équipe reste disponible à travers le chat intégré à la plateforme.</span>
             </p>
-            <img src={surveyImage} alt="Illustration survey" className="w-full max-w-md" />
+            <img src={surveyImage} alt="Illustration survey" className="w-full max-w-md max-h-[50vh] object-contain" />
           </div>
         ) : (
-          <div className="w-full max-w-lg flex flex-col items-center space-y-8">
-            <div className="space-y-4">
-              <p className="text-lg text-gray-700 leading-relaxed">
+          <div className="w-full max-w-lg max-h-full flex flex-col items-center space-y-6 overflow-hidden">
+            <div className="space-y-3">
+              <p className="text-base text-gray-700 leading-relaxed">
                 <span className="font-bold text-color-2">85% des français utilisent Google</span> comme premier réflexe pour consulter un praticien des medecines douces.
               </p>
               <p className="text-lg leading-relaxed">
@@ -1813,7 +1813,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 <span className="text-gray-700">Avec Theralys, créez votre site et générez une visibilité durable grâce à sa technologie de référencement.</span>
               </p>
             </div>
-            <img src={onboardingImage} alt="Parcours de référencement Theralys" className="w-full max-w-md rounded-2xl" />
+            <img src={onboardingImage} alt="Parcours de référencement Theralys" className="w-full max-w-md max-h-[50vh] object-contain rounded-2xl" />
           </div>
         )}
       </div>}
