@@ -252,6 +252,7 @@ const OnboardingDashboard = ({ onComplete }) => {
       </div>
       {/* Left side - Form content */}
       <div className="flex items-center justify-start pl-16 lg:pl-24 pr-6 py-6 relative overflow-y-auto">
+        <div className="flex flex-col w-full">
         {/* Shared back button — always same position */}
         {(() => {
           const backTarget = {
@@ -268,9 +269,9 @@ const OnboardingDashboard = ({ onComplete }) => {
           return (
             <button
               onClick={() => setCurrentView(backTarget)}
-              className="absolute top-6 left-16 lg:left-24 text-gray-600 hover:text-color-1 flex items-center gap-2 text-sm z-10"
+              className="text-gray-400 hover:text-color-1 flex items-center gap-1.5 text-xs mb-4 cursor-pointer transition-colors"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 12H5M12 19l-7-7 7-7"/>
               </svg>
               Retour
@@ -330,7 +331,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             {/* Email button */}
             <button
               onClick={() => setCurrentView('signup')}
-              className="w-full px-6 py-3 bg-color-2 rounded-full text-white font-medium hover:opacity-90 transition-opacity mb-8"
+              className="w-full px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity mb-8"
             >
               Continuer avec l'e-mail
             </button>
@@ -466,7 +467,7 @@ const OnboardingDashboard = ({ onComplete }) => {
 
               <button
                 type="submit"
-                className="w-full px-6 py-3 bg-color-2 rounded-full text-white font-medium hover:opacity-90 transition-opacity"
+                className="w-full px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Commencer
               </button>
@@ -595,7 +596,7 @@ const OnboardingDashboard = ({ onComplete }) => {
 
               <button
                 type="submit"
-                className="w-full px-6 py-3 bg-color-2 rounded-full text-white font-medium hover:opacity-90 transition-opacity"
+                className="w-full px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Se connecter
               </button>
@@ -690,7 +691,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             <div className="mt-8">
               <button
                 onClick={() => setCurrentView('objectives')}
-                className="w-full px-6 py-3 bg-color-2 rounded-full text-white font-medium hover:opacity-90 transition-opacity"
+                className="w-full px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 J'ai vérifié mon e-mail
               </button>
@@ -1031,7 +1032,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 console.log('Design terminé:', { selectedPalette, selectedTypography, selectedRadius, uploadedImage })
                 setCurrentView('site-step4')
               }}
-              className="w-full max-w-xs px-6 py-3 bg-color-2 rounded-full text-white font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              className="w-full max-w-xs px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
             >
               Continuer
             </button>
@@ -1116,17 +1117,17 @@ const OnboardingDashboard = ({ onComplete }) => {
           const currentSuffix = suffix[billingPeriod]
 
           return (
-            <div className="w-full max-w-5xl mx-auto max-h-full overflow-hidden">
+            <div className="w-full max-w-4xl max-h-full overflow-hidden">
               {/* Title */}
-              <h2 className="text-2xl font-bold text-color-1 mb-2">
+              <h2 className="text-xl font-bold text-color-1 mb-2">
                 Choisissez votre forfait
               </h2>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className="text-sm text-gray-500 mb-4">
                 Profitez de 3 jours d'essai gratuit pour découvrir Theralys, période sans engagement.
               </p>
 
               {/* Billing toggle */}
-              <div className="inline-flex items-center gap-1 mb-6 bg-gray-100 rounded-full p-1.5">
+              <div className="inline-flex items-center gap-1 mb-4 bg-gray-100 rounded-full p-1">
                 {[
                   { id: 'monthly', label: 'Mensuel' },
                   { id: 'quarterly', label: 'Trimestriel', badge: '-10%' },
@@ -1135,7 +1136,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   <button
                     key={period.id}
                     onClick={() => setBillingPeriod(period.id)}
-                    className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       billingPeriod === period.id
                         ? 'bg-white text-color-1 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
@@ -1143,7 +1144,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   >
                     {period.label}
                     {period.badge && (
-                      <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                         billingPeriod === period.id ? 'bg-color-2/15 text-color-2' : 'bg-gray-200 text-gray-500'
                       }`}>
                         {period.badge}
@@ -1505,6 +1506,7 @@ const OnboardingDashboard = ({ onComplete }) => {
           </div>
         )}
 
+        </div>
       </div>
 
       {/* Right side - Illustration */}
