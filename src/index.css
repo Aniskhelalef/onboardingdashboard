@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom component styles matching the design system */
+@layer components {
+  /* Primary Button - Black filled */
+  .btn-primary {
+    @apply bg-color-1 text-white rounded-pill px-6 py-2.5 text-body font-medium transition-all hover:opacity-90 shadow-sm;
+  }
+
+  /* Secondary Button - Coral outlined */
+  .btn-secondary {
+    @apply bg-white text-color-2 border-2 border-color-2 rounded-pill px-6 py-2.5 text-body font-medium transition-all hover:bg-color-3;
+  }
+
+  /* Tertiary Button - Light gray */
+  .btn-tertiary {
+    @apply bg-color-3 text-color-1 rounded-pill px-6 py-2.5 text-body font-medium transition-all hover:bg-gray-200;
+  }
+
+  /* Tag/Badge styles */
+  .tag-active {
+    @apply bg-color-2 text-white rounded-pill px-4 py-2 text-small font-medium;
+  }
+
+  .tag-inactive {
+    @apply bg-color-3 text-gray-700 rounded-pill px-4 py-2 text-small font-medium hover:bg-gray-200 transition-all;
+  }
+
+  /* Input styles */
+  .input-base {
+    @apply w-full px-4 py-2.5 text-body border border-gray-300 rounded-2xl focus:ring-2 focus:ring-color-2 focus:border-transparent outline-none transition-all;
+  }
+
+  /* Checkbox custom */
+  .checkbox-custom {
+    @apply w-5 h-5 text-color-1 border-2 border-gray-300 rounded focus:ring-2 focus:ring-color-2 cursor-pointer;
+  }
+
+  /* Radio custom */
+  .radio-custom {
+    @apply w-5 h-5 text-color-1 border-2 border-gray-300 focus:ring-2 focus:ring-color-2 cursor-pointer;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100;
+  }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(rgba(252, 109, 65, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(252, 109, 65, 0.15) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
