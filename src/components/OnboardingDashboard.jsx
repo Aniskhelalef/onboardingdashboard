@@ -917,7 +917,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                     <button
                       key={palette.id}
                       onClick={() => setSelectedPalette(palette.id)}
-                      className={`p-2 rounded-lg border-2 transition-all text-left ${
+                      className={`p-2 rounded-lg border-2 transition-all text-left h-[52px] flex flex-col justify-center ${
                         selectedPalette === palette.id
                           ? 'border-color-2 bg-orange-50'
                           : 'border-gray-200 bg-gray-50 hover:border-gray-300'
@@ -941,12 +941,12 @@ const OnboardingDashboard = ({ onComplete }) => {
               {/* Typography + Radius */}
               <div>
                 <span className="text-xs font-medium text-color-1 block mb-2">Style</span>
-                <div className="grid grid-cols-2 gap-1.5 mb-3">
+                <div className="grid grid-cols-2 gap-1.5 mb-1.5">
                   {typographyPairs.map((typo) => (
                     <button
                       key={typo.id}
                       onClick={() => setSelectedTypography(typo.id)}
-                      className={`p-2 rounded-lg border-2 transition-all text-left ${
+                      className={`p-2 rounded-lg border-2 transition-all text-left h-[52px] flex flex-col justify-center ${
                         selectedTypography === typo.id
                           ? 'border-color-2 bg-orange-50'
                           : 'border-gray-200 bg-gray-50 hover:border-gray-300'
