@@ -11,10 +11,10 @@ import ImageCropModal from "./modals/ImageCropModal";
 const STEPS = [
   { id: "contact", label: "Contact", icon: User, description: "Vos informations personnelles" },
   { id: "cabinet", label: "Cabinet", icon: MapPin, description: "Adresse(s) de votre cabinet" },
-  { id: "therapists", label: "Th\u00e9rapeutes", icon: Users, description: "\u00c9quipe du cabinet" },
-  { id: "specialties", label: "Sp\u00e9cialit\u00e9s", icon: Star, description: "Vos domaines d'expertise" },
+  { id: "therapists", label: "Thérapeutes", icon: Users, description: "Équipe du cabinet" },
+  { id: "specialties", label: "Spécialités", icon: Star, description: "Vos domaines d'expertise" },
   { id: "google", label: "Google", icon: Building2, description: "Fiche Google Business" },
-  { id: "code", label: "Code", icon: Code, description: "Code personnalis\u00e9" },
+  { id: "code", label: "Code", icon: Code, description: "Code personnalisé" },
 ];
 
 
@@ -72,7 +72,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
   };
 
   // Get profession from localStorage
-  const userProfession = localStorage.getItem("userProfession") || "Ost\u00e9opathe D.O";
+  const userProfession = localStorage.getItem("userProfession") || "Ostéopathe D.O";
 
   // Icon ID to emoji mapping
   const iconMapping = {
@@ -80,8 +80,8 @@ const Setup = ({ onBackToEditor, initialStep }) => {
     bone: "\ud83e\uddb4",
     back: "\ud83e\uddb4",
     posture: "\ud83d\udcbc",
-    activity: "\u26bd",
-    sport: "\u26bd",
+    activity: "⚽",
+    sport: "⚽",
     brain: "\ud83e\udde0",
     stress: "\ud83e\udde0",
     baby: "\ud83d\udc76",
@@ -99,7 +99,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
     shoulder: "\ud83e\uddb4",
     neck: "\ud83e\uddb4",
     // Default fallback
-    default: "\u2728",
+    default: "✨",
   };
 
   // Helper to get emoji from icon (handles both emoji and ID)
@@ -116,10 +116,10 @@ const Setup = ({ onBackToEditor, initialStep }) => {
   const defaultSpecialties = [
     { id: "1", icon: "\ud83e\uddb4", title: "Douleurs musculaires", description: "Traitement des tensions, contractures et douleurs musculaires" },
     { id: "2", icon: "\ud83e\udd30", title: "Femmes enceintes", description: "Accompagnement de la grossesse et du post-partum" },
-    { id: "3", icon: "\ud83d\udc76", title: "Nourrissons", description: "Prise en charge des b\u00e9b\u00e9s et jeunes enfants" },
-    { id: "4", icon: "\u26bd", title: "Sportifs", description: "Optimisation des performances et r\u00e9cup\u00e9ration" },
-    { id: "5", icon: "\ud83d\udcbc", title: "Troubles posturaux", description: "Correction des d\u00e9s\u00e9quilibres li\u00e9s au travail de bureau" },
-    { id: "6", icon: "\ud83e\uddd3", title: "Seniors", description: "Maintien de la mobilit\u00e9 et du confort au quotidien" },
+    { id: "3", icon: "\ud83d\udc76", title: "Nourrissons", description: "Prise en charge des bébés et jeunes enfants" },
+    { id: "4", icon: "⚽", title: "Sportifs", description: "Optimisation des performances et récupération" },
+    { id: "5", icon: "\ud83d\udcbc", title: "Troubles posturaux", description: "Correction des déséquilibres liés au travail de bureau" },
+    { id: "6", icon: "\ud83e\uddd3", title: "Seniors", description: "Maintien de la mobilité et du confort au quotidien" },
   ];
 
   // Migration helper: convert old paragraph1-5 to richTextPresentation
@@ -140,7 +140,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
 
     const richTextPresentation = paragraphs.length > 0
       ? paragraphs.map(p => `<p>${p}</p>`).join('')
-      : "<p>Dipl\u00f4m\u00e9(e) en ost\u00e9opathie, je vous accueille dans mon cabinet pour vous accompagner vers un mieux-\u00eatre durable.</p><p>Mon approche se veut globale et personnalis\u00e9e : chaque patient est unique, chaque douleur a son histoire.</p>";
+      : "<p>Diplômé(e) en ostéopathie, je vous accueille dans mon cabinet pour vous accompagner vers un mieux-être durable.</p><p>Mon approche se veut globale et personnalisée : chaque patient est unique, chaque douleur a son histoire.</p>";
 
     return {
       id: therapist.id,
@@ -350,9 +350,9 @@ const Setup = ({ onBackToEditor, initialStep }) => {
   const addTherapist = () => {
     const newTherapist = {
       id: Date.now().toString(),
-      accroche: "Et si vous retrouviez confort et mobilit\u00e9 ?",
-      richTextPresentation: "<p>Dipl\u00f4m\u00e9(e) en ost\u00e9opathie, je vous accueille dans mon cabinet pour vous accompagner vers un mieux-\u00eatre durable.</p><p>Mon approche se veut globale et personnalis\u00e9e : chaque patient est unique, chaque douleur a son histoire.</p>",
-      price: "60 \u20ac",
+      accroche: "Et si vous retrouviez confort et mobilité ?",
+      richTextPresentation: "<p>Diplômé(e) en ostéopathie, je vous accueille dans mon cabinet pour vous accompagner vers un mieux-être durable.</p><p>Mon approche se veut globale et personnalisée : chaque patient est unique, chaque douleur a son histoire.</p>",
+      price: "60 €",
       duration: "45 min",
       reimbursement: "Remboursement mutuelle possible",
       photo: "",
@@ -423,9 +423,9 @@ const Setup = ({ onBackToEditor, initialStep }) => {
     // Replace the specialty in the list
     const newSpecialty = {
       id: Date.now().toString(),
-      icon: "\u2728",
+      icon: "✨",
       title: newSpecialtyName.trim(),
-      description: `Page sp\u00e9cialit\u00e9 pour ${newSpecialtyName.trim()}`,
+      description: `Page spécialité pour ${newSpecialtyName.trim()}`,
     };
 
     setData(prev => ({
@@ -503,7 +503,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   Vos informations de contact
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Affich\u00e9es sur votre site pour que vos patients puissent vous contacter.
+                  Affichées sur votre site pour que vos patients puissent vous contacter.
                 </p>
               </div>
               <button
@@ -519,7 +519,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "contact" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "contact" ? "Validé !" : "Valider"}
               </button>
             </div>
 
@@ -527,7 +527,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="firstName" className="text-xs">Pr\u00e9nom *</Label>
+                  <Label htmlFor="firstName" className="text-xs">Prénom *</Label>
                   <Input
                     id="firstName"
                     value={data.contact.firstName}
@@ -553,12 +553,12 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="profession" className="text-xs">M\u00e9tier</Label>
+                  <Label htmlFor="profession" className="text-xs">Métier</Label>
                   <Input
                     id="profession"
                     value={data.contact.profession}
                     onChange={(e) => updateContact({ profession: e.target.value })}
-                    placeholder="Ost\u00e9opathe"
+                    placeholder="Ostéopathe"
                     className="h-9"
                   />
                 </div>
@@ -579,7 +579,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="space-y-2">
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label htmlFor="phoneNumber" className="text-xs">T\u00e9l\u00e9phone</Label>
+                  <Label htmlFor="phoneNumber" className="text-xs">Téléphone</Label>
                   <Input
                     id="phoneNumber"
                     value={data.contact.phoneNumber}
@@ -589,7 +589,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="appointmentLink" className="text-xs">Lien de r\u00e9servation *</Label>
+                  <Label htmlFor="appointmentLink" className="text-xs">Lien de réservation *</Label>
                   <Input
                     id="appointmentLink"
                     value={data.contact.appointmentLink}
@@ -631,7 +631,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "locations" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "locations" ? "Validé !" : "Valider"}
               </button>
             </div>
 
@@ -685,13 +685,13 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                     <Input
                       value={location.address}
                       onChange={(e) => updateLocation(location.id, { address: e.target.value })}
-                      placeholder="Adresse compl\u00e8te *"
+                      placeholder="Adresse complète *"
                       className="h-8 text-sm"
                     />
                     <Input
                       value={location.bookingLink}
                       onChange={(e) => updateLocation(location.id, { bookingLink: e.target.value })}
-                      placeholder="Lien de r\u00e9servation (Doctolib, Calendly...)"
+                      placeholder="Lien de réservation (Doctolib, Calendly...)"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -722,10 +722,10 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-1">
-                  \u00c9quipe du cabinet
+                  Équipe du cabinet
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Chaque th\u00e9rapeute aura sa propre section sur votre site.
+                  Chaque thérapeute aura sa propre section sur votre site.
                 </p>
               </div>
               <button
@@ -741,14 +741,14 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "therapists" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "therapists" ? "Validé !" : "Valider"}
               </button>
             </div>
 
             <div className="space-y-3">
               {data.therapists.map((therapist, index) => {
                 const isExpanded = expandedTherapists.has(therapist.id);
-                const displayName = `Th\u00e9rapeute ${index + 1}`;
+                const displayName = `Thérapeute ${index + 1}`;
 
                 return (
                   <div
@@ -816,7 +816,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                               <Image className="w-5 h-5 text-muted-foreground" />
                             </button>
                           )}
-                          <p className="text-xs text-muted-foreground">Photo affich\u00e9e sur la section "\u00c0 propos" de votre site</p>
+                          <p className="text-xs text-muted-foreground">Photo affichée sur la section "À propos" de votre site</p>
                         </div>
 
                         {/* Accroche -- maps to canvas aboutSectionTitle */}
@@ -825,25 +825,25 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                           <Input
                             value={therapist.accroche}
                             onChange={(e) => updateTherapist(therapist.id, { accroche: e.target.value })}
-                            placeholder="Et si vous retrouviez confort et mobilit\u00e9 ?"
+                            placeholder="Et si vous retrouviez confort et mobilité ?"
                             className="h-8 text-sm"
                           />
                         </div>
 
                         {/* Rich Text Presentation */}
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Pr\u00e9sentation</Label>
+                          <Label className="text-xs">Présentation</Label>
                           <RichTextEditor
                             content={therapist.richTextPresentation}
                             onChange={(html) => updateTherapist(therapist.id, { richTextPresentation: html })}
-                            placeholder="Pr\u00e9sentez-vous et votre approche th\u00e9rapeutique..."
+                            placeholder="Présentez-vous et votre approche thérapeutique..."
                           />
                         </div>
 
                         {/* Session info -- matches canvas order */}
                         <div className="grid grid-cols-3 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs">Dur\u00e9e</Label>
+                            <Label className="text-xs">Durée</Label>
                             <Input
                               value={therapist.duration}
                               onChange={(e) => updateTherapist(therapist.id, { duration: e.target.value })}
@@ -856,7 +856,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                             <Input
                               value={therapist.price}
                               onChange={(e) => updateTherapist(therapist.id, { price: e.target.value })}
-                              placeholder="60 \u20ac"
+                              placeholder="60 €"
                               className="h-8 text-sm"
                             />
                           </div>
@@ -887,12 +887,12 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Plus className="w-4 h-4" />
-                {data.therapists.length === 0 ? "Ajouter un th\u00e9rapeute" : "Ajouter un autre th\u00e9rapeute"}
+                {data.therapists.length === 0 ? "Ajouter un thérapeute" : "Ajouter un autre thérapeute"}
               </button>
 
               {data.therapists.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center">
-                  Optionnel. Vous pourrez ajouter des th\u00e9rapeutes plus tard.
+                  Optionnel. Vous pourrez ajouter des thérapeutes plus tard.
                 </p>
               )}
             </div>
@@ -905,10 +905,10 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-1">
-                  Vos sp\u00e9cialit\u00e9s
+                  Vos spécialités
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Chaque sp\u00e9cialit\u00e9 g\u00e9n\u00e8re une page d\u00e9di\u00e9e pour votre r\u00e9f\u00e9rencement.
+                  Chaque spécialité génère une page dédiée pour votre référencement.
                 </p>
               </div>
               <button
@@ -924,7 +924,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "specialties" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "specialties" ? "Validé !" : "Valider"}
               </button>
             </div>
 
@@ -974,7 +974,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              Modifiable depuis l'\u00e9diteur apr\u00e8s publication.
+              Modifiable depuis l'éditeur après publication.
             </p>
           </div>
         );
@@ -988,7 +988,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   Connectez votre fiche Google
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Vos avis Google seront automatiquement affich\u00e9s sur votre site.
+                  Vos avis Google seront automatiquement affichés sur votre site.
                 </p>
               </div>
               <button
@@ -1004,7 +1004,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "google" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "google" ? "Validé !" : "Valider"}
               </button>
             </div>
 
@@ -1065,7 +1065,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-1">
-                  Code personnalis\u00e9
+                  Code personnalisé
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   Google Tag Manager, widgets de chat, scripts analytics...
@@ -1084,7 +1084,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                 )}
               >
                 <Check className="w-4 h-4" />
-                {validatedSection === "customCode" ? "Valid\u00e9 !" : "Valider"}
+                {validatedSection === "customCode" ? "Validé !" : "Valider"}
               </button>
             </div>
 
@@ -1199,7 +1199,7 @@ const Setup = ({ onBackToEditor, initialStep }) => {
 
               {data.customCode.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center">
-                  Cette \u00e9tape est optionnelle. Vous pourrez ajouter du code personnalis\u00e9 plus tard.
+                  Cette étape est optionnelle. Vous pourrez ajouter du code personnalisé plus tard.
                 </p>
               )}
             </div>
@@ -1212,56 +1212,49 @@ const Setup = ({ onBackToEditor, initialStep }) => {
   };
 
   return (
-    <div className="h-screen bg-[#f5f5f5] flex flex-col">
-      {/* Header Bar */}
-      <div className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-50 flex items-center px-4">
+    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
+      {/* Header */}
+      <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
         <button
           onClick={onBackToEditor}
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
         >
           <ArrowLeft size={16} />
-          Retour \u00e0 l'\u00e9diteur
+          Retour à l'éditeur
         </button>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden pt-14">
+      <div className="flex-1 flex gap-6 overflow-hidden w-full max-w-[1200px] px-6 py-4 min-h-0">
         {/* Left Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="p-4 space-y-1">
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = index === currentStep;
-              return (
-                <button
-                  key={step.id}
-                  onClick={() => setCurrentStep(index)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-left",
-                    isActive
-                      ? "bg-slate-900 text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}
-                >
-                  <Icon className={cn("w-5 h-5 shrink-0", isActive && "text-white")} />
-                  <div className="flex-1 min-w-0">
-                    <div className={cn("font-medium", isActive && "text-white")}>{step.label}</div>
-                    <div className={cn("text-xs", isActive ? "text-white/70" : "text-gray-500")}>
-                      {step.description}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+        <div className="w-[240px] shrink-0 flex flex-col gap-4">
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
+            <h2 className="text-base font-bold text-[#2D2D2D] mb-4">Configuration</h2>
+            <div className="flex flex-col gap-0.5">
+              {STEPS.map((step, index) => {
+                const isActive = index === currentStep;
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => setCurrentStep(index)}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer text-left",
+                      isActive ? "text-[#FC6D41] font-semibold" : "text-gray-600 hover:bg-gray-50"
+                    )}
+                  >
+                    {isActive && <div className="w-2 h-2 rounded-full bg-[#FC6D41]" />}
+                    {step.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Right Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-4xl mx-auto px-6 py-6">
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              {renderStepContent()}
-            </div>
+        <div className="flex-1 overflow-auto min-h-0 rounded-2xl">
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 h-full overflow-auto">
+            {renderStepContent()}
           </div>
         </div>
       </div>
@@ -1283,16 +1276,16 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   {/* Warning state */}
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
-                      <span className="text-3xl">{"\u26a0\ufe0f"}</span>
+                      <span className="text-3xl">{"⚠️"}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Supprimer cette sp\u00e9cialit\u00e9 ?
+                      Supprimer cette spécialité ?
                     </h3>
                     <p className="text-muted-foreground text-sm">
-                      Attention : la page de sp\u00e9cialit\u00e9 <strong>"{specialtyToDelete.title}"</strong> va \u00eatre supprim\u00e9e.
+                      Attention : la page de spécialité <strong>"{specialtyToDelete.title}"</strong> va être supprimée.
                     </p>
                     <p className="text-muted-foreground text-sm mt-2">
-                      Les articles associ\u00e9s seront redirig\u00e9s vers votre page d'accueil.
+                      Les articles associés seront redirigés vers votre page d'accueil.
                     </p>
                   </div>
 
@@ -1320,10 +1313,10 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   {/* Replace input state */}
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Nouvelle sp\u00e9cialit\u00e9
+                      Nouvelle spécialité
                     </h3>
                     <p className="text-muted-foreground text-sm mb-4">
-                      Quelle sp\u00e9cialit\u00e9 souhaitez-vous cr\u00e9er \u00e0 la place ?
+                      Quelle spécialité souhaitez-vous créer à la place ?
                     </p>
                     <Input
                       value={newSpecialtyName}
@@ -1357,13 +1350,13 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                   {/* Loading state */}
                   <div className="text-center py-8">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-                      <span className="text-3xl">{"\u23f3"}</span>
+                      <span className="text-3xl">{"⏳"}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Cr\u00e9ation en cours...
+                      Création en cours...
                     </h3>
                     <p className="text-muted-foreground text-sm">
-                      Veuillez patienter le temps que l'on cr\u00e9e la page "{newSpecialtyName}".
+                      Veuillez patienter le temps que l'on crée la page "{newSpecialtyName}".
                     </p>
                   </div>
                 </>
@@ -1377,10 +1370,10 @@ const Setup = ({ onBackToEditor, initialStep }) => {
                       <span className="text-3xl">{"\ud83c\udf89"}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">
-                      F\u00e9licitations !
+                      Félicitations !
                     </h3>
                     <p className="text-muted-foreground text-sm">
-                      La page <strong>"{createdSpecialty}"</strong> a \u00e9t\u00e9 cr\u00e9\u00e9e avec succ\u00e8s.
+                      La page <strong>"{createdSpecialty}"</strong> a été créée avec succès.
                     </p>
                   </div>
 

@@ -70,7 +70,7 @@ const EditorCanvas = ({
         !isMobileDevice && "mx-auto",
         viewMode === "mobile"
           ? mobileClass
-          : "w-full max-w-6xl rounded-2xl shadow-lg border border-gray-300"
+          : "w-full max-w-6xl rounded-2xl border-2 border-gray-200"
       )}
       style={{ opacity: canvasOpacity, transition: 'opacity 150ms ease-in-out' }}
     >

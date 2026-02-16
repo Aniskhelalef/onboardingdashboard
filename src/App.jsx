@@ -7,6 +7,7 @@ import Setup from './components/site-editor/Setup'
 function App() {
   const [currentPage, setCurrentPage] = useState('onboarding')
   const [userData, setUserData] = useState({ prenom: '', profession: '', ville: '' })
+  const [homeTab, setHomeTab] = useState('accueil')
 
   return (
     <div className="min-h-screen bg-white">
@@ -22,6 +23,7 @@ function App() {
       {currentPage === 'home' && (
         <HomeDashboard
           userData={userData}
+          initialTab={homeTab}
           onGoToOnboarding={() => setCurrentPage('onboarding')}
           onGoToSiteEditor={() => setCurrentPage('site-editor')}
         />
@@ -29,7 +31,7 @@ function App() {
       {currentPage === 'site-editor' && (
         <SiteEditor
           onGoToSetup={() => setCurrentPage('site-setup')}
-          onBackToDashboard={() => setCurrentPage('home')}
+          onBackToDashboard={(tab) => { setHomeTab(tab || 'accueil'); setCurrentPage('home') }}
         />
       )}
       {currentPage === 'site-setup' && (

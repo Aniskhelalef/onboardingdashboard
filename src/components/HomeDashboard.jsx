@@ -5,8 +5,9 @@ import articleImg2 from '../assets/pexels-yankrukov-5794024-min.webp'
 import articleImg3 from '../assets/pexels-yankrukov-5793897-min.webp'
 import articleImg4 from '../assets/pexels-yankrukov-5793920-min.webp'
 
-const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
-  const [dashboardState, setDashboardState] = useState(0)
+const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEditor }) => {
+  const [activeTab, setActiveTab] = useState(initialTab || 'accueil')
+  const [dashboardState, setDashboardState] = useState(1)
   const [devNavVisible, setDevNavVisible] = useState(true)
   const [timePeriod, setTimePeriod] = useState('Depuis la dernière connexion')
   const [timePeriodOpen, setTimePeriodOpen] = useState(false)
@@ -24,6 +25,11 @@ const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState('compte')
   const [billingPeriod, setBillingPeriod] = useState('annual')
+
+  // SEO / Référencement tab state
+  const [seoMonth, setSeoMonth] = useState(() => new Date(2026, 6, 1)) // July 2026
+  const [autoPublish, setAutoPublish] = useState(true)
+  const [hoveredSeoDay, setHoveredSeoDay] = useState(null)
 
   // Tour state
   const [tourStep, setTourStep] = useState(0)
@@ -307,19 +313,25 @@ const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
 
           {/* Center nav — floating pill */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-color-1 text-white text-xs font-medium cursor-pointer transition-colors">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                <polyline points="9 22 9 12 15 12 15 22" />
-              </svg>
-              Accueil
-            </button>
             {[
-              { label: 'Référencement', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
-              { label: 'Site', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-              { label: 'Parrainage', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
+              { id: 'accueil', label: 'Accueil', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
+              { id: 'referencement', label: 'Référencement', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
+              { id: 'site', label: 'Site', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+              { id: 'parrainage', label: 'Parrainage', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
             ].map((item) => (
-              <button key={item.label} onClick={item.label === 'Site' ? onGoToSiteEditor : undefined} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <button
+                key={item.id}
+                onClick={() => {
+                  if (item.id === 'site') { onGoToSiteEditor(); return }
+                  setActiveTab(item.id)
+                  setShowSettings(false)
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs cursor-pointer transition-colors ${
+                  activeTab === item.id && !showSettings
+                    ? 'bg-color-1 text-white font-medium'
+                    : 'text-gray-400 hover:text-color-1 hover:bg-gray-50'
+                }`}
+              >
                 {item.icon}
                 {item.label}
               </button>
@@ -337,7 +349,208 @@ const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden px-6 py-4 w-full max-w-[1200px]">
-        {!showSettings ? (
+        {showSettings ? (
+        null
+        ) : activeTab === 'referencement' ? (
+        <div key="referencement" className="flex flex-col gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          {/* Row 1 — Stats + Tip */}
+          <div className="flex gap-3 shrink-0">
+            {/* Articles publiés */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400 font-medium">Articles publiés</p>
+                <p className="text-2xl font-bold text-color-1">92</p>
+              </div>
+            </div>
+            {/* Visites articles */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
+              <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <div>
+                <p className="text-[11px] text-gray-400 font-medium">Visites articles</p>
+                <p className="text-2xl font-bold text-color-1">2 454</p>
+              </div>
+            </div>
+            {/* Tip card */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4">
+              <img src={articleImg1} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-color-1 mb-0.5">Publiez vos articles de blog</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">La structure de votre site est optimisée pour le référencement. La principale marge de progression se situe désormais au niveau du contenu : publier régulièrement des articles de blog permettra d'accélérer le référencement et la visibilité de votre site.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 — Content Calendar */}
+          <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
+            {/* Calendar header */}
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <h2 className="text-base font-bold text-color-1">Plan de contenus</h2>
+              <div className="flex items-center gap-6">
+                {/* Legend */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-gray-400">Article publié</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400" /><span className="text-[10px] text-gray-400">Article à valider manuellement</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-gray-300" /><span className="text-[10px] text-gray-400">Article programmé</span></div>
+                </div>
+                {/* Auto-publish toggle */}
+                <button onClick={() => setAutoPublish(!autoPublish)} className="flex items-center gap-2 cursor-pointer">
+                  <div className={`w-10 h-5 rounded-full relative transition-colors ${autoPublish ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${autoPublish ? 'left-5' : 'left-0.5'}`} />
+                  </div>
+                  <span className="text-xs font-medium text-color-1">Publication automatique</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Month nav */}
+            <div className="flex items-center gap-3 mb-3 shrink-0">
+              <h3 className="text-sm font-semibold text-color-1">
+                {seoMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+              </h3>
+              <button onClick={() => setSeoMonth(new Date(seoMonth.getFullYear(), seoMonth.getMonth() - 1, 1))} className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <button onClick={() => setSeoMonth(new Date(seoMonth.getFullYear(), seoMonth.getMonth() + 1, 1))} className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            </div>
+
+            {/* Calendar grid */}
+            {(() => {
+              const year = seoMonth.getFullYear()
+              const month = seoMonth.getMonth()
+              const firstDay = new Date(year, month, 1).getDay()
+              const daysInMonth = new Date(year, month + 1, 0).getDate()
+              const offset = firstDay === 0 ? 6 : firstDay - 1
+              const days = []
+              for (let i = 0; i < offset; i++) days.push(null)
+              for (let d = 1; d <= daysInMonth; d++) days.push(d)
+              while (days.length < 35) days.push(null)
+
+              // Mock SEO articles
+              const seoArticles = {
+                1: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Ostéopathe paris solution mal de dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                2: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 75, scoreLabel: 'Bien', scoreColor: 'text-orange-500', published: true },
+                3: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Mal de dos au bureau : solutions', score: 85, scoreLabel: 'Très bien', scoreColor: 'text-green-500', published: false },
+                4: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 31, scoreLabel: 'Mauvais', scoreColor: 'text-red-500', published: true },
+                5: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                6: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                7: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                8: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                9: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                11: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                12: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                13: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Torticolis : causes et traitements', score: 88, scoreLabel: 'Très bien', scoreColor: 'text-green-500', published: false },
+                14: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                15: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                16: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                18: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                19: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                20: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                21: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                22: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                23: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                25: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                26: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                27: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                28: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                29: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+                30: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+              }
+
+              const weeks = []
+              for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
+
+              return (
+                <div className="flex-1 flex flex-col min-h-0">
+                  {/* Day headers */}
+                  <div className="grid grid-cols-7 gap-1 mb-1 shrink-0">
+                    {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+                      <div key={d} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
+                    ))}
+                  </div>
+                  {/* Weeks */}
+                  <div className="flex-1 grid grid-rows-5 gap-1 min-h-0">
+                    {weeks.map((week, wi) => (
+                      <div key={wi} className="grid grid-cols-7 gap-1 min-h-0">
+                        {week.map((day, di) => {
+                          const article = day ? seoArticles[day] : null
+                          const isHovered = hoveredSeoDay === day
+                          return (
+                            <div
+                              key={di}
+                              className={`rounded-xl border p-1.5 flex flex-col min-h-0 overflow-hidden transition-all duration-200 ${
+                                day
+                                  ? article && article.published
+                                    ? 'border-gray-200 cursor-pointer hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5'
+                                    : article && !article.published
+                                    ? 'border-gray-200 cursor-pointer hover:shadow-md hover:border-gray-300'
+                                    : 'border-dashed border-gray-200 cursor-pointer hover:border-gray-300'
+                                  : 'border-transparent'
+                              }`}
+                              onMouseEnter={() => day && setHoveredSeoDay(day)}
+                              onMouseLeave={() => setHoveredSeoDay(null)}
+                            >
+                              {day && article && article.published ? (
+                                <>
+                                  <div className="flex items-center justify-between shrink-0 mb-0.5">
+                                    <span className="text-xs font-bold text-green-500">{day}</span>
+                                    <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded-full ${article.tagColor}`}>{article.tag}</span>
+                                  </div>
+                                  <p className="text-[9px] text-color-1 font-semibold leading-tight line-clamp-2 flex-1">{article.title}</p>
+                                  <div className="h-px bg-gray-200 my-0.5 shrink-0" />
+                                  <p className={`text-[9px] font-semibold shrink-0 ${article.scoreColor}`}>{article.scoreLabel} : {article.score}/100</p>
+                                </>
+                              ) : day && article && !article.published ? (
+                                <>
+                                  <span className="text-sm font-bold text-color-1 shrink-0">{day}</span>
+                                  {isHovered ? (
+                                    <div className="flex-1 flex items-center justify-center gap-3">
+                                      <button className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-50 flex items-center justify-center transition-colors group">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-red-400"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                      </button>
+                                      <button className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-blue-50 flex items-center justify-center transition-colors group">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-blue-400"><path d="M7 16V4l10 6-10 6z" fill="none"/><line x1="4" y1="12" x2="20" y2="12"/><polyline points="8 8 4 12 8 16"/><polyline points="16 8 20 12 16 16"/></svg>
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </>
+                              ) : day ? (
+                                <>
+                                  <span className="text-xs font-semibold text-gray-300 shrink-0">{day}</span>
+                                  {isHovered ? (
+                                    <div className="flex-1 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors cursor-pointer">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </>
+                              ) : null}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Row 3 — Action buttons */}
+          <div className="flex items-center justify-center gap-3 shrink-0">
+            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Paramètres</button>
+            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Écrire manuellement un article</button>
+            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-300 cursor-not-allowed">Outils d'analyse des mots clés (arrive bientôt)</button>
+          </div>
+        </div>
+        ) : (
         <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[3fr_2fr] gap-3 w-full h-full" style={{ animation: 'settings-slide-out 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* 1 — Top left */}
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
@@ -810,7 +1023,12 @@ const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
             )}
           </div>
         </div>
-        ) : (
+        )}
+      </div>
+
+      {/* Settings panel — rendered on top when active */}
+      {showSettings && (
+      <div className="absolute inset-0 top-[52px] px-6 py-4 w-full max-w-[1200px] mx-auto">
         <div key="settings" className="flex gap-6 h-full" style={{ animation: 'settings-slide-in 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* Left column */}
           <div className="w-[240px] shrink-0 flex flex-col gap-4">
@@ -1121,8 +1339,8 @@ const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
            </div>
           </div>
         </div>
-        )}
       </div>
+      )}
 
       {/* Tour overlay */}
       {dashboardState === 0 && tourActive && spotlightRect && (() => {

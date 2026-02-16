@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft } from "lucide-react";
+import { Link2, Rocket } from "lucide-react";
+import theralysLogo from '../../assets/theralys-logo.svg';
 import { cn } from "@/lib/utils";
 import EditorCanvas from "./EditorCanvas";
 import FloatingEditToolbar from "./FloatingEditToolbar";
@@ -58,6 +59,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [isSitePublished, setIsSitePublished] = useState(() => localStorage.getItem("sitePublished") === "true");
   const [hasChanges, setHasChanges] = useState(() => localStorage.getItem("editorHasChanges") === "true");
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [showSpecialtyConfirm, setShowSpecialtyConfirm] = useState(false);
   const [showTherapistConfirm, setShowTherapistConfirm] = useState(false);
@@ -603,20 +605,62 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
   const currentRadius = radiusOptions.find(r => r.id === styleSettings.radius) || radiusOptions[0];
 
   return (
-    <div className="h-screen overflow-hidden relative" style={{ backgroundColor: currentPalette.background }}>
-      {/* Floating back button */}
-      <button
-        onClick={onBackToDashboard}
-        className="fixed top-4 left-4 z-[70] flex items-center gap-2 px-3 py-2 bg-white rounded-full shadow-md border border-gray-200 text-sm font-medium text-gray-700 hover:shadow-lg transition-shadow"
-      >
-        <ArrowLeft size={16} />
-        Retour
-      </button>
+    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
+      {/* Top nav bar */}
+      <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
+        <div className="flex items-center justify-between relative">
+          {/* Logo */}
+          <img src={theralysLogo} alt="Theralys" className="h-6" />
+
+          {/* Center nav — floating pill */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
+            <button onClick={() => onBackToDashboard('accueil')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+              Accueil
+            </button>
+            <button onClick={() => onBackToDashboard('referencement')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Référencement
+            </button>
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-color-1 text-white text-xs font-medium cursor-pointer transition-colors">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Site
+            </button>
+            <button onClick={() => onBackToDashboard('parrainage')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Parrainage
+            </button>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const url = `${globalSettings.firstName?.toLowerCase() || 'mon-site'}.theralys.fr`;
+                navigator.clipboard.writeText(url);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200 text-xs font-medium text-gray-600 hover:shadow-md transition-all cursor-pointer"
+            >
+              <Link2 size={14} />
+              {linkCopied ? 'Copié !' : 'Copier le lien'}
+            </button>
+            <button
+              onClick={handlePublishClick}
+              className="flex items-center gap-1.5 px-4 py-2 bg-color-2 text-white rounded-full shadow-sm text-xs font-semibold hover:opacity-90 transition-all cursor-pointer"
+            >
+              <Rocket size={14} />
+              {isSitePublished && hasChanges ? 'Sauvegarder' : isSitePublished ? 'Publié' : 'Publier'}
+            </button>
+          </div>
+        </div>
+      </nav>
 
       {/* Canvas with site preview */}
       <div
         ref={canvasRef}
-        className="h-screen overflow-auto flex justify-center items-start pt-4 pb-4 px-4"
+        className="flex-1 overflow-auto flex justify-center items-start px-6 py-4 w-full max-w-[1200px]"
         style={{
           "--page-bg": currentPalette.background,
           "--page-hero-bg": currentPalette.heroBg,
@@ -848,10 +892,10 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4 text-center animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Pr\u00eat \u00e0 publier ?
+              Prêt à publier ?
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              As-tu confirm\u00e9 tes informations et relu ton site ?
+              As-tu confirmé tes informations et relu ton site ?
             </p>
             <div className="flex flex-col gap-2">
               <button
@@ -879,17 +923,17 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
               <span className="text-2xl">{"\uD83D\uDD0D"}</span>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Modifier les sp\u00e9cialit\u00e9s
+              Modifier les spécialités
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              Les sp\u00e9cialit\u00e9s sont un \u00e9l\u00e9ment cl\u00e9 de votre r\u00e9f\u00e9rencement (SEO). Chaque sp\u00e9cialit\u00e9 g\u00e9n\u00e8re une page d\u00e9di\u00e9e qui aide vos patients \u00e0 vous trouver sur Google. Les modifications se font depuis l\u2019espace de configuration.
+              Les spécialités sont un élément clé de votre référencement (SEO). Chaque spécialité génère une page dédiée qui aide vos patients à vous trouver sur Google. Les modifications se font depuis l'espace de configuration.
             </p>
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => { setShowSpecialtyConfirm(false); onGoToSetup(); }}
                 className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
               >
-                Modifier mes sp\u00e9cialit\u00e9s
+                Modifier mes spécialités
               </button>
               <button
                 onClick={() => setShowSpecialtyConfirm(false)}
@@ -910,10 +954,10 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
               <span className="text-2xl">{"\uD83D\uDC64"}</span>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Modifier le profil th\u00e9rapeute
+              Modifier le profil thérapeute
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              Votre pr\u00e9sentation personnelle est essentielle pour rassurer vos patients. Les modifications se font depuis l\u2019espace de configuration.
+              Votre présentation personnelle est essentielle pour rassurer vos patients. Les modifications se font depuis l'espace de configuration.
             </p>
             <div className="flex flex-col gap-2">
               <button
@@ -966,7 +1010,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
         onOpenChange={setShowRatingBadgeModal}
         badge={ratingBadge}
         onSave={handleSaveRatingBadge}
-        title="Modifier le badge d'\u00e9valuation"
+        title="Modifier le badge d'évaluation"
       />
 
       <BadgeItemModal
