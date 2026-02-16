@@ -38,6 +38,8 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
   const rankingRef = useRef(null)
   const newsRef = useRef(null)
   const news = [
+    { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre' },
+    { title: 'Boostoncab — Boostez votre visibilité avec Google Ads', desc: 'Nouveau partenariat avec Boostoncab : lancez vos campagnes Google Ads en quelques clics et attirez plus de patients.', date: '12 fév.', tag: 'Partenaire' },
     { title: 'Génération d\'articles V2 — Plus rapide, plus pertinent', desc: 'Vos articles sont désormais générés avec un style plus naturel et adapté à votre spécialité.', date: '11 fév.', tag: 'Nouveau' },
     { title: 'Tableau de bord repensé', desc: 'Visualisez vos statistiques clés en un coup d\'œil avec le nouveau design.', date: '3 fév.', tag: 'Mise à jour' },
     { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau' },
@@ -235,6 +237,15 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
     return () => window.removeEventListener('keydown', handleKey)
   }, [tourActive, tourStep, dashboardState])
 
+  // Auto-rotate news every 2s, loop back to first
+  useEffect(() => {
+    if (showSettings) return
+    const interval = setInterval(() => {
+      setNewsIdx(prev => (prev + 1) % news.length)
+    }, 4500)
+    return () => clearInterval(interval)
+  }, [showSettings, news.length])
+
   // Restart tour when switching to state 0
   useEffect(() => {
     if (dashboardState === 0) {
@@ -296,7 +307,7 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
 
           {/* Center nav — floating pill */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
-            <button className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-color-1 text-white text-xs font-medium cursor-pointer transition-colors">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-color-1 text-white text-xs font-medium cursor-pointer transition-colors">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
@@ -306,8 +317,9 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
             {[
               { label: 'Référencement', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
               { label: 'Site', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
+              { label: 'Parrainage', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
             ].map((item) => (
-              <button key={item.label} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <button key={item.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
                 {item.icon}
                 {item.label}
               </button>
@@ -832,7 +844,7 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
               </div>
               <h3 className="text-sm font-bold text-color-1 mb-1">Annulation prévue</h3>
               <p className="text-[11px] text-gray-400 leading-relaxed">Votre abonnement sera annulé le <span className="font-semibold text-red-500">22/02/26.</span></p>
-              <button className="mt-3 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <button onClick={() => setSettingsTab('billing')} className="mt-3 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
                 Réactiver
               </button>
             </div>
@@ -848,13 +860,15 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
                   animation: 'border-spin 3s linear infinite',
                 }}
               />
-              <div className="relative bg-color-1 rounded-[14px] p-5 flex flex-col">
-                <div className="w-10 h-10 rounded-xl bg-color-2/15 flex items-center justify-center mb-3">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              <div className="relative rounded-[14px] p-5 flex flex-col overflow-hidden">
+                <img src={articleImg1} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: '90% 0%', transform: 'scale(1.3)' }} />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.08) 100%)' }} />
+                <div className="relative w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center mb-3">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                 </div>
-                <h3 className="text-sm font-bold text-white mb-1">Parrainage</h3>
-                <p className="text-[11px] text-gray-400 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
-                <button className="mt-3 px-4 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+                <h3 className="relative text-sm font-bold text-white mb-1">Parrainage</h3>
+                <p className="relative text-[11px] text-gray-300 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
+                <button className="relative mt-3 px-4 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
                   Inviter un confrère
                 </button>
               </div>
