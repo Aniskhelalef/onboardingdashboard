@@ -17,10 +17,10 @@ const ResendEmailLink = () => {
   }
 
   return (
-    <div className="text-center">
+    <div className="flex-shrink-0 whitespace-nowrap">
       {showSuccess ? (
         <p className="text-green-600 text-sm font-medium">
-          ✓ E-mail renvoyé avec succès
+          ✓ Renvoyé
         </p>
       ) : (
         <button
@@ -34,8 +34,9 @@ const ResendEmailLink = () => {
   )
 }
 
-const OnboardingDashboard = ({ onComplete }) => {
+const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
   const [currentView, setCurrentView] = useState('index') // 'index', 'signup', 'signin', 'email-verification', 'objectives', 'site-step1', 'site-step2', 'site-step3', 'site-step4', ou 'site-step5'
+  const [devNavVisible, setDevNavVisible] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [userPrenom, setUserPrenom] = useState('')
   const [userNom, setUserNom] = useState('')
@@ -56,7 +57,20 @@ const OnboardingDashboard = ({ onComplete }) => {
   const [selectedPlan, setSelectedPlan] = useState('starter') // 'starter' or 'visibilite'
   const [selectedReferral, setSelectedReferral] = useState('') // How did you hear about us
   const [customReferral, setCustomReferral] = useState('') // Custom text when "Autres" selected
+  const [emailValue, setEmailValue] = useState('')
+  const [emailFocused, setEmailFocused] = useState(false)
   const fileInputRef = useRef(null)
+
+  const emailDomains = ['gmail.com', 'outlook.fr', 'hotmail.com', 'yahoo.fr', 'icloud.com', 'orange.fr', 'free.fr', 'sfr.fr']
+  const emailSuggestions = (() => {
+    if (!emailValue.includes('@')) return []
+    const [local, partial] = emailValue.split('@')
+    if (!local) return []
+    return emailDomains
+      .filter(d => d.startsWith(partial) && d !== partial)
+      .slice(0, 4)
+      .map(d => `${local}@${d}`)
+  })()
 
   // Simuler le flux Google OAuth
   const handleGoogleSignIn = (isLogin = false) => {
@@ -148,6 +162,18 @@ const OnboardingDashboard = ({ onComplete }) => {
     'Autres',
   ]
 
+  const BackButton = ({ target }) => (
+    <button
+      onClick={() => setCurrentView(target)}
+      className="text-gray-400 hover:text-color-1 flex items-center gap-1.5 text-xs mb-4 cursor-pointer transition-colors"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Retour
+    </button>
+  )
+
   // Tâches de base (toujours affichées)
   const baseTasks = [
     `Analyse du marché des ${profession} à ${ville}`,
@@ -232,55 +258,49 @@ const OnboardingDashboard = ({ onComplete }) => {
     { id: 'site-step5', label: 'Pricing' },
     { id: 'checkout', label: 'Checkout' },
     { id: 'survey', label: 'Survey' },
+    { id: 'dashboard', label: 'Dashboard' },
   ]
 
   return (
     <div className={`h-screen overflow-hidden bg-white grid grid-cols-1 ${currentView === 'site-step5' || currentView === 'checkout' ? '' : 'lg:grid-cols-2'}`}>
-      {/* Dev nav */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 z-50 flex gap-0.5 bg-gray-900/90 backdrop-blur rounded-b-lg px-1.5 py-1">
-        {pages.map((p) => (
+      {/* Dev nav — bottom bar */}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50">
+        {devNavVisible ? (
+          <div className="flex items-center gap-0.5 bg-gray-900/90 backdrop-blur rounded-t-lg px-1.5 py-1">
+            {pages.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => p.id === 'dashboard' ? onGoToDashboard?.() : setCurrentView(p.id)}
+                className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
+                  currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+            <div className="h-3 w-px bg-gray-600 mx-0.5" />
+            <button
+              onClick={() => setDevNavVisible(false)}
+              className="px-1 py-0.5 rounded text-[9px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
           <button
-            key={p.id}
-            onClick={() => setCurrentView(p.id)}
-            className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
-              currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={() => setDevNavVisible(true)}
+            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-[10px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
-            {p.label}
+            DEV
           </button>
-        ))}
+        )}
       </div>
       {/* Left side - Form content */}
-      <div className="flex items-center justify-center px-8 sm:px-12 lg:px-16 py-6 relative overflow-y-auto">
-        <div className={`flex flex-col w-full ${currentView === 'site-step5' || currentView === 'checkout' ? 'max-w-4xl' : 'max-w-md'}`}>
-        {/* Shared back button — always same position */}
-        {(() => {
-          const backTarget = {
-            objectives: 'email-verification',
-            'site-step1': 'objectives',
-            'site-step2': 'site-step1',
-            'site-step3': 'site-step2',
-            'site-step4': 'site-step3',
-            'site-step5': 'site-step4',
-            checkout: 'site-step5',
-            survey: 'checkout',
-          }[currentView]
-          if (!backTarget) return null
-          return (
-            <button
-              onClick={() => setCurrentView(backTarget)}
-              className="text-gray-400 hover:text-color-1 flex items-center gap-1.5 text-xs mb-4 cursor-pointer transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-              Retour
-            </button>
-          )
-        })()}
+      <div className="flex flex-col px-8 sm:px-12 lg:px-16 py-6 relative overflow-hidden">
+        <div className={`flex flex-col h-full w-full mx-auto ${currentView === 'site-step5' || currentView === 'checkout' ? 'max-w-4xl' : 'max-w-md'}`}>
         {/* Vue Index - Page d'accueil */}
         {currentView === 'index' && (
-          <div className="w-full max-w-md">
+          <div className="flex-1 flex flex-col justify-center">
             {/* Logo */}
             <div className="mb-6">
               <img src={theralysLogo} alt="Theralys" className="h-7" />
@@ -351,7 +371,7 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Signup - Formulaire complet */}
         {currentView === 'signup' && (
-          <div className="w-full max-w-md">
+          <div className="flex-1 flex flex-col justify-center">
             {/* Logo */}
             <div className="mb-6">
               <img src={theralysLogo} alt="Theralys" className="h-7" />
@@ -412,7 +432,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 setCurrentView('email-verification')
               }}
             >
-              <div>
+              <div className="relative">
                 <label htmlFor="email" className="block text-xs text-gray-500 mb-1">
                   E-mail
                 </label>
@@ -421,8 +441,28 @@ const OnboardingDashboard = ({ onComplete }) => {
                   id="email"
                   name="email"
                   required
+                  value={emailValue}
+                  onChange={(e) => setEmailValue(e.target.value)}
+                  onFocus={() => setEmailFocused(true)}
+                  onBlur={() => setTimeout(() => setEmailFocused(false), 150)}
+                  autoComplete="off"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent"
                 />
+                {emailFocused && emailSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 overflow-hidden">
+                    {emailSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); setEmailValue(s); setEmailFocused(false) }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-color-1 hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                      >
+                        <span className="text-gray-400">@</span>
+                        <span>{s.split('@')[1]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -510,7 +550,7 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Signin - Page de connexion */}
         {currentView === 'signin' && (
-          <div className="w-full max-w-md">
+          <div className="flex-1 flex flex-col justify-center">
             {/* Logo */}
             <div className="mb-6">
               <img src={theralysLogo} alt="Theralys" className="h-7" />
@@ -617,7 +657,7 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue EmailVerification - Vérification d'email */}
         {currentView === 'email-verification' && (
-          <div className="w-full max-w-md">
+          <div className="flex-1 flex flex-col justify-center">
             {/* Logo */}
             <div className="mb-6">
               <img src={theralysLogo} alt="Theralys" className="h-7" />
@@ -684,14 +724,12 @@ const OnboardingDashboard = ({ onComplete }) => {
               </a>
             </div>
 
-            {/* Resend email link with success message */}
-            <ResendEmailLink />
-
-            {/* Bouton pour continuer après vérification */}
-            <div className="mt-8">
+            {/* Actions row — resend + verify side by side */}
+            <div className="flex items-center gap-4">
+              <ResendEmailLink />
               <button
                 onClick={() => setCurrentView('objectives')}
-                className="w-full px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                className="flex-1 px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
               >
                 J'ai vérifié mon e-mail
               </button>
@@ -701,8 +739,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Objectives - Choix des objectifs */}
         {currentView === 'objectives' && (
-          <div className="w-full max-w-md">
-            {/* Title and subtitle */}
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="email-verification" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Quels sont vos objectifs ?
             </h2>
@@ -710,7 +748,6 @@ const OnboardingDashboard = ({ onComplete }) => {
               Personnalisez votre expérience et dépassez vos objectifs en un temps record ! (plusieurs reponses possibles)
             </p>
 
-            {/* Objectives selection */}
             <div className="flex flex-wrap gap-3 mb-4">
               {objectives.map((objective) => {
                 const isSelected = selectedObjectives.includes(objective)
@@ -730,9 +767,8 @@ const OnboardingDashboard = ({ onComplete }) => {
               })}
             </div>
 
-            {/* Custom objective input - shown when "Autres" is selected */}
             {selectedObjectives.includes('Autres') && (
-              <div className="mb-4">
+              <div>
                 <input
                   type="text"
                   value={customObjective}
@@ -743,16 +779,13 @@ const OnboardingDashboard = ({ onComplete }) => {
               </div>
             )}
 
-            <div className="mb-8"></div>
-
-            {/* Continuer button */}
             <button
               disabled={selectedObjectives.length === 0}
               onClick={() => {
                 console.log('Objectifs sélectionnés:', selectedObjectives)
                 setCurrentView('site-step1')
               }}
-              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 selectedObjectives.length === 0
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -765,8 +798,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Site Step 1 - Analyse de marché */}
         {currentView === 'site-step1' && (
-          <div className="w-full max-w-md">
-            {/* Title and subtitle */}
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="objectives" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
@@ -774,16 +807,14 @@ const OnboardingDashboard = ({ onComplete }) => {
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
-            {/* Step indicator */}
-            <h3 className="text-lg font-bold text-color-1 mb-2">
+            <h3 className="text-base font-bold text-color-1 mb-4">
               Étape 1 sur 3 : Analyse de marché
             </h3>
             <p className="text-sm text-gray-500 mb-6">
               Vos informations sont utilisées uniquement pour la création de votre site internet.
             </p>
 
-            {/* Form fields */}
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4">
               <div>
                 <label htmlFor="profession" className="block text-sm font-medium text-color-1 mb-2">
                   Profession
@@ -811,14 +842,13 @@ const OnboardingDashboard = ({ onComplete }) => {
               </div>
             </div>
 
-            {/* Continuer button */}
             <button
               disabled={!profession.trim() || !ville.trim()}
               onClick={() => {
                 console.log('Profession:', profession, 'Ville:', ville)
                 setCurrentView('site-step2')
               }}
-              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 !profession.trim() || !ville.trim()
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -831,8 +861,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Site Step 2 - Préparation du site */}
         {currentView === 'site-step2' && (
-          <div className="w-full max-w-md">
-            {/* Title and subtitle */}
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="site-step1" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
@@ -840,13 +870,11 @@ const OnboardingDashboard = ({ onComplete }) => {
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
-            {/* Step indicator */}
             <h3 className="text-base font-bold text-color-1 mb-4">
               Étape 2/3 : Préparation du site
             </h3>
 
-            {/* Task list */}
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4">
               {preparationTasks.map((task, index) => (
                 <div
                   key={task}
@@ -873,14 +901,13 @@ const OnboardingDashboard = ({ onComplete }) => {
               ))}
             </div>
 
-            {/* Continuer button */}
             <button
               disabled={loadedTasks < preparationTasks.length}
               onClick={() => {
                 console.log('Préparation terminée')
                 setCurrentView('site-step3')
               }}
-              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 loadedTasks < preparationTasks.length
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -893,8 +920,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Site Step 3 - Designs du site */}
         {currentView === 'site-step3' && (
-          <div className="w-full max-w-md">
-            {/* Title and subtitle */}
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="site-step2" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
@@ -902,7 +929,6 @@ const OnboardingDashboard = ({ onComplete }) => {
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
-            {/* Step indicator */}
             <h3 className="text-base font-bold text-color-1 mb-4">
               Étape 3/3 : Designs du site
             </h3>
@@ -988,7 +1014,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {/* Image upload */}
-            <div className="mb-4">
+            <div>
               <span className="text-xs font-medium text-color-1 block mb-2">
                 Importez une image professionelle de vous
               </span>
@@ -1026,13 +1052,12 @@ const OnboardingDashboard = ({ onComplete }) => {
               </div>
             </div>
 
-            {/* Continuer button */}
             <button
               onClick={() => {
                 console.log('Design terminé:', { selectedPalette, selectedTypography, selectedRadius, uploadedImage })
                 setCurrentView('site-step4')
               }}
-              className="w-full max-w-xs px-5 py-2.5 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
+              className="w-full max-w-xs px-5 py-2.5 mt-6 bg-color-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer"
             >
               Continuer
             </button>
@@ -1041,8 +1066,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Site Step 4 - Résumé */}
         {currentView === 'site-step4' && (
-          <div className="w-full max-w-md">
-            {/* Title and subtitle */}
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="site-step3" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Créez votre site internet
             </h2>
@@ -1050,13 +1075,11 @@ const OnboardingDashboard = ({ onComplete }) => {
               Cette première version ne sera pas publiée automatiquement. Vous pourrez la modifier librement et décider de sa mise en ligne.
             </p>
 
-            {/* Summary heading */}
             <h3 className="text-base font-bold text-color-1 mb-4">
               Tout est prêt !
             </h3>
 
-            {/* Checklist */}
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4">
               {summaryTasks.map((task, index) => (
                 <div
                   key={task.label}
@@ -1087,14 +1110,13 @@ const OnboardingDashboard = ({ onComplete }) => {
               ))}
             </div>
 
-            {/* Continuer button */}
             <button
               disabled={loadedSummaryTasks < summaryTasks.filter(t => t.auto).length}
               onClick={() => {
                 console.log('Résumé terminé')
                 setCurrentView('site-step5')
               }}
-              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 loadedSummaryTasks < summaryTasks.filter(t => t.auto).length
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'
@@ -1117,7 +1139,8 @@ const OnboardingDashboard = ({ onComplete }) => {
           const currentSuffix = suffix[billingPeriod]
 
           return (
-            <div className="w-full max-w-4xl max-h-full overflow-hidden">
+            <div className="flex-1 flex flex-col justify-center w-full max-w-4xl max-h-full overflow-hidden">
+              <BackButton target="site-step4" />
               {/* Title */}
               <h2 className="text-xl font-bold text-color-1 mb-2">
                 Choisissez votre forfait
@@ -1127,7 +1150,7 @@ const OnboardingDashboard = ({ onComplete }) => {
               </p>
 
               {/* Billing toggle */}
-              <div className="inline-flex items-center gap-1 mb-4 bg-gray-100 rounded-full p-1">
+              <div className="flex mb-4"><div className="inline-flex items-center gap-0.5 bg-gray-100 rounded-full p-0.5">
                 {[
                   { id: 'monthly', label: 'Mensuel' },
                   { id: 'quarterly', label: 'Trimestriel', badge: '-10%' },
@@ -1136,7 +1159,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   <button
                     key={period.id}
                     onClick={() => setBillingPeriod(period.id)}
-                    className={`px-4 py-2 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center justify-center gap-1 ${
                       billingPeriod === period.id
                         ? 'bg-white text-color-1 shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
@@ -1152,7 +1175,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                     )}
                   </button>
                 ))}
-              </div>
+              </div></div>
 
               {/* Pricing cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl">
@@ -1269,13 +1292,19 @@ const OnboardingDashboard = ({ onComplete }) => {
           const periodLabel = { monthly: 'Mensuel', quarterly: 'Trimestriel', annual: 'Annuel' }[billingPeriod]
           const trialEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 
+          const anim = (i) => ({
+            opacity: 0,
+            animation: `checkout-fade-up 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${i * 0.5}s forwards`,
+          })
+
           return (
             <div className="w-full max-w-5xl mx-auto max-h-full overflow-hidden">
+              <BackButton target="site-step5" />
               <div className="grid grid-cols-1 lg:grid-cols-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
                 {/* Left — Order summary */}
                 <div className="bg-gray-50 p-10 flex flex-col">
                   {/* Brand */}
-                  <div className="flex items-center gap-3 mb-8">
+                  <div className="flex items-center gap-3 mb-8" style={anim(0)}>
                     <div className="w-10 h-10 rounded-full bg-color-2 flex items-center justify-center">
                       <span className="text-white font-bold text-lg">T</span>
                     </div>
@@ -1283,11 +1312,13 @@ const OnboardingDashboard = ({ onComplete }) => {
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-color-2 px-2 py-0.5 rounded">Test</span>
                   </div>
 
-                  <p className="text-sm text-gray-500 mb-1">S'abonner à</p>
-                  <h2 className="text-2xl font-bold text-color-1 mb-8">Forfait {plan.name}</h2>
+                  <div style={anim(1)}>
+                    <p className="text-sm text-gray-500 mb-1">S'abonner à</p>
+                    <h2 className="text-2xl font-bold text-color-1 mb-8">Forfait {plan.name}</h2>
+                  </div>
 
                   {/* Line items */}
-                  <div className="space-y-5 flex-1">
+                  <div className="space-y-5 flex-1" style={anim(2)}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center">
@@ -1324,7 +1355,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Totals */}
-                  <div className="border-t border-gray-200 pt-5 mt-6 space-y-3">
+                  <div className="border-t border-gray-200 pt-5 mt-6 space-y-3" style={anim(3)}>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Sous-total</span>
                       <span className="text-color-1 font-medium">{price},00 €</span>
@@ -1344,7 +1375,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Powered by */}
-                  <div className="mt-8 flex items-center gap-2 text-xs text-gray-400">
+                  <div className="mt-8 flex items-center gap-2 text-xs text-gray-400" style={anim(4)}>
                     <span>Powered by</span>
                     <span className="font-bold text-gray-500 tracking-tight text-sm">stripe</span>
                   </div>
@@ -1353,7 +1384,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                 {/* Right — Payment form */}
                 <div className="bg-white p-10 flex flex-col">
                   {/* Apple Pay */}
-                  <button onClick={() => setCurrentView('survey')} className="w-full bg-black text-white rounded-lg py-3.5 font-medium text-sm flex items-center justify-center gap-2 mb-5 cursor-pointer hover:bg-gray-900 transition-colors">
+                  <button onClick={() => setCurrentView('survey')} style={anim(0)} className="w-full bg-black text-white rounded-lg py-3.5 font-medium text-sm flex items-center justify-center gap-2 mb-5 cursor-pointer hover:bg-gray-900 transition-colors">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
                       <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                     </svg>
@@ -1361,14 +1392,14 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </button>
 
                   {/* Divider */}
-                  <div className="flex items-center gap-4 mb-6">
+                  <div className="flex items-center gap-4 mb-6" style={anim(1)}>
                     <div className="flex-1 h-px bg-gray-200"></div>
                     <span className="text-xs text-gray-400">Ou payer par carte</span>
                     <div className="flex-1 h-px bg-gray-200"></div>
                   </div>
 
                   {/* Email */}
-                  <div className="mb-5">
+                  <div className="mb-5" style={anim(2)}>
                     <label className="text-sm text-gray-600 mb-1.5 block">E-mail</label>
                     <input
                       type="email"
@@ -1378,7 +1409,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Card */}
-                  <div className="mb-5">
+                  <div className="mb-5" style={anim(3)}>
                     <label className="text-sm text-gray-600 mb-1.5 block">Informations de carte</label>
                     <div className="border border-gray-300 rounded-lg overflow-hidden">
                       <div className="flex items-center px-4 py-3 border-b border-gray-200">
@@ -1415,7 +1446,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Name on card */}
-                  <div className="mb-5">
+                  <div className="mb-5" style={anim(4)}>
                     <label className="text-sm text-gray-600 mb-1.5 block">Nom sur la carte</label>
                     <input
                       type="text"
@@ -1425,7 +1456,7 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Country */}
-                  <div className="mb-8">
+                  <div className="mb-8" style={anim(5)}>
                     <label className="text-sm text-gray-600 mb-1.5 block">Pays</label>
                     <select className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-color-2 focus:border-transparent bg-white text-gray-700">
                       <option>France</option>
@@ -1436,11 +1467,11 @@ const OnboardingDashboard = ({ onComplete }) => {
                   </div>
 
                   {/* Pay button */}
-                  <button onClick={() => setCurrentView('survey')} className="w-full bg-color-2 text-white rounded-lg py-4 font-semibold text-[15px] hover:opacity-90 transition-opacity cursor-pointer mt-auto">
+                  <button onClick={() => setCurrentView('survey')} style={anim(6)} className="w-full bg-color-2 text-white rounded-lg py-4 font-semibold text-[15px] hover:opacity-90 transition-opacity cursor-pointer mt-auto">
                     Démarrer l'essai gratuit
                   </button>
 
-                  <p className="text-[11px] text-gray-400 mt-4 text-center leading-relaxed">
+                  <p className="text-[11px] text-gray-400 mt-4 text-center leading-relaxed" style={anim(7)}>
                     En confirmant, vous autorisez Theralys à débiter votre carte de {price},00 €/mois après la période d'essai. Vous pouvez annuler à tout moment.
                   </p>
                 </div>
@@ -1451,7 +1482,8 @@ const OnboardingDashboard = ({ onComplete }) => {
 
         {/* Vue Survey — Comment nous avez-vous connus ? */}
         {currentView === 'survey' && (
-          <div className="w-full max-w-md">
+          <div className="flex-1 flex flex-col justify-center">
+            <BackButton target="checkout" />
             <h2 className="text-xl font-bold text-color-1 mb-2">
               Comment nous avez-vous connus ?
             </h2>
@@ -1479,7 +1511,7 @@ const OnboardingDashboard = ({ onComplete }) => {
             </div>
 
             {selectedReferral === 'Autres' && (
-              <div className="mb-4">
+              <div>
                 <input
                   type="text"
                   value={customReferral}
@@ -1490,12 +1522,10 @@ const OnboardingDashboard = ({ onComplete }) => {
               </div>
             )}
 
-            <div className="mb-8"></div>
-
             <button
               disabled={!selectedReferral}
               onClick={() => onComplete && onComplete({ prenom: userPrenom, profession, ville })}
-              className={`w-full max-w-xs px-5 py-2.5 rounded-full text-white text-sm font-medium transition-opacity ${
+              className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 !selectedReferral
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-color-2 hover:opacity-90 cursor-pointer'

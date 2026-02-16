@@ -14,6 +14,7 @@ function App() {
             setUserData(data)
             setCurrentPage('home')
           }}
+          onGoToDashboard={() => setCurrentPage('home')}
         />
       ) : (
         <HomeDashboard
