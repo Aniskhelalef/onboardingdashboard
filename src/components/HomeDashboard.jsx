@@ -5,7 +5,7 @@ import articleImg2 from '../assets/pexels-yankrukov-5794024-min.webp'
 import articleImg3 from '../assets/pexels-yankrukov-5793897-min.webp'
 import articleImg4 from '../assets/pexels-yankrukov-5793920-min.webp'
 
-const HomeDashboard = ({ userData, onGoToOnboarding }) => {
+const HomeDashboard = ({ userData, onGoToOnboarding, onGoToSiteEditor }) => {
   const [dashboardState, setDashboardState] = useState(0)
   const [devNavVisible, setDevNavVisible] = useState(true)
   const [timePeriod, setTimePeriod] = useState('Depuis la dernière connexion')
@@ -319,7 +319,7 @@ const HomeDashboard = ({ userData, onGoToOnboarding }) => {
               { label: 'Site', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
               { label: 'Parrainage', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
             ].map((item) => (
-              <button key={item.label} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <button key={item.label} onClick={item.label === 'Site' ? onGoToSiteEditor : undefined} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
                 {item.icon}
                 {item.label}
               </button>

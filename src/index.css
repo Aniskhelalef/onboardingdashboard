@@ -1,6 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&family=Open+Sans:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 18%;
+    --primary: 16 97% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 18%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 18%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 16 97% 56%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  .font-display {
+    font-family: var(--page-font-display, "Playfair Display", serif);
+  }
+
+  .font-body {
+    font-family: var(--page-font-body, "Inter", sans-serif);
+  }
+
+  .page-radius {
+    border-radius: var(--page-radius, 12px);
+  }
+
+  .page-radius-sm {
+    border-radius: calc(var(--page-radius, 12px) * 0.5);
+  }
+
+  .page-radius-lg {
+    border-radius: calc(var(--page-radius, 12px) * 1.5);
+  }
+
+  .page-radius-full {
+    border-radius: 9999px;
+  }
+}
 
 body {
   margin: 0;
@@ -56,6 +111,34 @@ body {
   .card {
     @apply bg-white rounded-2xl shadow-sm p-6 border border-gray-100;
   }
+
+  /* Editor element styles */
+  .editor-element-hover {
+    @apply outline-2 outline-dashed outline-primary/50 outline-offset-2 cursor-pointer;
+  }
+
+  .editor-element-selected {
+    @apply outline-2 outline-solid outline-primary outline-offset-2;
+  }
+
+  .editor-editable {
+    @apply focus:outline-none;
+  }
+
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    opacity: 0.4;
+  }
+
+  /* Links inside editable content */
+  [contenteditable] a,
+  [dangerouslySetInnerHTML] a,
+  span a {
+    color: hsl(var(--page-accent));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
 }
 
 @layer utilities {
@@ -64,6 +147,14 @@ body {
       linear-gradient(rgba(252, 109, 65, 0.15) 1px, transparent 1px),
       linear-gradient(90deg, rgba(252, 109, 65, 0.15) 1px, transparent 1px);
     background-size: 48px 48px;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
 
