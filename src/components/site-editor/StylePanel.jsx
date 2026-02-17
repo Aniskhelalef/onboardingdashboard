@@ -235,7 +235,7 @@ const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange })
                 className="w-8 h-5 bg-foreground/20"
                 style={{ borderRadius: radius.value }}
               />
-              <span className="text-[10px] text-muted-foreground">{radius.label}</span>
+              <span className="text-sm text-muted-foreground">{radius.label}</span>
             </button>
           ))}
         </div>

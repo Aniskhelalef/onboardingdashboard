@@ -88,7 +88,7 @@ const EditorToolbar = ({
 
                 {specialties.length > 0 && (
                   <>
-                    <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                    <div className="px-3 py-1.5 text-sm font-medium text-muted-foreground uppercase tracking-wider mt-1">
                       Spécialités
                     </div>
                     {specialties.map((spec) => (

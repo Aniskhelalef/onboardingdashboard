@@ -8,6 +8,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('onboarding')
   const [userData, setUserData] = useState({ prenom: '', profession: '', ville: '' })
   const [homeTab, setHomeTab] = useState('accueil')
+  const [setupStep, setSetupStep] = useState(null)
 
   return (
     <div className="min-h-screen bg-white">
@@ -26,17 +27,20 @@ function App() {
           initialTab={homeTab}
           onGoToOnboarding={() => setCurrentPage('onboarding')}
           onGoToSiteEditor={() => setCurrentPage('site-editor')}
+          onGoToSetup={(step) => { setSetupStep(step || null); setCurrentPage('site-setup') }}
         />
       )}
       {currentPage === 'site-editor' && (
         <SiteEditor
-          onGoToSetup={() => setCurrentPage('site-setup')}
+          onGoToSetup={(step) => { setSetupStep(step || null); setCurrentPage('site-setup') }}
           onBackToDashboard={(tab) => { setHomeTab(tab || 'accueil'); setCurrentPage('home') }}
         />
       )}
       {currentPage === 'site-setup' && (
         <Setup
           onBackToEditor={() => setCurrentPage('site-editor')}
+          onBackToDashboard={() => setCurrentPage('home')}
+          initialStep={setupStep}
         />
       )}
     </div>

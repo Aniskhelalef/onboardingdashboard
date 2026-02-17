@@ -271,7 +271,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
               <button
                 key={p.id}
                 onClick={() => p.id === 'dashboard' ? onGoToDashboard?.() : setCurrentView(p.id)}
-                className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors cursor-pointer ${
+                className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors cursor-pointer ${
                   currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -281,7 +281,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
             <div className="h-3 w-px bg-gray-600 mx-0.5" />
             <button
               onClick={() => setDevNavVisible(false)}
-              className="px-1 py-0.5 rounded text-[9px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="px-1 py-0.5 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
               ✕
             </button>
@@ -289,7 +289,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
         ) : (
           <button
             onClick={() => setDevNavVisible(true)}
-            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-[10px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             DEV
           </button>
@@ -958,7 +958,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                           />
                         ))}
                       </div>
-                      <span className="text-[10px] font-medium text-color-1">{palette.name}</span>
+                      <span className="text-sm font-medium text-color-1">{palette.name}</span>
                     </button>
                   ))}
                 </div>
@@ -985,7 +985,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                       >
                         Aa
                       </div>
-                      <span className="text-[10px] text-gray-500">{typo.label}</span>
+                      <span className="text-sm text-gray-500">{typo.label}</span>
                     </button>
                   ))}
                 </div>
@@ -1006,7 +1006,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                         className="w-7 h-4 bg-gray-300"
                         style={{ borderRadius: radius.value }}
                       />
-                      <span className="text-[9px] text-gray-500">{radius.label}</span>
+                      <span className="text-sm text-gray-500">{radius.label}</span>
                     </button>
                   ))}
                 </div>
@@ -1039,7 +1039,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                 {uploadedImage ? (
                   <div className="space-y-1">
                     <img src={uploadedImage} alt="Photo" className="max-h-14 mx-auto rounded object-contain" />
-                    <p className="text-[10px] text-gray-500">Cliquez pour remplacer</p>
+                    <p className="text-sm text-gray-500">Cliquez pour remplacer</p>
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -1167,7 +1167,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                   >
                     {period.label}
                     {period.badge && (
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      <span className={`text-sm font-semibold px-1.5 py-0.5 rounded-full ${
                         billingPeriod === period.id ? 'bg-color-2/15 text-color-2' : 'bg-gray-200 text-gray-500'
                       }`}>
                         {period.badge}
@@ -1309,7 +1309,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                       <span className="text-white font-bold text-lg">T</span>
                     </div>
                     <span className="font-semibold text-color-1">Theralys</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-color-2 px-2 py-0.5 rounded">Test</span>
+                    <span className="text-sm font-bold uppercase tracking-wider bg-orange-100 text-color-2 px-2 py-0.5 rounded">Test</span>
                   </div>
 
                   <div style={anim(1)}>
@@ -1420,7 +1420,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                         />
                         <div className="flex items-center gap-1.5">
                           <div className="w-8 h-5 rounded bg-[#1A1F71] flex items-center justify-center">
-                            <span className="text-white text-[8px] font-bold italic">VISA</span>
+                            <span className="text-white text-sm font-bold italic">VISA</span>
                           </div>
                           <div className="w-8 h-5 rounded bg-[#EB001B]/10 flex items-center justify-center">
                             <div className="flex -space-x-1">
@@ -1467,11 +1467,11 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                   </div>
 
                   {/* Pay button */}
-                  <button onClick={() => setCurrentView('survey')} style={anim(6)} className="w-full bg-color-2 text-white rounded-lg py-4 font-semibold text-[15px] hover:opacity-90 transition-opacity cursor-pointer mt-auto">
+                  <button onClick={() => setCurrentView('survey')} style={anim(6)} className="w-full bg-color-2 text-white rounded-lg py-4 font-semibold text-base hover:opacity-90 transition-opacity cursor-pointer mt-auto">
                     Démarrer l'essai gratuit
                   </button>
 
-                  <p className="text-[11px] text-gray-400 mt-4 text-center leading-relaxed" style={anim(7)}>
+                  <p className="text-sm text-gray-400 mt-4 text-center leading-relaxed" style={anim(7)}>
                     En confirmant, vous autorisez Theralys à débiter votre carte de {price},00 €/mois après la période d'essai. Vous pouvez annuler à tout moment.
                   </p>
                 </div>
@@ -1717,7 +1717,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                 {/* Hero */}
                 <div className="px-7 pt-4 pb-8" style={{ backgroundColor: `hsl(${previewPalette.heroBg})` }}>
                   <span
-                    className="inline-block px-4 py-1.5 text-[13px] font-medium mb-6"
+                    className="inline-block px-4 py-1.5 text-sm font-medium mb-6"
                     style={{
                       color: `hsl(${previewPalette.accent})`,
                       border: `1px solid hsl(${previewPalette.accent} / 0.25)`,
@@ -1756,15 +1756,15 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
                   <div className="absolute top-4 left-4 flex items-center gap-2 px-3.5 py-2.5 rounded-xl backdrop-blur-sm" style={{ backgroundColor: `hsl(${previewPalette.accentDark} / 0.8)` }}>
                     <span className="text-yellow-300 text-[16px]">&#9733;</span>
                     <div>
-                      <p className="text-white text-[15px] font-bold leading-none">5/5</p>
-                      <p className="text-white/70 text-[11px] leading-none mt-1">Avis patients</p>
+                      <p className="text-white text-base font-bold leading-none">5/5</p>
+                      <p className="text-white/70 text-sm leading-none mt-1">Avis patients</p>
                     </div>
                   </div>
                   <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3.5 py-2.5 rounded-xl backdrop-blur-sm" style={{ backgroundColor: `hsl(${previewPalette.accentDark} / 0.8)` }}>
                     <span className="text-[16px]">&#128522;</span>
                     <div>
-                      <p className="text-white text-[15px] font-bold leading-none">+100</p>
-                      <p className="text-white/70 text-[11px] leading-none mt-1">Patients accompagnés</p>
+                      <p className="text-white text-base font-bold leading-none">+100</p>
+                      <p className="text-white/70 text-sm leading-none mt-1">Patients accompagnés</p>
                     </div>
                   </div>
                 </div>

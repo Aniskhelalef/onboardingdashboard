@@ -5,7 +5,7 @@ import articleImg2 from '../assets/pexels-yankrukov-5794024-min.webp'
 import articleImg3 from '../assets/pexels-yankrukov-5793897-min.webp'
 import articleImg4 from '../assets/pexels-yankrukov-5793920-min.webp'
 
-const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEditor }) => {
+const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEditor, onGoToSetup }) => {
   const [activeTab, setActiveTab] = useState(initialTab || 'accueil')
   const [dashboardState, setDashboardState] = useState(1)
   const [devNavVisible, setDevNavVisible] = useState(true)
@@ -24,12 +24,33 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const [newsIdx, setNewsIdx] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState('compte')
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const profileMenuRef = useRef(null)
+  const profileBtnRef = useRef(null)
   const [billingPeriod, setBillingPeriod] = useState('annual')
 
   // SEO / Référencement tab state
-  const [seoMonth, setSeoMonth] = useState(() => new Date(2026, 6, 1)) // July 2026
+  const [seoView, setSeoView] = useState('week')       // 'day' | 'week' | 'month'
+  const [seoDate, setSeoDate] = useState(new Date(2026, 1, 17)) // anchor date
+  const [seoStatus, setSeoStatus] = useState('all')    // 'all' | 'published' | 'scheduled'
   const [autoPublish, setAutoPublish] = useState(true)
-  const [hoveredSeoDay, setHoveredSeoDay] = useState(null)
+  const [customTitles, setCustomTitles] = useState({}) // key: 'YYYY-M-D' → custom title
+
+  // Specialty distribution state
+  const allSpecialties = [
+    { id: '1', icon: '\u{1F9B4}', title: 'Douleurs musculaires' },
+    { id: '2', icon: '\u{1F930}', title: 'Femmes enceintes' },
+    { id: '3', icon: '\u{1F476}', title: 'Nourrissons' },
+    { id: '4', icon: '\u26BD', title: 'Sportifs' },
+    { id: '5', icon: '\u{1F4BC}', title: 'Troubles posturaux' },
+    { id: '6', icon: '\u{1F9D3}', title: 'Seniors' },
+  ]
+  const [checkedSpecs, setCheckedSpecs] = useState(['1', '2', '3', '4', '5', '6'])
+  const [pendingSpecs, setPendingSpecs] = useState(null) // null = no pending changes, array = staged selection
+  const [rebalanceMode, setRebalanceMode] = useState(false)
+  const [seoFilter, setSeoFilter] = useState(null) // null = all, or specialty id
+  const activeSpecCount = pendingSpecs ? pendingSpecs.length : checkedSpecs.length
+  const articlesPerSpec = activeSpecCount > 0 ? Math.round(30 / activeSpecCount) : 0
 
   // Tour state
   const [tourStep, setTourStep] = useState(0)
@@ -91,6 +112,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const [selectedKpi, setSelectedKpi] = useState('visites')
   const [hoveredKpi, setHoveredKpi] = useState(null) // index into activeCard.data
   const [hoveredRank, setHoveredRank] = useState(null) // index into slicedRanking
+  const [hoveredSeoVisit, setHoveredSeoVisit] = useState(null) // for référencement chart
 
   // Full 12-month data (Jul–Jun) and month labels
   const allMonths = ['Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc', 'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin']
@@ -121,19 +143,24 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const slicedMonths = allMonths.slice(sliceStart, sliceEnd)
   const slicedRanking = fullRankingData.slice(sliceStart, sliceEnd)
 
+  // Article visits mock data (matches slicedMonths length)
+  const articleVisitsData = [45, 78, 120, 195, 310, 480, 620, 890, 1150, 1680, 2100, 2454]
+  const slicedArticleVisits = articleVisitsData.slice(articleVisitsData.length - slicedMonths.length)
+  const articleVisitsMax = Math.max(...slicedArticleVisits) * 1.1
+
   // KPI config with sliced data
   const kpiConfig = {
     visites: {
-      label: 'Visites', bg: 'bg-orange-50', activeBorder: 'border-color-2', color: '#FC6D41',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+      label: 'Visites', bg: 'bg-gray-50', activeBg: 'bg-orange-50', activeBorder: 'border-color-2', color: '#FC6D41',
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
     },
     clics: {
-      label: 'Clics RDV', bg: 'bg-indigo-50', activeBorder: 'border-indigo-400', color: '#6366F1',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+      label: 'Clics RDV', bg: 'bg-gray-50', activeBg: 'bg-orange-50', activeBorder: 'border-color-2', color: '#FC6D41',
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
     },
     avis: {
-      label: 'Avis Google', bg: 'bg-amber-50', activeBorder: 'border-amber-400', color: '#F59E0B',
-      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+      label: 'Avis Google', bg: 'bg-gray-50', activeBg: 'bg-orange-50', activeBorder: 'border-color-2', color: '#FC6D41',
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
     },
   }
 
@@ -243,7 +270,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     return () => window.removeEventListener('keydown', handleKey)
   }, [tourActive, tourStep, dashboardState])
 
-  // Auto-rotate news every 2s, loop back to first
+  // Auto-rotate articles every 4s, loop
+  useEffect(() => {
+    if (showSettings || activeTab !== 'accueil' || dashboardState === 0) return
+    const interval = setInterval(() => {
+      setArticleIdx(prev => (prev + 1) % articles.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [showSettings, activeTab, dashboardState, articles.length])
+
+  // Auto-rotate news every 4.5s, loop
   useEffect(() => {
     if (showSettings) return
     const interval = setInterval(() => {
@@ -260,10 +296,25 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     }
   }, [dashboardState])
 
+  // Close profile menu on outside click
+  useEffect(() => {
+    if (!showProfileMenu) return
+    const handler = (e) => {
+      if (
+        profileMenuRef.current && !profileMenuRef.current.contains(e.target) &&
+        profileBtnRef.current && !profileBtnRef.current.contains(e.target)
+      ) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showProfileMenu])
+
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
       {/* Dev nav — bottom bar */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50">
+      <div className="fixed bottom-0 left-0 z-50">
         {devNavVisible ? (
           <div className="flex items-center gap-1 bg-gray-900/90 backdrop-blur rounded-t-lg px-2 py-1">
             {[
@@ -273,7 +324,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <button
                 key={s.id}
                 onClick={() => setDashboardState(s.id)}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 rounded text-sm font-medium transition-colors cursor-pointer ${
                   dashboardState === s.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -283,14 +334,14 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             <div className="h-3 w-px bg-gray-600 mx-1" />
             <button
               onClick={onGoToOnboarding}
-              className="px-2.5 py-1 rounded text-[11px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
               Onboarding
             </button>
             <div className="h-3 w-px bg-gray-600 mx-1" />
             <button
               onClick={() => setDevNavVisible(false)}
-              className="px-1.5 py-1 rounded text-[11px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="px-1.5 py-1 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
               ✕
             </button>
@@ -298,7 +349,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         ) : (
           <button
             onClick={() => setDevNavVisible(true)}
-            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-[10px] font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
           >
             DEV
           </button>
@@ -306,8 +357,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       </div>
 
       {/* Top nav */}
-      <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1">
-        <div className="flex items-center justify-between relative">
+      <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0">
+        <div className="flex items-center justify-between relative h-10">
           {/* Logo */}
           <img src={theralysLogo} alt="Theralys" className="h-6" />
 
@@ -326,7 +377,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   setActiveTab(item.id)
                   setShowSettings(false)
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs cursor-pointer transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm cursor-pointer transition-colors ${
                   activeTab === item.id && !showSettings
                     ? 'bg-color-1 text-white font-medium'
                     : 'text-gray-400 hover:text-color-1 hover:bg-gray-50'
@@ -339,10 +390,56 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2">
-<button onClick={() => setShowSettings(!showSettings)} className={`w-8 h-8 rounded-full bg-color-2 flex items-center justify-center text-white text-xs font-bold cursor-pointer transition-all ${showSettings ? 'ring-2 ring-color-2/30' : 'hover:ring-2 hover:ring-color-2/30'}`}>
+          <div className="relative flex items-center gap-2">
+            <button
+              ref={profileBtnRef}
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className={`w-8 h-8 rounded-full bg-color-2 flex items-center justify-center text-white text-sm font-bold cursor-pointer transition-all ${showProfileMenu ? 'ring-2 ring-color-2/30' : 'hover:ring-2 hover:ring-color-2/30'}`}
+            >
               {prenom.charAt(0)}
             </button>
+
+            {/* Profile dropdown */}
+            {showProfileMenu && (
+              <div
+                ref={profileMenuRef}
+                className="absolute top-full right-0 mt-2 w-[260px] bg-white rounded-2xl shadow-xl border border-gray-200/60 p-2 z-50"
+                style={{ animation: 'tab-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+              >
+                {/* User info */}
+                <div className="px-3 py-3 border-b border-gray-100 mb-1">
+                  <p className="text-sm font-semibold text-color-1">{prenom}</p>
+                  <p className="text-sm text-gray-400 mt-0.5">anis.khelalef@gmail.com</p>
+                </div>
+
+                {/* Menu items */}
+                <button
+                  onClick={() => { setShowProfileMenu(false); setShowSettings(true); setSettingsTab('compte'); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  Paramètres
+                </button>
+                <button
+                  onClick={() => { setShowProfileMenu(false); onGoToSetup('domain'); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  Domaines
+                </button>
+
+                {/* Déconnexion */}
+                <div className="border-t border-gray-100 mt-1 pt-1 px-3 py-2">
+                  <button
+                    onClick={() => { setShowProfileMenu(false); onGoToOnboarding(); }}
+                    className="flex items-center gap-2 text-sm text-color-2 hover:text-color-2/80 transition-colors font-medium"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Déconnexion
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -352,206 +449,431 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         {showSettings ? (
         null
         ) : activeTab === 'referencement' ? (
-        <div key="referencement" className="flex flex-col gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-          {/* Row 1 — Stats + Tip */}
-          <div className="flex gap-3 shrink-0">
-            {/* Articles publiés */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-400 font-medium">Articles publiés</p>
-                <p className="text-2xl font-bold text-color-1">92</p>
-              </div>
-            </div>
-            {/* Visites articles */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
-              <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-400 font-medium">Visites articles</p>
-                <p className="text-2xl font-bold text-color-1">2 454</p>
-              </div>
-            </div>
-            {/* Tip card */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4">
-              <img src={articleImg1} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-color-1 mb-0.5">Publiez vos articles de blog</p>
-                <p className="text-[11px] text-gray-400 leading-relaxed">La structure de votre site est optimisée pour le référencement. La principale marge de progression se situe désormais au niveau du contenu : publier régulièrement des articles de blog permettra d'accélérer le référencement et la visibilité de votre site.</p>
-              </div>
-            </div>
-          </div>
+        <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
-          {/* Row 2 — Content Calendar */}
-          <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
-            {/* Calendar header */}
-            <div className="flex items-center justify-between mb-3 shrink-0">
-              <h2 className="text-base font-bold text-color-1">Plan de contenus</h2>
-              <div className="flex items-center gap-6">
-                {/* Legend */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /><span className="text-[10px] text-gray-400">Article publié</span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-blue-400" /><span className="text-[10px] text-gray-400">Article à valider manuellement</span></div>
-                  <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-gray-300" /><span className="text-[10px] text-gray-400">Article programmé</span></div>
-                </div>
-                {/* Auto-publish toggle */}
-                <button onClick={() => setAutoPublish(!autoPublish)} className="flex items-center gap-2 cursor-pointer">
-                  <div className={`w-10 h-5 rounded-full relative transition-colors ${autoPublish ? 'bg-green-500' : 'bg-gray-300'}`}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${autoPublish ? 'left-5' : 'left-0.5'}`} />
-                  </div>
-                  <span className="text-xs font-medium text-color-1">Publication automatique</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Month nav */}
-            <div className="flex items-center gap-3 mb-3 shrink-0">
-              <h3 className="text-sm font-semibold text-color-1">
-                {seoMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
-              </h3>
-              <button onClick={() => setSeoMonth(new Date(seoMonth.getFullYear(), seoMonth.getMonth() - 1, 1))} className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-              </button>
-              <button onClick={() => setSeoMonth(new Date(seoMonth.getFullYear(), seoMonth.getMonth() + 1, 1))} className="w-6 h-6 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
-            </div>
-
-            {/* Calendar grid */}
+          {/* Top-left — MONITORER */}
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
             {(() => {
-              const year = seoMonth.getFullYear()
-              const month = seoMonth.getMonth()
-              const firstDay = new Date(year, month, 1).getDay()
-              const daysInMonth = new Date(year, month + 1, 0).getDate()
-              const offset = firstDay === 0 ? 6 : firstDay - 1
-              const days = []
-              for (let i = 0; i < offset; i++) days.push(null)
-              for (let d = 1; d <= daysInMonth; d++) days.push(d)
-              while (days.length < 35) days.push(null)
-
-              // Mock SEO articles
-              const seoArticles = {
-                1: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Ostéopathe paris solution mal de dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                2: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 75, scoreLabel: 'Bien', scoreColor: 'text-orange-500', published: true },
-                3: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Mal de dos au bureau : solutions', score: 85, scoreLabel: 'Très bien', scoreColor: 'text-green-500', published: false },
-                4: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 31, scoreLabel: 'Mauvais', scoreColor: 'text-red-500', published: true },
-                5: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                6: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                7: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                8: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                9: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                11: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                12: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                13: { tag: 'Spécialités', tagColor: 'bg-green-100 text-green-700', title: 'Torticolis : causes et traitements', score: 88, scoreLabel: 'Très bien', scoreColor: 'text-green-500', published: false },
-                14: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                15: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                16: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                18: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                19: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                20: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                21: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                22: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                23: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                25: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                26: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                27: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                28: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                29: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
-                30: { tag: 'Localité', tagColor: 'bg-gray-100 text-gray-600', title: 'Ostéopathe Paris 15 : solution dos', score: 91, scoreLabel: 'Excellent', scoreColor: 'text-green-500', published: true },
+              // Build roadmap data for February
+              const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
+              const today = new Date(2026, 1, 17)
+              const daysInFeb = 28
+              const roadmapDays = []
+              // Phase 1: Published (Feb 1-17)
+              let pubIdx = 0
+              for (let d = 1; d <= daysInFeb; d++) {
+                const dayDate = new Date(2026, 1, d)
+                if (d <= 17) {
+                  const spec = allSpecialties[pubIdx % allSpecialties.length]
+                  roadmapDays.push({ day: d, published: true, specId: spec.id, icon: spec.icon, title: spec.title })
+                  pubIdx++
+                } else {
+                  roadmapDays.push({ day: d, published: false, specId: null, icon: null, title: null })
+                }
+              }
+              // Phase 2: Programmé (first 3, fully written) + Pré-programmé (rest, title only)
+              if (activeSpecs.length > 0) {
+                let schedIdx = 0
+                for (let d = 18; d <= daysInFeb; d++) {
+                  const spec = activeSpecs[schedIdx % activeSpecs.length]
+                  const isWritten = schedIdx < 3 // first 3 are fully written
+                  roadmapDays[d - 1] = { day: d, published: false, programmed: isWritten, preProgrammed: !isWritten, specId: spec.id, icon: spec.icon, title: spec.title }
+                  schedIdx++
+                }
               }
 
-              const weeks = []
-              for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7))
-
               return (
-                <div className="flex-1 flex flex-col min-h-0">
-                  {/* Day headers */}
-                  <div className="grid grid-cols-7 gap-1 mb-1 shrink-0">
-                    {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
-                      <div key={d} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
-                    ))}
+                <>
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-4 shrink-0">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
+                      <h2 className="text-base font-bold text-color-1">{'Votre strat\u00e9gie SEO est active'}</h2>
+                    </div>
+                    <span className="text-sm text-gray-400">{`Mis \u00e0 jour aujourd'hui`}</span>
                   </div>
-                  {/* Weeks */}
-                  <div className="flex-1 grid grid-rows-5 gap-1 min-h-0">
-                    {weeks.map((week, wi) => (
-                      <div key={wi} className="grid grid-cols-7 gap-1 min-h-0">
-                        {week.map((day, di) => {
-                          const article = day ? seoArticles[day] : null
-                          const isHovered = hoveredSeoDay === day
-                          return (
-                            <div
-                              key={di}
-                              className={`rounded-xl border p-1.5 flex flex-col min-h-0 overflow-hidden transition-all duration-200 ${
-                                day
-                                  ? article && article.published
-                                    ? 'border-gray-200 cursor-pointer hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5'
-                                    : article && !article.published
-                                    ? 'border-gray-200 cursor-pointer hover:shadow-md hover:border-gray-300'
-                                    : 'border-dashed border-gray-200 cursor-pointer hover:border-gray-300'
-                                  : 'border-transparent'
-                              }`}
-                              onMouseEnter={() => day && setHoveredSeoDay(day)}
-                              onMouseLeave={() => setHoveredSeoDay(null)}
-                            >
-                              {day && article && article.published ? (
-                                <>
-                                  <div className="flex items-center justify-between shrink-0 mb-0.5">
-                                    <span className="text-xs font-bold text-green-500">{day}</span>
-                                    <span className={`text-[8px] font-medium px-1.5 py-0.5 rounded-full ${article.tagColor}`}>{article.tag}</span>
-                                  </div>
-                                  <p className="text-[9px] text-color-1 font-semibold leading-tight line-clamp-2 flex-1">{article.title}</p>
-                                  <div className="h-px bg-gray-200 my-0.5 shrink-0" />
-                                  <p className={`text-[9px] font-semibold shrink-0 ${article.scoreColor}`}>{article.scoreLabel} : {article.score}/100</p>
-                                </>
-                              ) : day && article && !article.published ? (
-                                <>
-                                  <span className="text-sm font-bold text-color-1 shrink-0">{day}</span>
-                                  {isHovered ? (
-                                    <div className="flex-1 flex items-center justify-center gap-3">
-                                      <button className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-red-50 flex items-center justify-center transition-colors group">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-red-400"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                      </button>
-                                      <button className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-blue-50 flex items-center justify-center transition-colors group">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 group-hover:text-blue-400"><path d="M7 16V4l10 6-10 6z" fill="none"/><line x1="4" y1="12" x2="20" y2="12"/><polyline points="8 8 4 12 8 16"/><polyline points="16 8 20 12 16 16"/></svg>
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </>
-                              ) : day ? (
-                                <>
-                                  <span className="text-xs font-semibold text-gray-300 shrink-0">{day}</span>
-                                  {isHovered ? (
-                                    <div className="flex-1 flex items-center justify-center">
-                                      <div className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors cursor-pointer">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                </>
-                              ) : null}
-                            </div>
-                          )
-                        })}
+
+                  {/* 2 KPI cards */}
+                  <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
+                    <div className="bg-gray-50 rounded-2xl p-4 flex flex-col">
+                      <span className="text-sm text-gray-400 font-medium mb-1">{`Total articles publi\u00e9s`}</span>
+                      <span className="text-3xl font-bold text-color-1">124</span>
+                    </div>
+                    <div className="bg-pink-50 rounded-2xl p-4 flex flex-col">
+                      <span className="text-sm text-gray-400 font-medium mb-1">Total vues</span>
+                      <span className="text-3xl font-bold text-color-1">18 742</span>
+                    </div>
+                  </div>
+
+                  {/* Month roadmap */}
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-2 shrink-0">
+                      <span className="text-sm font-semibold text-color-1">{`F\u00e9vrier 2026`}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-color-1" />
+                          <span className="text-sm text-gray-400">{`Publi\u00e9`}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-color-2" />
+                          <span className="text-sm text-gray-400">{`Programm\u00e9`}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-gray-300" />
+                          <span className="text-sm text-gray-400">{`Pr\u00e9-programm\u00e9`}</span>
+                        </div>
                       </div>
-                    ))}
+                    </div>
+                    {/* Day headers */}
+                    <div className="grid grid-cols-7 gap-1.5 mb-1 shrink-0">
+                      {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+                        <span key={d} className="text-sm text-gray-400 font-medium text-center">{d}</span>
+                      ))}
+                    </div>
+                    {/* Day grid */}
+                    <div className="flex-1 grid grid-cols-7 gap-1.5 min-h-0" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
+                      {roadmapDays.map((item) => {
+                        const isToday = item.day === 17
+                        const hasArticle = item.published || item.programmed || item.preProgrammed
+                        return (
+                          <div
+                            key={item.day}
+                            className={`rounded-xl flex flex-col items-center justify-center transition-all min-h-0 ${
+                              isToday ? 'ring-2 ring-color-2 ring-offset-1' : ''
+                            } ${
+                              item.published ? 'bg-green-50' : item.programmed ? 'bg-orange-50' : item.preProgrammed ? 'bg-gray-100' : 'bg-gray-50/50'
+                            }`}
+                          >
+                            {hasArticle && (
+                              <span className={`text-lg leading-none ${item.preProgrammed ? 'opacity-40' : ''}`}>{item.icon}</span>
+                            )}
+                            <span className={`text-sm font-bold leading-none mt-0.5 ${
+                              isToday ? 'text-color-2' : item.published ? 'text-color-1' : item.programmed ? 'text-color-2' : item.preProgrammed ? 'text-gray-400' : 'text-gray-300'
+                            }`}>{item.day}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                </>
               )
             })()}
           </div>
 
-          {/* Row 3 — Action buttons */}
-          <div className="flex items-center justify-center gap-3 shrink-0">
-            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Paramètres</button>
-            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Écrire manuellement un article</button>
-            <button className="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-300 cursor-not-allowed">Outils d'analyse des mots clés (arrive bientôt)</button>
+          {/* Right column */}
+          <div className="flex flex-col gap-2.5">
+
+            {/* Actions */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+              <h2 className="text-base font-bold text-color-1 mb-2">Actions</h2>
+              <div className="flex flex-col gap-2.5 flex-1 justify-center">
+                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </div>
+                  <p className="text-sm font-semibold text-color-1 min-w-0">{'Cr\u00e9er un article'}</p>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  </div>
+                  <p className="text-sm font-semibold text-color-1 min-w-0">Modifier un article</p>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </div>
+                  <p className="text-sm font-semibold text-color-1 min-w-0">{'Ajuster mon r\u00e9dacteur'}</p>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Répartition */}
+            {(() => {
+              // Three-phase count: Publié → Programmé (written) → Pré-programmé (title only)
+              const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
+              const today = new Date(2026, 1, 17)
+              const pubCounts = {}, progCounts = {}, preCounts = {}
+              allSpecialties.forEach(s => { pubCounts[s.id] = 0; progCounts[s.id] = 0; preCounts[s.id] = 0 })
+              const daysInMonth = new Date(2026, 2, 0).getDate()
+              // Phase 1: Published — all 6 specialties (locked)
+              let pubIdx = 0
+              for (let d = 1; d <= daysInMonth; d++) {
+                if (new Date(2026, 1, d) <= today) {
+                  pubCounts[allSpecialties[pubIdx % allSpecialties.length].id]++
+                  pubIdx++
+                }
+              }
+              // Phase 2 & 3: next 14 days — first 3 are Programmé (written), rest are Pré-programmé (title only)
+              let progTotal = 0, preTotal = 0
+              if (activeSpecs.length > 0) {
+                for (let i = 1; i <= 14; i++) {
+                  const spec = activeSpecs[(i - 1) % activeSpecs.length]
+                  if (i <= 3) { progCounts[spec.id]++; progTotal++ }
+                  else { preCounts[spec.id]++; preTotal++ }
+                }
+              }
+              const writtenTotal = pubIdx + progTotal // published + programmé = all written articles
+              const maxTotal = Math.max(...allSpecialties.map(s => (pubCounts[s.id] || 0) + (progCounts[s.id] || 0) + (preCounts[s.id] || 0)), 1)
+              return (
+                <div className="flex-[2] bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-1 shrink-0">
+                    <h2 className="text-base font-bold text-color-1">{'R\u00e9partition'}</h2>
+                    <div className="flex items-center gap-3 text-sm text-gray-400">
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-color-1 inline-block" /><span className="font-semibold text-color-1">{writtenTotal}</span> {'r\u00e9dig\u00e9s'}</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /><span className="font-semibold text-gray-500">{preTotal}</span> {'pr\u00e9-programm\u00e9s'}</span>
+                    </div>
+                  </div>
+                  {/* Edit / Rebalance controls */}
+                  {(() => {
+                    const isEditing = pendingSpecs !== null
+                    const displaySpecs = isEditing ? pendingSpecs : checkedSpecs
+                    const hasDiff = isEditing && JSON.stringify([...pendingSpecs].sort()) !== JSON.stringify([...checkedSpecs].sort())
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 mb-2 shrink-0">
+                          {!isEditing ? (
+                            <button
+                              onClick={() => setPendingSpecs([...checkedSpecs])}
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                              </svg>
+                              <span className="text-sm font-medium text-gray-500">Modifier</span>
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (hasDiff) setCheckedSpecs(pendingSpecs)
+                                  setPendingSpecs(null)
+                                  setRebalanceMode(false)
+                                }}
+                                disabled={!hasDiff}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+                                  hasDiff ? 'bg-color-1 text-white cursor-pointer' : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                }`}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span className="text-sm font-medium">Valider</span>
+                              </button>
+                              <button
+                                onClick={() => { setPendingSpecs(null); setRebalanceMode(false) }}
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all"
+                              >
+                                <span className="text-sm font-medium text-gray-500">Annuler</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const next = !rebalanceMode
+                                  setRebalanceMode(next)
+                                  if (next) setPendingSpecs(allSpecialties.map(s => s.id))
+                                }}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer ml-auto ${
+                                  rebalanceMode ? 'bg-color-1 text-white' : 'bg-gray-50 hover:bg-gray-100'
+                                }`}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={rebalanceMode ? 'white' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 12H3M21 12l-4-4m4 4l-4 4M3 12l4-4m-4 4l4 4" />
+                                </svg>
+                                <span className={`text-sm font-medium ${rebalanceMode ? 'text-white' : 'text-gray-500'}`}>{'R\u00e9\u00e9quilibrer'}</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {/* Impact info cards — shown in edit mode */}
+                        {isEditing && (
+                          <div className="flex gap-2 mb-2 shrink-0">
+                            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
+                              <span className="text-lg mb-0.5">{'\u270F\uFE0F'}</span>
+                              <span className="text-xs font-semibold text-color-1">Titre</span>
+                              <span className="text-xs text-gray-400">Tous les articles</span>
+                            </div>
+                            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
+                              <span className="text-lg mb-0.5">{'\uD83D\uDDBC\uFE0F'}</span>
+                              <span className="text-xs font-semibold text-color-1">Couverture</span>
+                              <span className="text-xs text-gray-400">Tous les articles</span>
+                            </div>
+                            <div className="flex-1 bg-orange-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
+                              <span className="text-lg mb-0.5">{'\uD83D\uDCDD'}</span>
+                              <span className="text-xs font-semibold text-color-1">Contenu</span>
+                              <span className="text-xs text-color-2">{'Publi\u00e9 & Programm\u00e9'}</span>
+                            </div>
+                          </div>
+                        )}
+                        {/* Specialty list */}
+                        <div className="flex-1 flex flex-col gap-0.5 min-h-0 justify-center">
+                          {allSpecialties.map((spec) => {
+                            const isActive = displaySpecs.includes(spec.id)
+                            const written = (pubCounts[spec.id] || 0) + (progCounts[spec.id] || 0)
+                            const pre = preCounts[spec.id] || 0
+                            const total = written + pre
+                            const barPct = maxTotal > 0 ? (total / maxTotal) * 100 : 0
+                            const writtenShare = total > 0 ? (written / total) * 100 : 0
+                            const toggleSpec = () => {
+                              if (!isEditing) return
+                              setPendingSpecs(prev => prev.includes(spec.id) ? prev.filter(id => id !== spec.id) : [...prev, spec.id])
+                            }
+                            return (
+                              <div
+                                key={spec.id}
+                                onClick={toggleSpec}
+                                className={`flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all ${
+                                  isEditing ? 'cursor-pointer hover:bg-gray-50' : ''
+                                } ${isActive ? '' : 'opacity-35'}`}
+                              >
+                                <span className="text-base shrink-0">{spec.icon}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm font-medium text-color-1 truncate">{spec.title}</span>
+                                    <span className="text-sm font-bold text-color-1 shrink-0 tabular-nums">
+                                      {written}{isActive && pre > 0 && <span className="text-gray-300 font-normal"> +{pre}</span>}
+                                    </span>
+                                  </div>
+                                  <div className="h-1 rounded-full bg-gray-100 mt-1 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-500"
+                                      style={{
+                                        width: `${barPct}%`,
+                                        background: `linear-gradient(to right, #2D2D2D ${writtenShare}%, #D1D5DB ${writtenShare}%)`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )
+                  })()}
+                  {/* Footer */}
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-100 shrink-0">
+                    <span className="text-sm text-gray-400">{activeSpecCount} {'sp\u00e9cialit\u00e9'}{activeSpecCount > 1 ? 's' : ''} active{activeSpecCount > 1 ? 's' : ''}</span>
+                    <span className="text-sm text-gray-400">{articlesPerSpec} art. / {'sp\u00e9.'} / mois</span>
+                  </div>
+                </div>
+              )
+            })()}
+
+          </div>
+
+        </div>
+        ) : activeTab === 'parrainage' ? (
+        <div key="parrainage" className="flex flex-col gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          {/* Row 1 — Stats */}
+          <div className="flex gap-3 shrink-0">
+            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
+              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400 font-medium">Filleuls inscrits</p>
+                <p className="text-2xl font-bold text-color-1">3</p>
+              </div>
+            </div>
+            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400 font-medium">Mois offerts gagnés</p>
+                <p className="text-2xl font-bold text-color-1">4</p>
+              </div>
+            </div>
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-color-1">Invitez un confrère, gagnez 2 mois</p>
+                <p className="text-sm text-gray-400 mt-0.5">Pour chaque inscription via votre lien, vous recevez 2 mois d'abonnement gratuit.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2 — Main content */}
+          <div className="flex gap-3 flex-1 min-h-0">
+            {/* Referral link card */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+              <h3 className="text-base font-bold text-color-1 mb-4">Votre lien de parrainage</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-color-1 font-mono truncate">
+                  theralys.com/ref/theo-osteo
+                </div>
+                <button
+                  onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
+                  className="px-4 py-2.5 rounded-xl bg-color-1 text-white text-sm font-medium hover:bg-color-1/90 transition-colors cursor-pointer shrink-0"
+                >
+                  Copier
+                </button>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">Partagez ce lien par email, SMS ou sur les réseaux sociaux.</p>
+
+              {/* Referral history */}
+              <h4 className="text-base font-semibold text-color-1 mb-2">Historique</h4>
+              <div className="flex-1 overflow-auto min-h-0">
+                <div className="space-y-2">
+                  {[
+                    { name: 'Dr. Marie Dupont', date: '12 jan. 2026', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500', bg: 'bg-green-50' },
+                    { name: 'Thomas Bernard', date: '28 déc. 2025', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500', bg: 'bg-green-50' },
+                    { name: 'Sophie Martin', date: '15 nov. 2025', status: 'En attente', reward: 'En attente', color: 'text-amber-500', bg: 'bg-amber-50' },
+                  ].map((ref, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-color-2/10 flex items-center justify-center text-sm font-bold text-color-2">
+                          {ref.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-color-1">{ref.name}</p>
+                          <p className="text-sm text-gray-400">{ref.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${ref.color}`}>{ref.reward}</p>
+                        <p className="text-sm text-gray-400">{ref.status}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="w-[300px] shrink-0 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+              <h3 className="text-base font-bold text-color-1 mb-4">Comment ça marche ?</h3>
+              <div className="space-y-4 flex-1">
+                {[
+                  { step: '1', title: 'Partagez votre lien', desc: 'Envoyez votre lien de parrainage à un confrère.' },
+                  { step: '2', title: 'Il s\'inscrit', desc: 'Votre filleul crée son compte Theralys.' },
+                  { step: '3', title: 'Vous gagnez', desc: 'Recevez 2 mois offerts dès son inscription.' },
+                ].map((s, i) => (
+                  <div key={i} className="flex gap-3">
+                    <div className="w-7 h-7 rounded-full bg-color-2 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      {s.step}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-color-1">{s.title}</p>
+                      <p className="text-sm text-gray-400 mt-0.5">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="mt-4 w-full py-2.5 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+                Partager mon lien
+              </button>
+            </div>
           </div>
         </div>
         ) : (
-        <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[3fr_2fr] gap-3 w-full h-full" style={{ animation: 'settings-slide-out 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* 1 — Top left */}
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
             <div className="flex items-center justify-between">
@@ -560,7 +882,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <div className="relative mt-2 inline-block">
                   <button
                     onClick={() => dashboardState === 1 && setTimePeriodOpen(!timePeriodOpen)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-600 hover:border-gray-400 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 text-sm text-gray-600 hover:border-gray-400 transition-colors cursor-pointer"
                   >
                     {timePeriod === 'Personnaliser' && customDateFrom && customDateTo
                       ? `${customDateFrom.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${customDateTo.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
@@ -592,7 +914,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                             <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 cursor-pointer">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
                             </button>
-                            <span className="text-xs font-semibold text-color-1 capitalize">
+                            <span className="text-sm font-semibold text-color-1 capitalize">
                               {calendarMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                             </span>
                             <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-200 cursor-pointer">
@@ -602,7 +924,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                           {/* Day headers */}
                           <div className="grid grid-cols-7 mb-1">
                             {['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di'].map((d) => (
-                              <span key={d} className="text-center text-[9px] text-gray-400 font-medium">{d}</span>
+                              <span key={d} className="text-center text-sm text-gray-400 font-medium">{d}</span>
                             ))}
                           </div>
                           {/* Days grid */}
@@ -617,7 +939,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                                 <button
                                   key={i}
                                   onClick={() => handleDayClick(day)}
-                                  className={`h-6 w-full text-[10px] font-medium cursor-pointer transition-colors ${
+                                  className={`h-6 w-full text-sm font-medium cursor-pointer transition-colors ${
                                     isStart || isEnd
                                       ? 'bg-color-1 text-white rounded-full'
                                       : inRange
@@ -636,7 +958,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                           <button
                             onClick={() => setTimePeriodOpen(false)}
                             disabled={!customDateFrom || !customDateTo}
-                            className={`w-full py-1.5 mt-2 rounded-lg text-xs font-medium transition-colors ${
+                            className={`w-full py-1.5 mt-2 rounded-lg text-sm font-medium transition-colors ${
                               customDateFrom && customDateTo
                                 ? 'bg-color-2 text-white cursor-pointer hover:opacity-90'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -655,17 +977,17 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   <button
                     key={kpi.key}
                     onClick={() => setSelectedKpi(kpi.key)}
-                    className={`${kpi.bg} rounded-xl px-4 py-3 min-w-[120px] text-left transition-all cursor-pointer border-2 ${
-                      selectedKpi === kpi.key ? kpi.activeBorder : 'border-transparent'
+                    className={`rounded-xl px-4 py-3 min-w-[120px] text-left transition-all cursor-pointer border-2 ${
+                      selectedKpi === kpi.key ? `${kpi.activeBg} ${kpi.activeBorder}` : `${kpi.bg} border-transparent`
                     }`}
                   >
                     <div className="flex items-center gap-1.5 mb-2">
                       {kpi.icon}
-                      <span className="text-xs font-medium text-color-1">{kpi.label}</span>
+                      <span className="text-sm font-medium text-color-1">{kpi.label}</span>
                     </div>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold text-color-1">{kpi.value}</span>
-                      <span className={`text-xs font-semibold ${kpi.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>{kpi.change >= 0 ? '↑' : '↓'} {Math.abs(kpi.change)}%</span>
+                      <span className={`text-sm font-semibold ${kpi.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>{kpi.change >= 0 ? '↑' : '↓'} {Math.abs(kpi.change)}%</span>
                     </div>
                   </button>
                 ))}
@@ -674,7 +996,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
             <div ref={chartRef} className="flex-1 mt-4 min-h-0 flex">
               {/* Y-axis labels */}
-              <div className="flex flex-col justify-between pr-2 text-[10px] text-gray-400 shrink-0 text-right">
+              <div className="flex flex-col justify-between pr-2 text-sm text-gray-400 shrink-0 text-right">
                 {yLabels.map((v) => <span key={v}>{v}</span>)}
               </div>
 
@@ -714,7 +1036,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     return <>
                       <div className="absolute w-px pointer-events-none" style={{ left: `${hx}%`, top: 0, bottom: 0, backgroundColor: activeCard.color, opacity: 0.2 }} />
                       <div className="absolute pointer-events-none" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -100%)' }}>
-                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md border bg-white text-[10px] font-semibold whitespace-nowrap mb-1 mx-auto w-fit shadow-sm" style={{ borderColor: activeCard.color, color: activeCard.color }}>
+                        <div className="flex items-center gap-1 px-2 py-0.5 rounded-md border bg-white text-sm font-semibold whitespace-nowrap mb-1 mx-auto w-fit shadow-sm" style={{ borderColor: activeCard.color, color: activeCard.color }}>
                           {activeCard.data[hoveredKpi]}
                           <span className="text-gray-400 font-normal">{slicedMonths[hoveredKpi]}</span>
                         </div>
@@ -725,7 +1047,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
 
                 {/* X-axis labels */}
-                <div className="flex justify-between text-[10px] text-gray-400 pt-1.5 shrink-0">
+                <div className="flex justify-between text-sm text-gray-400 pt-1.5 shrink-0">
                   {slicedMonths.map((m) => <span key={m}>{m}</span>)}
                 </div>
               </div>
@@ -736,7 +1058,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
                 <div className="bg-orange-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-left shadow-sm">
                   <h3 className="text-base font-bold text-color-1 mb-1">🔥 Disponible dans 7 jours</h3>
-                  <p className="text-xs text-gray-500 mb-4">Les premières statistiques de votre site seront disponibles au bout de 7 jours de mise en ligne.</p>
+                  <p className="text-sm text-gray-500 mb-4">Les premières statistiques de votre site seront disponibles au bout de 7 jours de mise en ligne.</p>
                   <div className="w-full h-2 bg-orange-100 rounded-full overflow-hidden">
                     <div className="h-full bg-color-2 rounded-full" style={{ width: '15%' }} />
                   </div>
@@ -749,12 +1071,12 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           <div className="row-span-2 flex flex-col gap-2.5">
 
             {/* Actions */}
-            <div ref={actionsRef} className="flex-[2.5] bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+            <div ref={actionsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-bold text-color-1">Actions</h2>
+                <h2 className="text-base font-bold text-color-1">Actions</h2>
                 <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-1.5 bg-green-500 rounded-full" />
-                  <div className="w-3.5 h-1.5 bg-green-500 rounded-full" />
+                  <div className="w-3.5 h-1.5 bg-color-2 rounded-full" />
+                  <div className="w-3.5 h-1.5 bg-color-2 rounded-full" />
                   <div className="w-3.5 h-1.5 bg-gray-200 rounded-full" />
                 </div>
               </div>
@@ -772,51 +1094,42 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   />
                   <button className="relative flex items-center gap-3 bg-white rounded-[10px] px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
                     <div className="w-5 h-5 rounded-md border-2 border-color-2 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold text-color-1">Finir de publier le site</p>
-                      <p className="text-[9px] text-gray-400 leading-tight mt-0.5">Complétez et mettez en ligne votre site web.</p>
-                    </div>
+                    <p className="text-sm font-semibold text-color-1 min-w-0">Finir de publier le site</p>
                   </button>
                 </div>
                 {/* Completed action card */}
-                <button className="flex items-center gap-3 bg-green-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-green-100 transition-colors">
-                  <div className="w-5 h-5 rounded-md bg-green-500 flex items-center justify-center flex-shrink-0">
+                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-5 h-5 rounded-md bg-gray-300 flex items-center justify-center flex-shrink-0">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-green-600 line-through">Compléter votre profil</p>
-                    <p className="text-[9px] text-green-500/70 leading-tight mt-0.5">Ajoutez vos informations professionnelles.</p>
-                  </div>
+                  <p className="text-sm font-semibold text-gray-400 line-through min-w-0">{'Compl\u00e9ter votre profil'}</p>
                 </button>
                 {/* Completed action card */}
-                <button className="flex items-center gap-3 bg-green-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-green-100 transition-colors">
-                  <div className="w-5 h-5 rounded-md bg-green-500 flex items-center justify-center flex-shrink-0">
+                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-5 h-5 rounded-md bg-gray-300 flex items-center justify-center flex-shrink-0">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-green-600 line-through">Configurer la collecte d'avis</p>
-                    <p className="text-[9px] text-green-500/70 leading-tight mt-0.5">Obtenez plus d'avis Google automatiquement.</p>
-                  </div>
+                  <p className="text-sm font-semibold text-gray-400 line-through min-w-0">Configurer la collecte d'avis</p>
                 </button>
               </div>
             </div>
 
             {/* Articles carousel */}
-            <div ref={articlesRef} className="flex-[2] bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
+            <div ref={articlesRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-sm font-bold text-color-1">Articles</h2>
+                <h2 className="text-base font-bold text-color-1">Articles</h2>
                 {dashboardState !== 0 && (
                   <div className="flex items-center gap-1.5 -mr-0.5">
                     {articles.map((_, i) => (
                       <button
                         key={i}
                         onClick={() => setArticleIdx(i)}
-                        className={`rounded-full transition-all cursor-pointer ${i === articleIdx ? 'w-4 h-1.5 bg-color-2' : 'w-1.5 h-1.5 bg-gray-300 hover:bg-gray-400'}`}
+                        className={`rounded-full transition-all cursor-pointer block ${i === articleIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-gray-300 hover:bg-gray-400'}`}
                       />
                     ))}
                   </div>
@@ -829,61 +1142,57 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 {/* Badge */}
                 <div className="absolute top-1.5 left-2.5">
                   {articles[articleIdx].status === 'published' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500 text-white text-[9px] font-semibold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
                       Publié le {articles[articleIdx].date}
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-color-2 text-white text-[9px] font-semibold">
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-color-2 shrink-0" />
                       Programmé le {articles[articleIdx].date}
                     </span>
                   )}
                 </div>
                 {/* Nav arrows on image */}
-                {articleIdx > 0 && (
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setArticleIdx(articleIdx - 1) }}
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                  </div>
-                )}
-                {articleIdx < articles.length - 1 && (
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setArticleIdx(articleIdx + 1) }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </div>
-                )}
+                <div
+                  onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx - 1 + articles.length) % articles.length) }}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </div>
+                <div
+                  onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx + 1) % articles.length) }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
                 {/* Title overlay */}
                 <div className="absolute bottom-2.5 left-3 right-3">
-                  <p className="text-white text-xs font-bold leading-tight drop-shadow-sm">{articles[articleIdx].title}</p>
+                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm">{articles[articleIdx].title}</p>
                 </div>
               </button>
               {/* State 0 overlay */}
               {dashboardState === 0 && !tourActive && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
                   <div className="bg-orange-50 rounded-2xl px-5 py-4 max-w-[260px] w-full text-left shadow-sm">
-                    <h3 className="text-sm font-bold text-color-1 mb-1">📝 Publication d'articles SEO</h3>
-                    <p className="text-[10px] text-gray-500">Des articles optimisés pour le référencement sont publiés automatiquement sur votre site. Disponible après la mise en ligne.</p>
+                    <h3 className="text-base font-bold text-color-1 mb-1">📝 Publication d'articles SEO</h3>
+                    <p className="text-sm text-gray-500">Des articles optimisés pour le référencement sont publiés automatiquement sur votre site. Disponible après la mise en ligne.</p>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Quoi de neuf — carousel like Articles */}
-            <div ref={newsRef} className="flex-[2] bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+            <div ref={newsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
               {/* Header */}
               <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-sm font-bold text-color-1">Quoi de neuf</h2>
+                <h2 className="text-base font-bold text-color-1">Quoi de neuf</h2>
                 <div className="flex items-center gap-1.5 -mr-0.5">
                   {news.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setNewsIdx(i)}
-                      className={`rounded-full transition-all cursor-pointer ${i === newsIdx ? 'w-4 h-1.5 bg-color-2' : 'w-1.5 h-1.5 bg-gray-300 hover:bg-gray-400'}`}
+                      className={`rounded-full transition-all cursor-pointer block ${i === newsIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-gray-300 hover:bg-gray-400'}`}
                     />
                   ))}
                 </div>
@@ -896,31 +1205,27 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
                 {/* Tag + Date */}
                 <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-color-2 text-white text-[9px] font-semibold">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-color-2 text-white text-sm font-semibold">
                     {news[newsIdx].tag}
                   </span>
-                  <span className="text-white/60 text-[9px] font-medium">{news[newsIdx].date}</span>
+                  <span className="text-white/60 text-sm font-medium">{news[newsIdx].date}</span>
                 </div>
                 {/* Nav arrows */}
-                {newsIdx > 0 && (
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setNewsIdx(newsIdx - 1) }}
-                    className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                  </div>
-                )}
-                {newsIdx < news.length - 1 && (
-                  <div
-                    onClick={(e) => { e.stopPropagation(); setNewsIdx(newsIdx + 1) }}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </div>
-                )}
+                <div
+                  onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx - 1 + news.length) % news.length) }}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </div>
+                <div
+                  onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx + 1) % news.length) }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
                 {/* Title overlay */}
                 <div className="absolute bottom-2.5 left-3 right-3">
-                  <p className="text-white text-xs font-bold leading-tight drop-shadow-sm">{news[newsIdx].title}</p>
+                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm">{news[newsIdx].title}</p>
                 </div>
               </button>
             </div>
@@ -932,8 +1237,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-color-1">Classement Google</h2>
-                <p className="text-[10px] text-gray-400 mt-0.5">"{profession} {ville}"</p>
+                <h2 className="text-base font-bold text-color-1">Classement Google</h2>
+                <p className="text-sm text-gray-400 mt-0.5">"{profession} {ville}"</p>
               </div>
               <div className="bg-gray-50 rounded-xl px-4 py-2.5">
                 <div className="flex items-center gap-2 mb-1">
@@ -943,11 +1248,11 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 001 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
-                  <span className="text-[10px] text-gray-500">Position actuelle</span>
+                  <span className="text-sm text-gray-500">Position actuelle</span>
                 </div>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-color-1">{rankCurrent}<span className="text-xs font-semibold">ème</span></span>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${rankChange > 0 ? 'text-green-500 bg-green-50' : rankChange < 0 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-50'}`}>{rankChange > 0 ? '↑' : rankChange < 0 ? '↓' : '='} {Math.abs(rankChange)}</span>
+                  <span className="text-xl font-bold text-color-1">{rankCurrent}<span className="text-sm font-semibold">ème</span></span>
+                  <span className={`text-sm font-semibold px-1.5 py-0.5 rounded-full ${rankChange > 0 ? 'text-green-500 bg-green-50' : rankChange < 0 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-50'}`}>{rankChange > 0 ? '↑' : rankChange < 0 ? '↓' : '='} {Math.abs(rankChange)}</span>
                 </div>
               </div>
             </div>
@@ -955,7 +1260,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {/* Ranking chart */}
             <div className="flex-1 mt-3 min-h-0 flex">
               {/* Y-axis labels (ranking: 1 at top, 30 at bottom) */}
-              <div className="flex flex-col justify-between pr-2 text-[10px] text-gray-400 shrink-0 text-right">
+              <div className="flex flex-col justify-between pr-2 text-sm text-gray-400 shrink-0 text-right">
                 <span>1</span><span>5</span><span>10</span><span>15</span><span>20</span><span>30</span>
               </div>
 
@@ -993,7 +1298,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     return <>
                       <div className="absolute w-px pointer-events-none" style={{ left: `${hx}%`, top: 0, bottom: 0, backgroundColor: '#22C55E', opacity: 0.2 }} />
                       <div className="absolute pointer-events-none" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -100%)' }}>
-                        <div className="px-2 py-0.5 rounded-md border border-green-400 bg-white text-[10px] font-semibold text-green-600 whitespace-nowrap mb-1 mx-auto w-fit shadow-sm">
+                        <div className="px-2 py-0.5 rounded-md border border-green-400 bg-white text-sm font-semibold text-green-600 whitespace-nowrap mb-1 mx-auto w-fit shadow-sm">
                           #{slicedRanking[hoveredRank]} <span className="text-gray-400 font-normal">{slicedMonths[hoveredRank]}</span>
                         </div>
                       </div>
@@ -1003,7 +1308,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
 
                 {/* X-axis labels */}
-                <div className="flex justify-between text-[10px] text-gray-400 pt-1.5 shrink-0">
+                <div className="flex justify-between text-sm text-gray-400 pt-1.5 shrink-0">
                   {slicedMonths.map((m) => <span key={m}>{m}</span>)}
                 </div>
               </div>
@@ -1014,7 +1319,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
                 <div className="bg-green-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-left shadow-sm">
                   <h3 className="text-base font-bold text-color-1 mb-1">✅ Disponible dans 30 jours</h3>
-                  <p className="text-xs text-gray-500 mb-4">L'outils de gestion du classement local s'active après 30 jours de collecte de données.</p>
+                  <p className="text-sm text-gray-500 mb-4">L'outils de gestion du classement local s'active après 30 jours de collecte de données.</p>
                   <div className="w-full h-2 bg-green-100 rounded-full overflow-hidden">
                     <div className="h-full bg-green-500 rounded-full" style={{ width: '5%' }} />
                   </div>
@@ -1060,8 +1365,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               </div>
-              <h3 className="text-sm font-bold text-color-1 mb-1">Annulation prévue</h3>
-              <p className="text-[11px] text-gray-400 leading-relaxed">Votre abonnement sera annulé le <span className="font-semibold text-red-500">22/02/26.</span></p>
+              <h3 className="text-base font-bold text-color-1 mb-1">Annulation prévue</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">Votre abonnement sera annulé le <span className="font-semibold text-red-500">22/02/26.</span></p>
               <button onClick={() => setSettingsTab('billing')} className="mt-3 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
                 Réactiver
               </button>
@@ -1084,8 +1389,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <div className="relative w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center mb-3">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                 </div>
-                <h3 className="relative text-sm font-bold text-white mb-1">Parrainage</h3>
-                <p className="relative text-[11px] text-gray-300 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
+                <h3 className="relative text-base font-bold text-white mb-1">Parrainage</h3>
+                <p className="relative text-sm text-gray-300 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
                 <button className="relative mt-3 px-4 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
                   Inviter un confrère
                 </button>
@@ -1124,9 +1429,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <input type="text" className="input-base" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-color-1 mb-1">Mot de passe</h3>
-                    <p className="text-xs text-gray-500 mb-3">Protégez votre compte en réinitialisant votre mot de passe tous les quelques mois.</p>
-                    <button className="px-4 py-2 rounded-xl bg-color-2 text-white text-xs font-semibold hover:bg-orange-600 transition-colors cursor-pointer">
+                    <h3 className="text-base font-bold text-color-1 mb-1">Mot de passe</h3>
+                    <p className="text-sm text-gray-500 mb-3">Protégez votre compte en réinitialisant votre mot de passe tous les quelques mois.</p>
+                    <button className="px-4 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:bg-orange-600 transition-colors cursor-pointer">
                       réinitialiser le mot de passe
                     </button>
                   </div>
@@ -1167,7 +1472,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         <button
                           key={period.id}
                           onClick={() => setBillingPeriod(period.id)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all cursor-pointer flex items-center justify-center gap-1 ${
                             billingPeriod === period.id
                               ? 'bg-white text-color-1 shadow-sm'
                               : 'text-gray-500 hover:text-gray-700'
@@ -1175,7 +1480,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         >
                           {period.label}
                           {period.badge && (
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                            <span className={`text-sm font-semibold px-1.5 py-0.5 rounded-full ${
                               billingPeriod === period.id ? 'bg-color-2/15 text-color-2' : 'bg-gray-200 text-gray-500'
                             }`}>
                               {period.badge}
@@ -1192,9 +1497,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <div className="border-2 border-gray-200 rounded-2xl p-6 flex flex-col">
                       <div className="min-h-[70px]">
                         <h3 className="text-lg font-bold text-color-1 mb-2">Starter</h3>
-                        <p className="text-xs text-gray-400 leading-relaxed">Idéal pour un site vitrine design et optimisé pour transformer vos visiteurs en rendez-vous.</p>
+                        <p className="text-sm text-gray-400 leading-relaxed">Idéal pour un site vitrine design et optimisé pour transformer vos visiteurs en rendez-vous.</p>
                       </div>
-                      <p className="text-xs font-semibold text-color-1 mb-3 mt-3">Prix tout inclus</p>
+                      <p className="text-sm font-semibold text-color-1 mb-3 mt-3">Prix tout inclus</p>
                       <div className="space-y-2.5">
                         {['1 page', 'Aide au copywriting et au positionnement', 'Avis Google automatique', 'Hébergement + domaine + maintenance 5/7'].map((f) => (
                           <div key={f} className="flex items-start gap-2">
@@ -1208,8 +1513,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                       <div className="mt-auto pt-5">
                         <div className="flex items-baseline gap-2 mb-4">
                           <span className="text-3xl font-extrabold text-color-1">{currentStarter}€</span>
-                          <span className="text-gray-400 text-xs">{currentSuffix}</span>
-                          <span className="text-gray-400 text-xs">engagement 1 an</span>
+                          <span className="text-gray-400 text-sm">{currentSuffix}</span>
+                          <span className="text-gray-400 text-sm">engagement 1 an</span>
                         </div>
                         <button className="w-full px-5 py-3 border-2 border-color-2 text-color-2 rounded-full font-semibold text-sm hover:bg-orange-50 transition-colors cursor-pointer">
                           Commencer l'essai gratuit
@@ -1219,14 +1524,14 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
                     {/* Visibilité */}
                     <div className="border-2 border-color-2 rounded-2xl p-6 flex flex-col relative bg-orange-50/40">
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-color-2 text-white text-xs font-semibold px-4 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1.5">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-color-2 text-white text-sm font-semibold px-4 py-1.5 rounded-full whitespace-nowrap flex items-center gap-1.5">
                         <span>🚀</span> Référencement 3,5x plus rapide
                       </div>
                       <div className="min-h-[70px] mt-1">
                         <h3 className="text-lg font-bold text-color-2 mb-2">Visibilité</h3>
-                        <p className="text-xs text-gray-400 leading-relaxed">Idéal vous référencer durablement sur Google et capter les recherches les plus qualifiées de votre secteur.</p>
+                        <p className="text-sm text-gray-400 leading-relaxed">Idéal vous référencer durablement sur Google et capter les recherches les plus qualifiées de votre secteur.</p>
                       </div>
-                      <p className="text-xs font-bold text-color-1 mb-3 mt-3">Tout le forfait basique plus...</p>
+                      <p className="text-base font-bold text-color-1 mb-3 mt-3">Tout le forfait basique plus...</p>
                       <div className="space-y-2.5">
                         {[
                           { text: 'Pages ', highlight: 'illimitées' },
@@ -1249,8 +1554,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                       <div className="mt-auto pt-5">
                         <div className="flex items-baseline gap-2 mb-4">
                           <span className="text-3xl font-extrabold text-color-1">{currentVisibilite}€</span>
-                          <span className="text-gray-400 text-xs">{currentSuffix}</span>
-                          <span className="text-gray-400 text-xs">engagement 1 an</span>
+                          <span className="text-gray-400 text-sm">{currentSuffix}</span>
+                          <span className="text-gray-400 text-sm">engagement 1 an</span>
                         </div>
                         <button className="w-full px-5 py-3 bg-color-2 text-white rounded-full font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer">
                           Commencer l'essai gratuit
@@ -1278,7 +1583,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
 
                 {/* Payment methods */}
-                <h3 className="text-sm font-bold text-color-1 mb-2">Vos moyens de paiement</h3>
+                <h3 className="text-base font-bold text-color-1 mb-2">Vos moyens de paiement</h3>
                 <div className="flex items-center justify-between border border-gray-200 rounded-xl px-4 py-3 mb-5">
                   <div className="flex items-center gap-2.5 border border-gray-200 rounded-lg px-3 py-2">
                     <div className="flex items-center gap-0.5">
@@ -1291,16 +1596,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
 
                 {/* Invoices */}
-                <h3 className="text-sm font-bold text-color-1 mb-2">Vos factures</h3>
+                <h3 className="text-base font-bold text-color-1 mb-2">Vos factures</h3>
                 <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden min-h-0">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-xs">Date</th>
-                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-xs">Montant</th>
-                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-xs">Statut</th>
-                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-xs">Carte</th>
-                        <th className="text-center font-medium text-gray-500 px-4 py-2.5 text-xs">Télécharger</th>
+                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-sm">Date</th>
+                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-sm">Montant</th>
+                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-sm">Statut</th>
+                        <th className="text-left font-medium text-gray-500 px-4 py-2.5 text-sm">Carte</th>
+                        <th className="text-center font-medium text-gray-500 px-4 py-2.5 text-sm">Télécharger</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1311,16 +1616,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         { date: '14/09/25', amount: '39€', status: 'Payé', statusColor: 'text-green-500' },
                       ].map((inv, i) => (
                         <tr key={i} className="border-b border-gray-100 last:border-0">
-                          <td className="px-4 py-3 text-color-1 text-xs">{inv.date}</td>
-                          <td className="px-4 py-3 text-color-1 font-semibold text-xs">{inv.amount}</td>
-                          <td className={`px-4 py-3 text-xs font-medium ${inv.statusColor}`}>{inv.status}</td>
+                          <td className="px-4 py-3 text-color-1 text-sm">{inv.date}</td>
+                          <td className="px-4 py-3 text-color-1 font-semibold text-sm">{inv.amount}</td>
+                          <td className={`px-4 py-3 text-sm font-medium ${inv.statusColor}`}>{inv.status}</td>
                           <td className="px-4 py-3">
                             <div className="inline-flex items-center gap-1.5 border border-gray-200 rounded px-2 py-0.5">
                               <div className="flex items-center gap-0">
                                 <div className="w-3 h-3 rounded-full bg-red-500 -mr-1" />
                                 <div className="w-3 h-3 rounded-full bg-yellow-400" />
                               </div>
-                              <span className="text-[10px] text-gray-500">•••• 9464</span>
+                              <span className="text-sm text-gray-500">•••• 9464</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1386,14 +1691,14 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {/* Tour card */}
             <div key={tourStep} style={{ ...cardStyle, animation: 'tour-fade-in 0.3s ease' }} className="bg-white rounded-2xl shadow-2xl p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-gray-400">{tourStep + 1} / {tourSteps.length}</span>
-                <button onClick={handleTourSkip} className="text-xs text-gray-400 hover:text-color-1 cursor-pointer transition-colors">Passer</button>
+                <span className="text-sm font-semibold text-gray-400">{tourStep + 1} / {tourSteps.length}</span>
+                <button onClick={handleTourSkip} className="text-sm text-gray-400 hover:text-color-1 cursor-pointer transition-colors">Passer</button>
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">{step.icon}</span>
-                <h3 className="text-sm font-bold text-color-1">{step.title}</h3>
+                <h3 className="text-base font-bold text-color-1">{step.title}</h3>
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4">{step.description}</p>
+              <p className="text-sm text-gray-500 leading-relaxed mb-4">{step.description}</p>
               <div className="flex items-center justify-center gap-1.5 mb-4">
                 {tourSteps.map((_, i) => (
                   <div key={i} className={`rounded-full transition-all ${i === tourStep ? 'w-4 h-1.5 bg-color-2' : 'w-1.5 h-1.5 bg-gray-300'}`} />
@@ -1401,9 +1706,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </div>
               <div className="flex items-center gap-2">
                 {tourStep > 0 && (
-                  <button onClick={handleTourPrev} className="flex-1 py-2 rounded-xl text-xs font-semibold text-color-1 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">Retour</button>
+                  <button onClick={handleTourPrev} className="flex-1 py-2 rounded-xl text-sm font-semibold text-color-1 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">Retour</button>
                 )}
-                <button onClick={handleTourNext} className="flex-1 py-2 rounded-xl text-xs font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer">
+                <button onClick={handleTourNext} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer">
                   {tourStep === tourSteps.length - 1 ? 'Commencer' : 'Suivant'}
                 </button>
               </div>
