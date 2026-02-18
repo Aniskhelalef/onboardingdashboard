@@ -1959,7 +1959,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {/* Actions */}
             <div ref={actionsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3 flex flex-col min-h-0">
               <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-sm font-bold text-color-1">Actions</h2>
+                <h2 className="text-base font-bold text-color-1">Actions</h2>
                 {completionPercent < 100 && (
                   <span className="text-[10px] text-gray-400 font-medium">{doneActions.length}/{allActions.length} · {completionPercent}%</span>
                 )}
