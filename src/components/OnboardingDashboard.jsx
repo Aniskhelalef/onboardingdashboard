@@ -246,42 +246,44 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
   const previewRadius = radiusOptions.find(r => r.id === selectedRadius) || radiusOptions[2]
 
   const pages = [
-    { id: 'index', label: 'Accueil' },
-    { id: 'signup', label: 'Inscription' },
-    { id: 'signin', label: 'Connexion' },
-    { id: 'email-verification', label: 'Email' },
-    { id: 'objectives', label: 'Objectifs' },
-    { id: 'site-step1', label: 'Step 1' },
-    { id: 'site-step2', label: 'Step 2' },
-    { id: 'site-step3', label: 'Step 3' },
-    { id: 'site-step4', label: 'Step 4' },
-    { id: 'site-step5', label: 'Pricing' },
-    { id: 'checkout', label: 'Checkout' },
-    { id: 'survey', label: 'Survey' },
-    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'index', label: 'Acc' },
+    { id: 'signup', label: 'Ins' },
+    { id: 'signin', label: 'Con' },
+    { id: 'email-verification', label: 'Em' },
+    { id: 'objectives', label: 'Obj' },
+    { id: 'site-step1', label: '1' },
+    { id: 'site-step2', label: '2' },
+    { id: 'site-step3', label: '3' },
+    { id: 'site-step4', label: '4' },
+    { id: 'site-step5', label: 'Pr' },
+    { id: 'checkout', label: 'Ch' },
+    { id: 'survey', label: 'Su' },
+    { id: 'dashboard', label: 'DB' },
   ]
 
   return (
     <div className={`h-screen overflow-hidden bg-white grid grid-cols-1 ${currentView === 'site-step5' || currentView === 'checkout' ? '' : 'lg:grid-cols-2'}`}>
-      {/* Dev nav — bottom bar */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 z-50">
+      {/* Dev nav — tiny bottom-left */}
+      <div className="fixed bottom-1 left-1 z-50">
         {devNavVisible ? (
-          <div className="flex items-center gap-0.5 bg-gray-900/90 backdrop-blur rounded-t-lg px-1.5 py-1">
+          <div className="flex items-center gap-px bg-gray-900/80 backdrop-blur rounded px-1 py-px" style={{ fontSize: '9px' }}>
             {pages.map((p) => (
               <button
                 key={p.id}
                 onClick={() => p.id === 'dashboard' ? onGoToDashboard?.() : setCurrentView(p.id)}
-                className={`px-1.5 py-0.5 rounded text-sm font-medium transition-colors cursor-pointer ${
-                  currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
+                className={`px-1 py-px rounded font-medium transition-colors cursor-pointer ${
+                  currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-500 hover:text-white'
                 }`}
+                style={{ fontSize: '9px' }}
               >
                 {p.label}
               </button>
             ))}
-            <div className="h-3 w-px bg-gray-600 mx-0.5" />
+            <span className="text-gray-600 mx-px">|</span>
             <button
               onClick={() => setDevNavVisible(false)}
-              className="px-1 py-0.5 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+              className="text-gray-500 hover:text-white cursor-pointer"
+              style={{ fontSize: '9px' }}
             >
               ✕
             </button>
@@ -289,7 +291,8 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
         ) : (
           <button
             onClick={() => setDevNavVisible(true)}
-            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="bg-gray-900/80 backdrop-blur rounded px-1 py-px text-gray-500 hover:text-white transition-colors cursor-pointer"
+            style={{ fontSize: '8px' }}
           >
             DEV
           </button>

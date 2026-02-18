@@ -1,9 +1,28 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import theralysLogo from '../assets/theralys-logo.svg'
 import articleImg1 from '../assets/pexels-yankrukov-5794010-min.webp'
 import articleImg2 from '../assets/pexels-yankrukov-5794024-min.webp'
 import articleImg3 from '../assets/pexels-yankrukov-5793897-min.webp'
 import articleImg4 from '../assets/pexels-yankrukov-5793920-min.webp'
+// Additional Pexels library images
+import pexGrab1 from '../assets/pexels-karolina-grabowska-4506071-min.webp'
+import pexGrab2 from '../assets/pexels-karolina-grabowska-4506076-min.webp'
+import pexGrab3 from '../assets/pexels-karolina-grabowska-4506106-min.webp'
+import pexGrab4 from '../assets/pexels-karolina-grabowska-4506109-min.webp'
+import pexGrab5 from '../assets/pexels-karolina-grabowska-4506113-min.webp'
+import pexGrab6 from '../assets/pexels-karolina-grabowska-4506161-min.webp'
+import pexGrab7 from '../assets/pexels-karolina-grabowska-4506162-min.webp'
+import pexGrab8 from '../assets/pexels-karolina-grabowska-4506169-min.webp'
+import pexRyu1 from '../assets/pexels-ryutaro-5473179 (1)-min.webp'
+import pexRyu2 from '../assets/pexels-ryutaro-5473182.webp'
+import pexRyu3 from '../assets/pexels-ryutaro-5473186_11zon.webp'
+import pexRyu4 from '../assets/pexels-ryutaro-5473223.webp'
+import pexYank5 from '../assets/pexels-yankrukov-5793909-min.webp'
+import pexYank6 from '../assets/pexels-yankrukov-5794043-min.webp'
+import pexYank7 from '../assets/pexels-yankrukov-7155367 (1).webp'
+import pexYank8 from '../assets/pexels-yankrukov-7155532.webp'
+import pexYank9 from '../assets/pexels-yankrukov-7155534 (1).webp'
+import pexPolina from '../assets/pexels-polina-tankilevitch-3735747-2048x1365.jpg'
 
 const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEditor, onGoToSetup }) => {
   const [activeTab, setActiveTab] = useState(initialTab || 'accueil')
@@ -30,9 +49,6 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const [billingPeriod, setBillingPeriod] = useState('annual')
 
   // SEO / Référencement tab state
-  const [seoView, setSeoView] = useState('week')       // 'day' | 'week' | 'month'
-  const [seoDate, setSeoDate] = useState(new Date(2026, 1, 17)) // anchor date
-  const [seoStatus, setSeoStatus] = useState('all')    // 'all' | 'published' | 'scheduled'
   const [autoPublish, setAutoPublish] = useState(true)
   const [customTitles, setCustomTitles] = useState({}) // key: 'YYYY-M-D' → custom title
 
@@ -46,11 +62,110 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     { id: '6', icon: '\u{1F9D3}', title: 'Seniors' },
   ]
   const [checkedSpecs, setCheckedSpecs] = useState(['1', '2', '3', '4', '5', '6'])
-  const [pendingSpecs, setPendingSpecs] = useState(null) // null = no pending changes, array = staged selection
   const [rebalanceMode, setRebalanceMode] = useState(false)
-  const [seoFilter, setSeoFilter] = useState(null) // null = all, or specialty id
-  const activeSpecCount = pendingSpecs ? pendingSpecs.length : checkedSpecs.length
-  const articlesPerSpec = activeSpecCount > 0 ? Math.round(30 / activeSpecCount) : 0
+  const [selectedDay, setSelectedDay] = useState(null) // set by useEffect after batch computed
+  const [showRepartition, setShowRepartition] = useState(false)
+  const [showPexels, setShowPexels] = useState(false)
+  const [pexelsSearch, setPexelsSearch] = useState('')
+  const [customArticleImages, setCustomArticleImages] = useState({}) // dayIndex → image
+  const [customArticleTitles, setCustomArticleTitles] = useState({}) // dayIndex → title
+  const [weekOffset, setWeekOffset] = useState(0) // 0 = this week + next, -1 = prev, +1 = forward
+  const [seoFilter, setSeoFilter] = useState(null)
+  const activeSpecCount = checkedSpecs.length
+  const [seoBadgeIdx, setSeoBadgeIdx] = useState(0)
+
+  const seoItems = [
+    { score: 93, label: 'SEO', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+    { score: 98, label: 'Régularité', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+    { score: 85, label: 'Balises', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { score: 95, label: 'Meta desc.', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+    { score: 88, label: 'Mots-clés', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+  ]
+
+  const articleImgs = [articleImg1, articleImg2, articleImg3, articleImg4]
+
+  const articleTitlesMap = {
+    'Douleurs musculaires': ['5 étirements pour soulager les tensions', 'Prévenir les courbatures après le sport', 'Les causes des douleurs au dos'],
+    'Femmes enceintes': ['Exercices doux pendant la grossesse', 'Préparer son corps à l\u2019accouchement', 'Soulager les jambes lourdes enceinte'],
+    'Nourrissons': ['Les bienfaits de la kiné pour bébé', 'Torticolis du nourrisson : quand consulter\u00a0?', 'Massage bébé : les gestes essentiels'],
+    'Sportifs': ['Récupération sportive : les bons réflexes', 'Prévenir les entorses de cheville', 'Tendinite du coureur : causes et solutions'],
+    'Troubles posturaux': ['Améliorer sa posture au bureau', 'Scoliose : exercices de correction', 'Les effets du télétravail sur le dos'],
+    'Seniors': ['Garder son équilibre après 60 ans', 'Exercices doux pour l\u2019arthrose', 'Prévenir les chutes : guide pratique'],
+  }
+
+  // Rolling 2-week view — continuous, no batch boundaries
+  const viewData = useMemo(() => {
+    const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const currentMonday = new Date(today)
+    const dow = currentMonday.getDay()
+    currentMonday.setDate(currentMonday.getDate() + (dow === 0 ? -6 : 1 - dow))
+    // View starts from current Monday + weekOffset weeks
+    const viewStart = new Date(currentMonday)
+    viewStart.setDate(viewStart.getDate() + weekOffset * 7)
+    // Fixed epoch for deterministic specialty assignment across all time
+    const epoch = new Date(2026, 0, 5) // Monday Jan 5 2026
+    const days = []
+    for (let i = 0; i < 15; i++) {
+      const date = new Date(viewStart)
+      date.setDate(viewStart.getDate() + i)
+      const isPast = date < today
+      const isToday = date.toDateString() === today.toDateString()
+      const daysSinceEpoch = Math.round((date - epoch) / (1000 * 60 * 60 * 24))
+      const daysFromToday = Math.round((date - today) / (1000 * 60 * 60 * 24))
+      const spec = activeSpecs.length > 0 ? activeSpecs[((daysSinceEpoch % activeSpecs.length) + activeSpecs.length) % activeSpecs.length] : null
+      const published = isPast || isToday
+      const programmed = !published && daysFromToday <= 4
+      const preProgrammed = !published && daysFromToday > 4
+      let articleTitle = null, articleImage = null
+      if (spec) {
+        const titles = articleTitlesMap[spec.title] || ['Article SEO optimis\u00e9']
+        articleTitle = titles[((daysSinceEpoch % titles.length) + titles.length) % titles.length]
+        articleImage = articleImgs[((daysSinceEpoch % articleImgs.length) + articleImgs.length) % articleImgs.length]
+      }
+      // Deterministic SEO scores per article (min 93)
+      const seed = Math.abs(daysSinceEpoch * 7 + 13)
+      const seoRegularite = 93 + (seed % 8)             // 93–100
+      const seoBalises = 93 + ((seed * 3 + 5) % 8)      // 93–100
+      const seoMeta = 93 + ((seed * 7 + 11) % 8)        // 93–100
+      const seoMotsCles = 93 + ((seed * 11 + 3) % 8)    // 93–100
+      const seoGlobal = Math.round((seoRegularite + seoBalises + seoMeta + seoMotsCles) / 4)
+      days.push({
+        index: i, date, dayNum: date.getDate(),
+        monthShort: date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''),
+        published, programmed, preProgrammed,
+        specId: spec?.id || null, icon: spec?.icon || null, title: spec?.title || null,
+        isToday, articleTitle, articleImage,
+        seo: { global: seoGlobal, regularite: seoRegularite, balises: seoBalises, meta: seoMeta, motsCles: seoMotsCles },
+      })
+    }
+    const readyDays = days.filter(d => d.published || d.programmed).length
+    const week1Start = `${days[0].dayNum} ${days[0].monthShort}`
+    const week2End = `${days[14].dayNum} ${days[14].monthShort}`
+    const hasPrev = weekOffset > -4
+    const hasNext = weekOffset < 4
+    return { days, readyDays, week1Start, week2End, hasPrev, hasNext }
+  }, [checkedSpecs, weekOffset])
+
+  // Total articles per specialty (all-time from epoch to today)
+  const totalStats = useMemo(() => {
+    const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const epoch = new Date(2026, 0, 5)
+    const totalDays = Math.max(0, Math.round((today - epoch) / (1000 * 60 * 60 * 24)) + 1)
+    const counts = {}
+    allSpecialties.forEach(s => { counts[s.id] = 0 })
+    for (let i = 0; i < totalDays; i++) {
+      if (activeSpecs.length > 0) {
+        const spec = activeSpecs[((i % activeSpecs.length) + activeSpecs.length) % activeSpecs.length]
+        counts[spec.id] = (counts[spec.id] || 0) + 1
+      }
+    }
+    const total = Object.values(counts).reduce((a, b) => a + b, 0)
+    return { counts, total }
+  }, [checkedSpecs])
+
+  // No auto-select — default to "Sélectionnez un article" empty state
 
   // Tour state
   const [tourStep, setTourStep] = useState(0)
@@ -270,6 +385,12 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     return () => window.removeEventListener('keydown', handleKey)
   }, [tourActive, tourStep, dashboardState])
 
+  // Cycle SEO badge every 3s
+  useEffect(() => {
+    const timer = setInterval(() => setSeoBadgeIdx(i => (i + 1) % seoItems.length), 3000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Auto-rotate articles every 4s, loop
   useEffect(() => {
     if (showSettings || activeTab !== 'accueil' || dashboardState === 0) return
@@ -313,43 +434,34 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
-      {/* Dev nav — bottom bar */}
-      <div className="fixed bottom-0 left-0 z-50">
+      {/* Dev nav — tiny bottom-left pill */}
+      <div className="fixed bottom-1 left-1 z-50">
         {devNavVisible ? (
-          <div className="flex items-center gap-1 bg-gray-900/90 backdrop-blur rounded-t-lg px-2 py-1">
+          <div className="flex items-center gap-px bg-gray-900/80 backdrop-blur rounded px-1 py-px" style={{ fontSize: '9px' }}>
             {[
-              { id: 0, label: 'State 0 (New)' },
-              { id: 1, label: 'State 1 (Active)' },
+              { id: 0, label: '0' },
+              { id: 1, label: '1' },
             ].map((s) => (
               <button
                 key={s.id}
                 onClick={() => setDashboardState(s.id)}
-                className={`px-2.5 py-1 rounded text-sm font-medium transition-colors cursor-pointer ${
-                  dashboardState === s.id ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white'
+                className={`px-1.5 py-px rounded font-medium transition-colors cursor-pointer ${
+                  dashboardState === s.id ? 'bg-white text-gray-900' : 'text-gray-500 hover:text-white'
                 }`}
+                style={{ fontSize: '9px' }}
               >
                 {s.label}
               </button>
             ))}
-            <div className="h-3 w-px bg-gray-600 mx-1" />
-            <button
-              onClick={onGoToOnboarding}
-              className="px-2.5 py-1 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Onboarding
-            </button>
-            <div className="h-3 w-px bg-gray-600 mx-1" />
-            <button
-              onClick={() => setDevNavVisible(false)}
-              className="px-1.5 py-1 rounded text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
-            >
-              ✕
-            </button>
+            <span className="text-gray-600 mx-px">|</span>
+            <button onClick={onGoToOnboarding} className="px-1 py-px rounded font-medium text-gray-500 hover:text-white transition-colors cursor-pointer" style={{ fontSize: '9px' }}>OB</button>
+            <button onClick={() => setDevNavVisible(false)} className="px-1 py-px rounded text-gray-500 hover:text-white transition-colors cursor-pointer" style={{ fontSize: '9px' }}>✕</button>
           </div>
         ) : (
           <button
             onClick={() => setDevNavVisible(true)}
-            className="bg-gray-900/90 backdrop-blur rounded-t-lg px-3 py-0.5 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer"
+            className="bg-gray-900/60 backdrop-blur rounded px-1.5 py-px text-gray-500 hover:text-white transition-colors cursor-pointer"
+            style={{ fontSize: '8px' }}
           >
             DEV
           </button>
@@ -445,326 +557,399 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       </nav>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden px-6 py-4 w-full max-w-[1200px]">
+      <div className="flex-1 overflow-hidden px-6 py-2 w-full max-w-[1200px]">
         {showSettings ? (
         null
         ) : activeTab === 'referencement' ? (
         <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
-          {/* Top-left — MONITORER */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
-            {(() => {
-              // Build roadmap data for February
-              const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
-              const today = new Date(2026, 1, 17)
-              const daysInFeb = 28
-              const roadmapDays = []
-              // Phase 1: Published (Feb 1-17)
-              let pubIdx = 0
-              for (let d = 1; d <= daysInFeb; d++) {
-                const dayDate = new Date(2026, 1, d)
-                if (d <= 17) {
-                  const spec = allSpecialties[pubIdx % allSpecialties.length]
-                  roadmapDays.push({ day: d, published: true, specId: spec.id, icon: spec.icon, title: spec.title })
-                  pubIdx++
-                } else {
-                  roadmapDays.push({ day: d, published: false, specId: null, icon: null, title: null })
-                }
-              }
-              // Phase 2: Programmé (first 3, fully written) + Pré-programmé (rest, title only)
-              if (activeSpecs.length > 0) {
-                let schedIdx = 0
-                for (let d = 18; d <= daysInFeb; d++) {
-                  const spec = activeSpecs[schedIdx % activeSpecs.length]
-                  const isWritten = schedIdx < 3 // first 3 are fully written
-                  roadmapDays[d - 1] = { day: d, published: false, programmed: isWritten, preProgrammed: !isWritten, specId: spec.id, icon: spec.icon, title: spec.title }
-                  schedIdx++
-                }
-              }
+          {/* Top-left — Article calendar */}
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-bold text-color-1">Articles SEO</h2>
+                <span className="text-sm text-gray-300">·</span>
+                <span className="text-sm text-gray-400">{totalStats.total} publiés · 18 742 vues</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1">
+                  <button disabled={!viewData.hasPrev} onClick={() => { setWeekOffset(o => o - 1); setSelectedDay(null) }} className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${viewData.hasPrev ? 'hover:bg-gray-100 cursor-pointer text-gray-400' : 'text-gray-200 cursor-not-allowed'}`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                  </button>
+                  <span className="text-sm text-gray-400">{viewData.week1Start} – {viewData.week2End}</span>
+                  <button disabled={!viewData.hasNext} onClick={() => { setWeekOffset(o => o + 1); setSelectedDay(null) }} className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${viewData.hasNext ? 'hover:bg-gray-100 cursor-pointer text-gray-400' : 'text-gray-200 cursor-not-allowed'}`}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </button>
+                  {weekOffset !== 0 && (
+                    <button onClick={() => { setWeekOffset(0); setSelectedDay(null) }} className="text-xs text-color-2 font-medium ml-1 cursor-pointer hover:underline">Aujourd'hui</button>
+                  )}
+                </div>
+                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer text-gray-400 hover:text-color-1">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
 
-              return (
-                <>
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4 shrink-0">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
-                      <h2 className="text-base font-bold text-color-1">{'Votre strat\u00e9gie SEO est active'}</h2>
-                    </div>
-                    <span className="text-sm text-gray-400">{`Mis \u00e0 jour aujourd'hui`}</span>
-                  </div>
+            {/* 5×3 article grid */}
+            <div className="grid grid-cols-5 gap-2 mt-4 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(3, 1fr)' }}>
+              {viewData.days.map((item) => {
+                const isSelected = selectedDay === item.index
 
-                  {/* 2 KPI cards */}
-                  <div className="grid grid-cols-2 gap-3 mb-4 shrink-0">
-                    <div className="bg-gray-50 rounded-2xl p-4 flex flex-col">
-                      <span className="text-sm text-gray-400 font-medium mb-1">{`Total articles publi\u00e9s`}</span>
-                      <span className="text-3xl font-bold text-color-1">124</span>
-                    </div>
-                    <div className="bg-pink-50 rounded-2xl p-4 flex flex-col">
-                      <span className="text-sm text-gray-400 font-medium mb-1">Total vues</span>
-                      <span className="text-3xl font-bold text-color-1">18 742</span>
-                    </div>
-                  </div>
-
-                  {/* Month roadmap */}
-                  <div className="flex-1 flex flex-col min-h-0">
-                    <div className="flex items-center justify-between mb-2 shrink-0">
-                      <span className="text-sm font-semibold text-color-1">{`F\u00e9vrier 2026`}</span>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-color-1" />
-                          <span className="text-sm text-gray-400">{`Publi\u00e9`}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-color-2" />
-                          <span className="text-sm text-gray-400">{`Programm\u00e9`}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-gray-300" />
-                          <span className="text-sm text-gray-400">{`Pr\u00e9-programm\u00e9`}</span>
-                        </div>
+                {/* Published — just faded. The low opacity IS the signal. */}
+                if (item.published) {
+                  return (
+                    <div
+                      key={item.index}
+                      onClick={() => setSelectedDay(item.index)}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all opacity-40 ${isSelected ? 'ring-2 ring-color-2 ring-offset-2 opacity-100' : 'hover:opacity-70'}`}
+                    >
+                      <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2">
+                        <p className="text-white/60 text-[10px] font-medium mb-0.5">{item.dayNum} {item.monthShort}</p>
+                        <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.articleTitle}</p>
                       </div>
                     </div>
-                    {/* Day headers */}
-                    <div className="grid grid-cols-7 gap-1.5 mb-1 shrink-0">
-                      {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
-                        <span key={d} className="text-sm text-gray-400 font-medium text-center">{d}</span>
-                      ))}
+                  )
+                }
+
+                {/* Programmé — full opacity. The richness IS the signal. */}
+                if (item.programmed) {
+                  return (
+                    <div
+                      key={item.index}
+                      onClick={() => setSelectedDay(item.index)}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
+                    >
+                      <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2">
+                        <p className="text-white/60 text-[10px] font-medium mb-0.5">{item.dayNum} {item.monthShort}</p>
+                        <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.articleTitle}</p>
+                      </div>
                     </div>
-                    {/* Day grid */}
-                    <div className="flex-1 grid grid-cols-7 gap-1.5 min-h-0" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
-                      {roadmapDays.map((item) => {
-                        const isToday = item.day === 17
-                        const hasArticle = item.published || item.programmed || item.preProgrammed
-                        return (
-                          <div
-                            key={item.day}
-                            className={`rounded-xl flex flex-col items-center justify-center transition-all min-h-0 ${
-                              isToday ? 'ring-2 ring-color-2 ring-offset-1' : ''
-                            } ${
-                              item.published ? 'bg-green-50' : item.programmed ? 'bg-orange-50' : item.preProgrammed ? 'bg-gray-100' : 'bg-gray-50/50'
-                            }`}
-                          >
-                            {hasArticle && (
-                              <span className={`text-lg leading-none ${item.preProgrammed ? 'opacity-40' : ''}`}>{item.icon}</span>
-                            )}
-                            <span className={`text-sm font-bold leading-none mt-0.5 ${
-                              isToday ? 'text-color-2' : item.published ? 'text-color-1' : item.programmed ? 'text-color-2' : item.preProgrammed ? 'text-gray-400' : 'text-gray-300'
-                            }`}>{item.day}</span>
-                          </div>
-                        )
-                      })}
+                  )
+                }
+
+                {/* Préprogrammé — empty card. The absence of image IS the signal. */}
+                if (item.preProgrammed) {
+                  return (
+                    <div
+                      key={item.index}
+                      onClick={() => setSelectedDay(item.index)}
+                      className={`relative rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-gray-50 hover:bg-gray-100 ${isSelected ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}
+                    >
+                      <span className="text-2xl opacity-30">{item.icon}</span>
+                      <span className={`text-sm font-bold mt-1 ${item.isToday ? 'text-color-2' : 'text-gray-300'}`}>{item.dayNum}</span>
+                      {item.dayNum === 1 && <span className="text-[8px] text-gray-300">{item.monthShort}</span>}
                     </div>
+                  )
+                }
+
+                return (
+                  <div key={item.index} className="rounded-xl bg-gray-50/50 flex items-center justify-center">
+                    <span className="text-sm font-medium text-gray-200">{item.dayNum}</span>
                   </div>
-                </>
-              )
-            })()}
+                )
+              })}
+            </div>
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-2.5">
 
-            {/* Actions */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
-              <h2 className="text-base font-bold text-color-1 mb-2">Actions</h2>
-              <div className="flex flex-col gap-2.5 flex-1 justify-center">
-                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </div>
-                  <p className="text-sm font-semibold text-color-1 min-w-0">{'Cr\u00e9er un article'}</p>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
-                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                  </div>
-                  <p className="text-sm font-semibold text-color-1 min-w-0">Modifier un article</p>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
-                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                  </div>
-                  <p className="text-sm font-semibold text-color-1 min-w-0">{'Ajuster mon r\u00e9dacteur'}</p>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 ml-auto"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
+            {/* Article preview card */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <h2 className="text-base font-bold text-color-1">Article</h2>
+                {selectedDay !== null && viewData.days[selectedDay] && (viewData.days[selectedDay].published || viewData.days[selectedDay].programmed) && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-semibold ${viewData.days[selectedDay].published ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-color-2'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${viewData.days[selectedDay].published ? 'bg-green-500' : 'bg-color-2'}`} />
+                    {viewData.days[selectedDay].published ? 'Publié' : 'Programmé'}
+                  </span>
+                )}
               </div>
+              {(() => {
+                const item = selectedDay !== null ? viewData.days[selectedDay] : null
+                if (!item) return (
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-sm text-gray-300">Sélectionnez un article</p>
+                  </div>
+                )
+                if (item.published || item.programmed) {
+                  const displayImage = customArticleImages[item.index] || item.articleImage
+                  const displayTitle = customArticleTitles[item.index] || item.articleTitle
+                  return (
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <button
+                        className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left"
+                        onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
+                      >
+                        <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                        {/* Pexels overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            <span className="text-white text-xs font-medium">Changer l'image</span>
+                          </div>
+                        </div>
+                      </button>
+                      {/* Notion-style properties */}
+                      <div className="mt-2.5 flex flex-col gap-1.5 shrink-0">
+                        <div className="flex items-start gap-2">
+                          <span className="text-sm text-gray-400 w-16 shrink-0 mt-0.5">Titre</span>
+                          <input
+                            type="text"
+                            value={displayTitle}
+                            onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
+                            className="flex-1 text-sm font-semibold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors py-0.5 -my-0.5"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-400 w-16 shrink-0">Thème</span>
+                          <span className="text-sm font-medium text-color-1">{item.icon} {item.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-400 w-16 shrink-0">Date</span>
+                          <span className="text-sm font-medium text-color-1">{item.dayNum} {item.monthShort}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-400 w-16 shrink-0">SEO</span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-16 h-1.5 rounded-full bg-gray-100"><div className="h-full rounded-full bg-green-400" style={{ width: `${item.seo.global}%` }} /></div>
+                            <span className="text-sm font-semibold text-green-600">{item.seo.global}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-3 shrink-0">
+                        <button className="flex-1 py-2 rounded-xl bg-gray-50 text-sm font-medium text-color-1 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200">Modifier</button>
+                        <button className="flex-1 py-2 rounded-xl bg-color-1 text-sm font-medium text-white hover:bg-color-1/90 transition-colors cursor-pointer">Voir</button>
+                      </div>
+                    </div>
+                  )
+                }
+                {/* Pre-programmed article */}
+                const preDisplayImage = customArticleImages[item.index]
+                const preDisplayTitle = customArticleTitles[item.index] || item.articleTitle || ''
+                return (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    {/* Image area — either custom image or placeholder */}
+                    <button
+                      className="relative rounded-xl overflow-hidden cursor-pointer group text-left shrink-0"
+                      style={{ height: preDisplayImage ? '45%' : 80 }}
+                      onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
+                    >
+                      {preDisplayImage ? (
+                        <>
+                          <img src={preDisplayImage} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
+                          <span className="text-3xl">{item.icon}</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                          <span className="text-white text-xs font-medium">Choisir une image</span>
+                        </div>
+                      </div>
+                    </button>
+                    {/* Notion-style properties */}
+                    <div className="mt-2.5 flex flex-col gap-1.5 shrink-0">
+                      <div className="flex items-start gap-2">
+                        <span className="text-sm text-gray-400 w-16 shrink-0 mt-0.5">Titre</span>
+                        <input
+                          type="text"
+                          value={preDisplayTitle}
+                          onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
+                          placeholder="Titre de l'article..."
+                          className="flex-1 text-sm font-semibold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors py-0.5 -my-0.5 placeholder:text-gray-300 placeholder:font-normal"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400 w-16 shrink-0">Thème</span>
+                        <span className="text-sm font-medium text-color-1">{item.icon} {item.title}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400 w-16 shrink-0">Date</span>
+                        <span className="text-sm font-medium text-color-1">{item.dayNum} {item.monthShort}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1" />
+                    <button className="w-full py-2 rounded-xl text-sm font-medium text-color-2 hover:bg-orange-50 transition-colors cursor-pointer border border-color-2/30 shrink-0">Générer maintenant</button>
+                  </div>
+                )
+              })()}
             </div>
 
-            {/* Répartition */}
-            {(() => {
-              // Three-phase count: Publié → Programmé (written) → Pré-programmé (title only)
-              const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
-              const today = new Date(2026, 1, 17)
-              const pubCounts = {}, progCounts = {}, preCounts = {}
-              allSpecialties.forEach(s => { pubCounts[s.id] = 0; progCounts[s.id] = 0; preCounts[s.id] = 0 })
-              const daysInMonth = new Date(2026, 2, 0).getDate()
-              // Phase 1: Published — all 6 specialties (locked)
-              let pubIdx = 0
-              for (let d = 1; d <= daysInMonth; d++) {
-                if (new Date(2026, 1, d) <= today) {
-                  pubCounts[allSpecialties[pubIdx % allSpecialties.length].id]++
-                  pubIdx++
-                }
-              }
-              // Phase 2 & 3: next 14 days — first 3 are Programmé (written), rest are Pré-programmé (title only)
-              let progTotal = 0, preTotal = 0
-              if (activeSpecs.length > 0) {
-                for (let i = 1; i <= 14; i++) {
-                  const spec = activeSpecs[(i - 1) % activeSpecs.length]
-                  if (i <= 3) { progCounts[spec.id]++; progTotal++ }
-                  else { preCounts[spec.id]++; preTotal++ }
-                }
-              }
-              const writtenTotal = pubIdx + progTotal // published + programmé = all written articles
-              const maxTotal = Math.max(...allSpecialties.map(s => (pubCounts[s.id] || 0) + (progCounts[s.id] || 0) + (preCounts[s.id] || 0)), 1)
-              return (
-                <div className="flex-[2] bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-1 shrink-0">
-                    <h2 className="text-base font-bold text-color-1">{'R\u00e9partition'}</h2>
-                    <div className="flex items-center gap-3 text-sm text-gray-400">
-                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-color-1 inline-block" /><span className="font-semibold text-color-1">{writtenTotal}</span> {'r\u00e9dig\u00e9s'}</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block" /><span className="font-semibold text-gray-500">{preTotal}</span> {'pr\u00e9-programm\u00e9s'}</span>
-                    </div>
-                  </div>
-                  {/* Edit / Rebalance controls */}
-                  {(() => {
-                    const isEditing = pendingSpecs !== null
-                    const displaySpecs = isEditing ? pendingSpecs : checkedSpecs
-                    const hasDiff = isEditing && JSON.stringify([...pendingSpecs].sort()) !== JSON.stringify([...checkedSpecs].sort())
-                    return (
-                      <>
-                        <div className="flex items-center gap-2 mb-2 shrink-0">
-                          {!isEditing ? (
-                            <button
-                              onClick={() => setPendingSpecs([...checkedSpecs])}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all bg-gray-50 hover:bg-gray-100 cursor-pointer"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                              </svg>
-                              <span className="text-sm font-medium text-gray-500">Modifier</span>
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => {
-                                  if (hasDiff) setCheckedSpecs(pendingSpecs)
-                                  setPendingSpecs(null)
-                                  setRebalanceMode(false)
-                                }}
-                                disabled={!hasDiff}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                                  hasDiff ? 'bg-color-1 text-white cursor-pointer' : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                                }`}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12"/>
-                                </svg>
-                                <span className="text-sm font-medium">Valider</span>
-                              </button>
-                              <button
-                                onClick={() => { setPendingSpecs(null); setRebalanceMode(false) }}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-all"
-                              >
-                                <span className="text-sm font-medium text-gray-500">Annuler</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const next = !rebalanceMode
-                                  setRebalanceMode(next)
-                                  if (next) setPendingSpecs(allSpecialties.map(s => s.id))
-                                }}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer ml-auto ${
-                                  rebalanceMode ? 'bg-color-1 text-white' : 'bg-gray-50 hover:bg-gray-100'
-                                }`}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={rebalanceMode ? 'white' : '#9CA3AF'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M21 12H3M21 12l-4-4m4 4l-4 4M3 12l4-4m-4 4l4 4" />
-                                </svg>
-                                <span className={`text-sm font-medium ${rebalanceMode ? 'text-white' : 'text-gray-500'}`}>{'R\u00e9\u00e9quilibrer'}</span>
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        {/* Impact info cards — shown in edit mode */}
-                        {isEditing && (
-                          <div className="flex gap-2 mb-2 shrink-0">
-                            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
-                              <span className="text-lg mb-0.5">{'\u270F\uFE0F'}</span>
-                              <span className="text-xs font-semibold text-color-1">Titre</span>
-                              <span className="text-xs text-gray-400">Tous les articles</span>
-                            </div>
-                            <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
-                              <span className="text-lg mb-0.5">{'\uD83D\uDDBC\uFE0F'}</span>
-                              <span className="text-xs font-semibold text-color-1">Couverture</span>
-                              <span className="text-xs text-gray-400">Tous les articles</span>
-                            </div>
-                            <div className="flex-1 bg-orange-50 rounded-xl px-3 py-2 flex flex-col items-center text-center">
-                              <span className="text-lg mb-0.5">{'\uD83D\uDCDD'}</span>
-                              <span className="text-xs font-semibold text-color-1">Contenu</span>
-                              <span className="text-xs text-color-2">{'Publi\u00e9 & Programm\u00e9'}</span>
-                            </div>
+            {/* Articles par thème card */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <h2 className="text-base font-bold text-color-1">Répartition</h2>
+                <button onClick={() => setShowRepartition(true)} className="text-sm text-color-2 font-medium hover:underline cursor-pointer">Modifier</button>
+              </div>
+              {(() => {
+                const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
+                return (
+                  <div className="flex flex-col gap-1 flex-1 justify-center">
+                    {activeSpecs.map(spec => {
+                      const count = totalStats.counts[spec.id] || 0
+                      return (
+                        <div key={spec.id} className="flex items-center justify-between py-1.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-base shrink-0">{spec.icon}</span>
+                            <span className="text-sm text-color-1 font-medium truncate">{spec.title}</span>
                           </div>
-                        )}
-                        {/* Specialty list */}
-                        <div className="flex-1 flex flex-col gap-0.5 min-h-0 justify-center">
-                          {allSpecialties.map((spec) => {
-                            const isActive = displaySpecs.includes(spec.id)
-                            const written = (pubCounts[spec.id] || 0) + (progCounts[spec.id] || 0)
-                            const pre = preCounts[spec.id] || 0
-                            const total = written + pre
-                            const barPct = maxTotal > 0 ? (total / maxTotal) * 100 : 0
-                            const writtenShare = total > 0 ? (written / total) * 100 : 0
-                            const toggleSpec = () => {
-                              if (!isEditing) return
-                              setPendingSpecs(prev => prev.includes(spec.id) ? prev.filter(id => id !== spec.id) : [...prev, spec.id])
-                            }
-                            return (
-                              <div
-                                key={spec.id}
-                                onClick={toggleSpec}
-                                className={`flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all ${
-                                  isEditing ? 'cursor-pointer hover:bg-gray-50' : ''
-                                } ${isActive ? '' : 'opacity-35'}`}
-                              >
-                                <span className="text-base shrink-0">{spec.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm font-medium text-color-1 truncate">{spec.title}</span>
-                                    <span className="text-sm font-bold text-color-1 shrink-0 tabular-nums">
-                                      {written}{isActive && pre > 0 && <span className="text-gray-300 font-normal"> +{pre}</span>}
-                                    </span>
-                                  </div>
-                                  <div className="h-1 rounded-full bg-gray-100 mt-1 overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full transition-all duration-500"
-                                      style={{
-                                        width: `${barPct}%`,
-                                        background: `linear-gradient(to right, #2D2D2D ${writtenShare}%, #D1D5DB ${writtenShare}%)`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
+                          <span className="text-sm font-bold text-color-1 tabular-nums ml-3">{count}</span>
                         </div>
-                      </>
-                    )
-                  })()}
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-100 shrink-0">
-                    <span className="text-sm text-gray-400">{activeSpecCount} {'sp\u00e9cialit\u00e9'}{activeSpecCount > 1 ? 's' : ''} active{activeSpecCount > 1 ? 's' : ''}</span>
-                    <span className="text-sm text-gray-400">{articlesPerSpec} art. / {'sp\u00e9.'} / mois</span>
+                      )
+                    })}
                   </div>
-                </div>
-              )
-            })()}
-
+                )
+              })()}
+            </div>
           </div>
 
+
+          {/* Répartition modal */}
+          {showRepartition && (() => {
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowRepartition(false)}>
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+                <div className="relative bg-white rounded-2xl shadow-xl w-[380px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                  <div className="px-5 pt-5 pb-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-base font-bold text-color-1">De quoi parleront vos articles ?</h2>
+                      <button onClick={() => setShowRepartition(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                    <p className="text-[13px] text-gray-400">Activez les thématiques qui vous intéressent. Les {totalStats.total} articles seront répartis équitablement.</p>
+                  </div>
+                  <div className="px-5 pb-4 flex flex-col gap-1.5">
+                    {allSpecialties.map((spec) => {
+                      const isActive = checkedSpecs.includes(spec.id)
+                      const count = totalStats.counts[spec.id] || 0
+                      return (
+                        <button
+                          key={spec.id}
+                          onClick={() => setCheckedSpecs(prev => prev.includes(spec.id) ? prev.filter(id => id !== spec.id) : [...prev, spec.id])}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${isActive ? 'bg-gray-50' : 'opacity-30'}`}
+                        >
+                          <span className="text-lg shrink-0">{spec.icon}</span>
+                          <span className="text-[13px] font-medium text-color-1 flex-1">{spec.title}</span>
+                          {isActive && <span className="text-[13px] font-semibold text-color-1 tabular-nums">{count} art.</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="px-5 py-3 border-t border-gray-100">
+                    <p className="text-[13px] text-gray-400 text-center">
+                      {activeSpecCount > 0
+                        ? <>{activeSpecCount} thématique{activeSpecCount > 1 ? 's' : ''} · ~{Math.round(totalStats.total / activeSpecCount)} articles chacune</>
+                        : 'Sélectionnez au moins une thématique'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Pexels image library modal */}
+          {showPexels && (() => {
+            const pexelsImages = [
+              { id: 1, src: articleImg1, label: 'Physiothérapie épaule' },
+              { id: 2, src: articleImg2, label: 'Consultation ostéo' },
+              { id: 3, src: articleImg3, label: 'Massage thérapeutique' },
+              { id: 4, src: articleImg4, label: 'Rééducation sportive' },
+              { id: 5, src: pexGrab1, label: 'Massage du dos' },
+              { id: 6, src: pexGrab2, label: 'Soin cervical' },
+              { id: 7, src: pexGrab3, label: 'Thérapie manuelle' },
+              { id: 8, src: pexGrab4, label: 'Consultation cabinet' },
+              { id: 9, src: pexGrab5, label: 'Palpation dorsale' },
+              { id: 10, src: pexGrab6, label: 'Traitement articulaire' },
+              { id: 11, src: pexGrab7, label: 'Mobilisation épaule' },
+              { id: 12, src: pexGrab8, label: 'Étirement guidé' },
+              { id: 13, src: pexRyu1, label: 'Rééducation posturale' },
+              { id: 14, src: pexRyu2, label: 'Exercice thérapeutique' },
+              { id: 15, src: pexRyu3, label: 'Renforcement musculaire' },
+              { id: 16, src: pexRyu4, label: 'Séance de kiné' },
+              { id: 17, src: pexYank5, label: 'Soin du patient' },
+              { id: 18, src: pexYank6, label: 'Bilan postural' },
+              { id: 19, src: pexYank7, label: 'Récupération sportive' },
+              { id: 20, src: pexYank8, label: 'Traitement en cabinet' },
+              { id: 21, src: pexYank9, label: 'Manipulation douce' },
+              { id: 22, src: pexPolina, label: 'Bien-être et détente' },
+            ]
+            const filtered = pexelsSearch
+              ? pexelsImages.filter(img => img.label.toLowerCase().includes(pexelsSearch.toLowerCase()))
+              : pexelsImages
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowPexels(false)}>
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+                <div className="relative bg-white rounded-2xl shadow-xl w-[440px] max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                  <div className="px-5 pt-5 pb-3 shrink-0">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#05A081"/><path d="M13.5 10.2h-3.3v11.6h3.3v-4.6c0-1.7 1-2.6 2.3-2.6 1.2 0 2 .8 2 2.4v4.8h3.3v-5.5c0-3-1.7-4.7-4.2-4.7-1.5 0-2.5.7-3.1 1.5l-.3-1.3z" fill="white"/></svg>
+                        <h2 className="text-base font-bold text-color-1">Pexels</h2>
+                      </div>
+                      <button onClick={() => setShowPexels(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                      <input
+                        type="text"
+                        value={pexelsSearch}
+                        onChange={e => setPexelsSearch(e.target.value)}
+                        placeholder="Rechercher des photos..."
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 text-[13px] text-color-1 placeholder:text-gray-300 outline-none focus:ring-2 focus:ring-color-2/30 transition-shadow"
+                      />
+                    </div>
+                  </div>
+                  <div className="px-5 pb-5 flex-1 min-h-0 overflow-y-auto">
+                    {filtered.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {filtered.map(img => (
+                          <button
+                            key={img.id}
+                            onClick={() => {
+                              if (selectedDay !== null) {
+                                setCustomArticleImages(prev => ({ ...prev, [selectedDay]: img.src }))
+                              }
+                              setShowPexels(false)
+                            }}
+                            className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group/pex"
+                          >
+                            <img src={img.src} alt={img.label} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover/pex:scale-105" />
+                            <div className="absolute inset-0 bg-black/0 group-hover/pex:bg-black/30 transition-colors" />
+                            <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover/pex:opacity-100 transition-opacity">
+                              <p className="text-white text-[11px] font-medium">{img.label}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <p className="text-sm text-gray-300">Aucune photo trouvée</p>
+                        <p className="text-[11px] text-gray-300 mt-1">Essayez un autre terme</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-5 py-2 border-t border-gray-100 shrink-0">
+                    <p className="text-[10px] text-gray-300 text-center">Photos gratuites fournies par Pexels</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
         </div>
         ) : activeTab === 'parrainage' ? (
         <div key="parrainage" className="flex flex-col gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
