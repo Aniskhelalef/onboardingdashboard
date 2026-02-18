@@ -487,9 +487,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     stats: {
       ref: statsBlockRef, title: 'Vos indicateurs clés', icon: '📊', position: 'bottom', padding: 12,
       details: [
-        { label: 'Visites', desc: 'Le nombre de personnes qui ont consulté votre site web. Chaque visite est comptée une seule fois par jour et par visiteur. Utilisez le filtre de période en haut pour comparer différentes plages de temps.', sync: () => setSelectedKpi('visites') },
-        { label: 'Clics RDV', desc: 'Combien de visiteurs ont cliqué sur votre bouton de prise de rendez-vous. C\'est l\'indicateur le plus direct de conversion : plus ce chiffre monte, plus votre site génère de patients.', sync: () => setSelectedKpi('clics') },
-        { label: 'Avis Google', desc: 'Le nombre total d\'avis laissés sur votre fiche Google Business. Les avis influencent directement votre classement local et la confiance des nouveaux patients.', sync: () => setSelectedKpi('avis') },
+        { label: 'Visites', desc: 'Le nombre de personnes qui ont consulté votre site web. Chaque visite est comptée une seule fois par jour et par visiteur. Utilisez le filtre de période en haut pour comparer différentes plages de temps.', sync: () => { setSelectedKpi('visites'); setSeoHighlight('kpi-visites') } },
+        { label: 'Clics RDV', desc: 'Combien de visiteurs ont cliqué sur votre bouton de prise de rendez-vous. C\'est l\'indicateur le plus direct de conversion : plus ce chiffre monte, plus votre site génère de patients.', sync: () => { setSelectedKpi('clics'); setSeoHighlight('kpi-clics') } },
+        { label: 'Avis Google', desc: 'Le nombre total d\'avis laissés sur votre fiche Google Business. Les avis influencent directement votre classement local et la confiance des nouveaux patients.', sync: () => { setSelectedKpi('avis'); setSeoHighlight('kpi-avis') } },
       ],
     },
     articles: {
@@ -535,9 +535,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     ranking: {
       ref: rankingRef, title: 'Votre position locale', icon: '🏆', position: 'top', padding: 12,
       details: [
-        { label: 'Mot-clé', desc: `Nous suivons votre position sur la recherche "${profession} ${ville}". C'est la requête que tapent vos futurs patients pour trouver un praticien dans votre zone.` },
-        { label: 'Objectif', desc: 'Atteindre le top 3 des résultats locaux Google. Les 3 premiers résultats captent plus de 75% des clics. Chaque position gagnée = plus de patients potentiels.' },
-        { label: 'Évolution', desc: 'Le graphique retrace votre progression mois par mois. Une tendance à la hausse signifie que votre stratégie SEO fonctionne et que Google vous fait de plus en plus confiance.' },
+        { label: 'Mot-clé', desc: `Nous suivons votre position sur la recherche "${profession} ${ville}". C'est la requête que tapent vos futurs patients pour trouver un praticien dans votre zone.`, sync: () => setSeoHighlight('rank-keyword') },
+        { label: 'Objectif', desc: 'Atteindre le top 3 des résultats locaux Google. Les 3 premiers résultats captent plus de 75% des clics. Chaque position gagnée = plus de patients potentiels.', sync: () => setSeoHighlight('rank-objective') },
+        { label: 'Évolution', desc: 'Le graphique retrace votre progression mois par mois. Une tendance à la hausse signifie que votre stratégie SEO fonctionne et que Google vous fait de plus en plus confiance.', sync: () => setSeoHighlight('rank-evolution') },
       ],
     },
   }
@@ -1535,7 +1535,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     onClick={() => setSelectedKpi(kpi.key)}
                     className={`rounded-xl px-4 py-3 min-w-[120px] text-left transition-all cursor-pointer border-2 ${
                       selectedKpi === kpi.key ? `${kpi.activeBg} ${kpi.activeBorder}` : `${kpi.bg} border-transparent`
-                    }`}
+                    } ${seoHighlight === `kpi-${kpi.key}` ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}
                   >
                     <div className="flex items-center gap-1.5 mb-2">
                       {kpi.icon}
@@ -1613,7 +1613,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {dashboardState <= 2 && activeBlockInfo !== 'stats' && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                 <button
-                  onClick={() => { setActiveBlockInfo('stats'); setBlockInfoDetail(0); setSelectedKpi('visites') }}
+                  onClick={() => { setActiveBlockInfo('stats'); setBlockInfoDetail(0); setSelectedKpi('visites'); setSeoHighlight('kpi-visites') }}
                   className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
                     style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                 >
@@ -1875,9 +1875,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-bold text-color-1">Classement Google</h2>
-                <p className="text-sm text-gray-400 mt-0.5">"{profession} {ville}"</p>
+                <p className={`text-sm text-gray-400 mt-0.5 transition-all rounded-lg ${seoHighlight === 'rank-keyword' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>"{profession} {ville}"</p>
               </div>
-              <div className="bg-gray-50 rounded-xl px-4 py-2.5">
+              <div className={`bg-gray-50 rounded-xl px-4 py-2.5 transition-all ${seoHighlight === 'rank-objective' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
                 <div className="flex items-center gap-2 mb-1">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -1895,7 +1895,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             </div>
 
             {/* Ranking chart */}
-            <div className="flex-1 mt-3 min-h-0 flex">
+            <div className={`flex-1 mt-3 min-h-0 flex transition-all rounded-xl ${seoHighlight === 'rank-evolution' ? 'ring-2 ring-color-2 ring-offset-4' : ''}`}>
               {/* Y-axis labels (ranking: 1 at top, 30 at bottom) */}
               <div className="flex flex-col justify-between pr-2 text-sm text-gray-400 shrink-0 text-right">
                 <span>1</span><span>5</span><span>10</span><span>15</span><span>20</span><span>30</span>
@@ -1955,7 +1955,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             {dashboardState <= 2 && activeBlockInfo !== 'ranking' && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                 <button
-                  onClick={() => { setActiveBlockInfo('ranking'); setBlockInfoDetail(0) }}
+                  onClick={() => { setActiveBlockInfo('ranking'); setBlockInfoDetail(0); setSeoHighlight('rank-keyword') }}
                   className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
                     style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                 >

@@ -768,6 +768,155 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle })
           }
         }}
       >
+        {/* ——— Specialty page template ——— */}
+        {currentPage.startsWith("specialite-") && (() => {
+          const specId = currentPage.replace("specialite-", "");
+          const spec = painTypes.find(p => p.id === specId);
+          if (!spec) return null;
+          const profName = [globalSettings.firstName, globalSettings.lastName].filter(Boolean).join(' ') || 'Votre praticien';
+          const city = globalSettings.city || 'votre ville';
+          const profession = globalSettings.profession || 'Ostéopathe';
+          return (
+            <main className={cn("bg-white overflow-hidden mx-auto", viewMode === "mobile" ? "w-[375px] rounded-2xl shadow-lg border border-gray-300" : "w-full max-w-6xl rounded-2xl border-2 border-gray-200")} style={{ background: 'var(--page-bg, #fff)' }}>
+              {/* Hero */}
+              <div className="relative overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 py-10" : "px-16 py-20 max-w-5xl")}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-3xl">{spec.icon}</span>
+                    <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--page-accent, #b8860b)', fontFamily: 'var(--page-font-body)' }}>{profession} · {city}</span>
+                  </div>
+                  <h1 className={cn("font-bold leading-tight", viewMode === "mobile" ? "text-2xl" : "text-4xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{spec.title}</h1>
+                  <p className={cn("mt-3 leading-relaxed", viewMode === "mobile" ? "text-sm" : "text-lg")} style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{spec.desc}</p>
+                  <button className={cn("mt-6 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+                </div>
+              </div>
+
+              {/* Content section */}
+              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-14 max-w-5xl")}>
+                <h2 className={cn("font-semibold mb-4", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Pourquoi consulter pour {spec.title.toLowerCase()} ?</h2>
+                <div className="space-y-3" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>
+                  <p className={viewMode === "mobile" ? "text-xs leading-relaxed" : "text-sm leading-relaxed"}>Les patients souffrant de {spec.title.toLowerCase()} trouvent souvent un soulagement durable grâce à une approche ostéopathique adaptée. En identifiant les causes profondes de vos douleurs, nous pouvons élaborer un plan de traitement personnalisé.</p>
+                  <p className={viewMode === "mobile" ? "text-xs leading-relaxed" : "text-sm leading-relaxed"}>Chaque séance est pensée pour répondre à vos besoins spécifiques, en combinant des techniques manuelles douces et des conseils pratiques pour améliorer votre quotidien.</p>
+                </div>
+
+                {/* Benefits grid */}
+                <div className={cn("mt-8 grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
+                  {[
+                    { icon: '🎯', title: 'Diagnostic précis', desc: 'Bilan complet pour identifier l\'origine de vos douleurs' },
+                    { icon: '🤲', title: 'Techniques douces', desc: 'Manipulations adaptées à votre condition et sensibilité' },
+                    { icon: '📋', title: 'Suivi personnalisé', desc: 'Conseils et exercices pour prolonger les bienfaits' },
+                  ].map((b, i) => (
+                    <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                      <span className="text-xl">{b.icon}</span>
+                      <h3 className="font-medium mt-2 text-sm" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{b.title}</h3>
+                      <p className="text-xs mt-1" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{b.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Related articles */}
+              <div className={cn("mx-auto border-t", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-14 max-w-5xl")} style={{ borderColor: 'var(--page-hero-bg, #eee)' }}>
+                <h2 className={cn("font-semibold mb-5", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Articles liés</h2>
+                <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-2")}>
+                  {[
+                    { title: `${spec.title} : comprendre et soulager`, date: '15 Fév 2026' },
+                    { title: `5 exercices pour prévenir les ${spec.title.toLowerCase()}`, date: '8 Fév 2026' },
+                  ].map((a, i) => (
+                    <div key={i} className="flex gap-3 p-3 rounded-xl" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                      <div className="w-16 h-16 rounded-lg bg-gray-200 shrink-0 flex items-center justify-center text-2xl">{spec.icon}</div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-body)' }}>{a.title}</p>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--page-text-muted, #999)' }}>{a.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CTA footer */}
+              <div className={cn("text-center", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-12")} style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Besoin d'un rendez-vous ?</h2>
+                <p className="text-sm mt-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{profName}, {profession} à {city}</p>
+                <button className={cn("mt-5 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+              </div>
+            </main>
+          );
+        })()}
+
+        {/* ——— Blog page template ——— */}
+        {currentPage === "blog" && (() => {
+          const profName = [globalSettings.firstName, globalSettings.lastName].filter(Boolean).join(' ') || 'Votre praticien';
+          const city = globalSettings.city || 'votre ville';
+          const profession = globalSettings.profession || 'Ostéopathe';
+          const blogArticles = painTypes.slice(0, 6).flatMap((spec, si) => [
+            { id: `${spec.id}-1`, icon: spec.icon, category: spec.title, title: `${spec.title} : comprendre les causes et traitements`, date: '15 Fév 2026', readTime: '5 min', excerpt: `Découvrez comment l'ostéopathie peut vous aider à soulager les ${spec.title.toLowerCase()} de manière naturelle et durable.` },
+            ...(si < 3 ? [{ id: `${spec.id}-2`, icon: spec.icon, category: spec.title, title: `Exercices et conseils pour ${spec.title.toLowerCase()}`, date: '8 Fév 2026', readTime: '4 min', excerpt: `Des exercices pratiques recommandés par votre ${profession.toLowerCase()} pour prévenir et soulager.` }] : []),
+          ]);
+          return (
+            <main className={cn("bg-white overflow-hidden mx-auto", viewMode === "mobile" ? "w-[375px] rounded-2xl shadow-lg border border-gray-300" : "w-full max-w-6xl rounded-2xl border-2 border-gray-200")} style={{ background: 'var(--page-bg, #fff)' }}>
+              {/* Hero */}
+              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pt-8 pb-6" : "px-16 pt-14 pb-10 max-w-5xl")}>
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--page-accent, #b8860b)', fontFamily: 'var(--page-font-body)' }}>{profession} · {city}</span>
+                <h1 className={cn("font-bold mt-2", viewMode === "mobile" ? "text-2xl" : "text-4xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Blog & Conseils Santé</h1>
+                <p className={cn("mt-2", viewMode === "mobile" ? "text-xs" : "text-base")} style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>Articles et conseils de {profName} pour votre bien-être au quotidien</p>
+              </div>
+
+              {/* Category pills */}
+              <div className={cn("mx-auto flex flex-wrap gap-2", viewMode === "mobile" ? "px-5 pb-5" : "px-16 pb-8 max-w-5xl")}>
+                <span className="px-3 py-1 text-xs font-medium rounded-full text-white" style={{ background: 'var(--page-accent, #b8860b)' }}>Tous</span>
+                {painTypes.slice(0, 4).map(s => (
+                  <span key={s.id} className="px-3 py-1 text-xs font-medium rounded-full" style={{ background: 'var(--page-hero-bg, #f5f5f5)', color: 'var(--page-text-muted, #666)' }}>{s.icon} {s.title}</span>
+                ))}
+              </div>
+
+              {/* Featured article */}
+              {blogArticles[0] && (
+                <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pb-6" : "px-16 pb-10 max-w-5xl")}>
+                  <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                    <div className={cn(viewMode === "mobile" ? "p-5" : "p-8")}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full" style={{ background: 'var(--page-accent, #b8860b)', color: '#fff' }}>{blogArticles[0].category}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #999)' }}>{blogArticles[0].date} · {blogArticles[0].readTime}</span>
+                      </div>
+                      <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-base" : "text-xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{blogArticles[0].title}</h2>
+                      <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{blogArticles[0].excerpt}</p>
+                      <button className="mt-4 text-xs font-medium" style={{ color: 'var(--page-accent, #b8860b)' }}>Lire l'article →</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Article grid */}
+              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pb-8" : "px-16 pb-14 max-w-5xl")}>
+                <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
+                  {blogArticles.slice(1, 7).map(a => (
+                    <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                      <div className="h-24 flex items-center justify-center bg-gray-100 text-3xl">{a.icon}</div>
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-medium" style={{ color: 'var(--page-accent, #b8860b)' }}>{a.category}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #bbb)' }}>·</span>
+                          <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #999)' }}>{a.readTime}</span>
+                        </div>
+                        <h3 className="text-xs font-medium leading-snug" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{a.title}</h3>
+                        <p className="text-[10px] mt-1.5 leading-relaxed line-clamp-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{a.excerpt}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CTA footer */}
+              <div className={cn("text-center", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-12")} style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
+                <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Une question ? Prenez rendez-vous</h2>
+                <p className="text-sm mt-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{profName}, {profession} à {city}</p>
+                <button className={cn("mt-5 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+              </div>
+            </main>
+          );
+        })()}
+
         {currentPage === "accueil" && (
           <EditorCanvas
             content={content}
