@@ -94,29 +94,42 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   }
 
   // Rolling 2-week view — continuous, no batch boundaries
+  // Published & programmed have fixed specialties (from epoch, never change).
+  // Only préprogrammé articles are distributed by current répartition settings.
   const viewData = useMemo(() => {
     const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const currentMonday = new Date(today)
     const dow = currentMonday.getDay()
     currentMonday.setDate(currentMonday.getDate() + (dow === 0 ? -6 : 1 - dow))
-    // View starts from current Monday + weekOffset weeks
     const viewStart = new Date(currentMonday)
     viewStart.setDate(viewStart.getDate() + weekOffset * 7)
-    // Fixed epoch for deterministic specialty assignment across all time
+    // Fixed epoch for deterministic specialty assignment (used for published/programmed)
     const epoch = new Date(2026, 0, 5) // Monday Jan 5 2026
+    // Fixed specs snapshot for published/programmed — all 6 specialties always
+    const fixedSpecs = allSpecialties
     const days = []
-    for (let i = 0; i < 15; i++) {
+    // First pass: determine status and assign fixed specs to published/programmed
+    let preProgIndex = 0
+    for (let i = 0; i < 30; i++) {
       const date = new Date(viewStart)
       date.setDate(viewStart.getDate() + i)
       const isPast = date < today
       const isToday = date.toDateString() === today.toDateString()
       const daysSinceEpoch = Math.round((date - epoch) / (1000 * 60 * 60 * 24))
       const daysFromToday = Math.round((date - today) / (1000 * 60 * 60 * 24))
-      const spec = activeSpecs.length > 0 ? activeSpecs[((daysSinceEpoch % activeSpecs.length) + activeSpecs.length) % activeSpecs.length] : null
       const published = isPast || isToday
       const programmed = !published && daysFromToday <= 4
       const preProgrammed = !published && daysFromToday > 4
+      // Published & programmed use fixed specs (don't change with répartition)
+      // Préprogrammé uses current active specs (répartition)
+      let spec = null
+      if (published || programmed) {
+        spec = fixedSpecs[((daysSinceEpoch % fixedSpecs.length) + fixedSpecs.length) % fixedSpecs.length]
+      } else if (preProgrammed && activeSpecs.length > 0) {
+        spec = activeSpecs[preProgIndex % activeSpecs.length]
+        preProgIndex++
+      }
       let articleTitle = null, articleImage = null
       if (spec) {
         const titles = articleTitlesMap[spec.title] || ['Article SEO optimis\u00e9']
@@ -125,45 +138,46 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       }
       // Deterministic SEO scores per article (min 93)
       const seed = Math.abs(daysSinceEpoch * 7 + 13)
-      const seoRegularite = 93 + (seed % 8)             // 93–100
-      const seoBalises = 93 + ((seed * 3 + 5) % 8)      // 93–100
-      const seoMeta = 93 + ((seed * 7 + 11) % 8)        // 93–100
-      const seoMotsCles = 93 + ((seed * 11 + 3) % 8)    // 93–100
+      const seoRegularite = 93 + (seed % 8)
+      const seoBalises = 93 + ((seed * 3 + 5) % 8)
+      const seoMeta = 93 + ((seed * 7 + 11) % 8)
+      const seoMotsCles = 93 + ((seed * 11 + 3) % 8)
       const seoGlobal = Math.round((seoRegularite + seoBalises + seoMeta + seoMotsCles) / 4)
       days.push({
         index: i, date, dayNum: date.getDate(),
         monthShort: date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''),
         published, programmed, preProgrammed,
         specId: spec?.id || null, icon: spec?.icon || null, title: spec?.title || null,
-        isToday, articleTitle, articleImage,
+        isToday, daysFromToday, articleTitle, articleImage,
         seo: { global: seoGlobal, regularite: seoRegularite, balises: seoBalises, meta: seoMeta, motsCles: seoMotsCles },
       })
     }
     const readyDays = days.filter(d => d.published || d.programmed).length
+    const preProgDays = days.filter(d => d.preProgrammed)
+    // Count préprogrammé articles per specialty
+    const preProgCounts = {}
+    allSpecialties.forEach(s => { preProgCounts[s.id] = 0 })
+    preProgDays.forEach(d => { if (d.specId) preProgCounts[d.specId] = (preProgCounts[d.specId] || 0) + 1 })
     const week1Start = `${days[0].dayNum} ${days[0].monthShort}`
-    const week2End = `${days[14].dayNum} ${days[14].monthShort}`
+    const week2End = `${days[29].dayNum} ${days[29].monthShort}`
     const hasPrev = weekOffset > -4
     const hasNext = weekOffset < 4
-    return { days, readyDays, week1Start, week2End, hasPrev, hasNext }
+    return { days, readyDays, preProgDays: preProgDays.length, preProgCounts, week1Start, week2End, hasPrev, hasNext }
   }, [checkedSpecs, weekOffset])
 
-  // Total articles per specialty (all-time from epoch to today)
+  // Total published articles (all-time from epoch to today) — fixed, uses all 6 specs
   const totalStats = useMemo(() => {
-    const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const epoch = new Date(2026, 0, 5)
     const totalDays = Math.max(0, Math.round((today - epoch) / (1000 * 60 * 60 * 24)) + 1)
     const counts = {}
     allSpecialties.forEach(s => { counts[s.id] = 0 })
     for (let i = 0; i < totalDays; i++) {
-      if (activeSpecs.length > 0) {
-        const spec = activeSpecs[((i % activeSpecs.length) + activeSpecs.length) % activeSpecs.length]
-        counts[spec.id] = (counts[spec.id] || 0) + 1
-      }
+      const spec = allSpecialties[((i % allSpecialties.length) + allSpecialties.length) % allSpecialties.length]
+      counts[spec.id] = (counts[spec.id] || 0) + 1
     }
-    const total = Object.values(counts).reduce((a, b) => a + b, 0)
-    return { counts, total }
-  }, [checkedSpecs])
+    return { total: totalDays, counts }
+  }, [])
 
   // No auto-select — default to "Sélectionnez un article" empty state
 
@@ -592,20 +606,21 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             </div>
 
             {/* 5×3 article grid */}
-            <div className="grid grid-cols-5 gap-2 mt-4 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(3, 1fr)' }}>
+            <div className="grid grid-cols-6 gap-2 mt-4 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(5, 1fr)' }}>
               {viewData.days.map((item) => {
                 const isSelected = selectedDay === item.index
 
-                {/* Published — just faded. The low opacity IS the signal. */}
+                {/* Published — green tint overlay: "done" */}
                 if (item.published) {
                   return (
                     <div
                       key={item.index}
                       onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all opacity-40 ${isSelected ? 'ring-2 ring-color-2 ring-offset-2 opacity-100' : 'hover:opacity-70'}`}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
                     >
                       <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute inset-0 bg-green-600/40" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-2">
                         <p className="text-white/60 text-[10px] font-medium mb-0.5">{item.dayNum} {item.monthShort}</p>
                         <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.articleTitle}</p>
@@ -780,37 +795,50 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                       </div>
                     </div>
                     <div className="flex-1" />
-                    <button className="w-full py-2 rounded-xl text-sm font-medium text-color-2 hover:bg-orange-50 transition-colors cursor-pointer border border-color-2/30 shrink-0">Générer maintenant</button>
+                    <div className="flex items-center justify-center gap-2 py-2 shrink-0 text-gray-400">
+                      <span className="inline-block animate-spin" style={{ animationDuration: '3s' }}>&#9203;</span>
+                      <span className="text-sm font-medium">Rédaction dans {item.daysFromToday} j</span>
+                    </div>
                   </div>
                 )
               })()}
             </div>
 
-            {/* Articles par thème card */}
+            {/* Articles par thème — only préprogrammé batch */}
             <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
-              <div className="flex items-center justify-between mb-3 shrink-0">
-                <h2 className="text-base font-bold text-color-1">Répartition</h2>
+              <div className="flex items-center justify-between mb-1 shrink-0">
+                <h2 className="text-base font-bold text-color-1">Prochaines publications</h2>
                 <button onClick={() => setShowRepartition(true)} className="text-sm text-color-2 font-medium hover:underline cursor-pointer">Modifier</button>
               </div>
-              {(() => {
-                const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
-                return (
-                  <div className="flex flex-col gap-1 flex-1 justify-center">
-                    {activeSpecs.map(spec => {
-                      const count = totalStats.counts[spec.id] || 0
-                      return (
-                        <div key={spec.id} className="flex items-center justify-between py-1.5">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-base shrink-0">{spec.icon}</span>
-                            <span className="text-sm text-color-1 font-medium truncate">{spec.title}</span>
-                          </div>
-                          <span className="text-sm font-bold text-color-1 tabular-nums ml-3">{count}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <p className="text-xs text-gray-400">{viewData.preProgDays} articles programmés</p>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] text-gray-300 uppercase tracking-wide">À venir</span>
+                  <span className="text-[10px] text-gray-300 uppercase tracking-wide">Total</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-0.5 flex-1 justify-center">
+                {allSpecialties.map(spec => {
+                  const isActive = checkedSpecs.includes(spec.id)
+                  const upcoming = viewData.preProgCounts[spec.id] || 0
+                  const allTime = totalStats.counts[spec.id] || 0
+                  return (
+                    <div key={spec.id} className={`flex items-center py-1.5 ${isActive ? '' : 'opacity-30'}`}>
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span className="text-base shrink-0">{spec.icon}</span>
+                        <span className="text-sm text-color-1 font-medium truncate">{spec.title}</span>
+                      </div>
+                      <span className="text-sm font-bold text-color-1 tabular-nums w-8 text-right">{isActive ? upcoming : '–'}</span>
+                      <span className="text-sm text-gray-400 tabular-nums w-8 text-right ml-3">{allTime}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center pt-2 mt-1 border-t border-gray-100 shrink-0">
+                <span className="text-sm font-bold text-color-1 flex-1">Total</span>
+                <span className="text-sm font-bold text-color-1 tabular-nums w-8 text-right">{viewData.preProgDays}</span>
+                <span className="text-sm font-bold text-gray-400 tabular-nums w-8 text-right ml-3">{totalStats.total}</span>
+              </div>
             </div>
           </div>
 
@@ -828,12 +856,12 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </button>
                     </div>
-                    <p className="text-[13px] text-gray-400">Activez les thématiques qui vous intéressent. Les {totalStats.total} articles seront répartis équitablement.</p>
+                    <p className="text-[13px] text-gray-400">Activez les thématiques qui vous intéressent. Les {viewData.preProgDays} articles programmés seront répartis équitablement.</p>
                   </div>
                   <div className="px-5 pb-4 flex flex-col gap-1.5">
                     {allSpecialties.map((spec) => {
                       const isActive = checkedSpecs.includes(spec.id)
-                      const count = totalStats.counts[spec.id] || 0
+                      const count = viewData.preProgCounts[spec.id] || 0
                       return (
                         <button
                           key={spec.id}
@@ -850,7 +878,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   <div className="px-5 py-3 border-t border-gray-100">
                     <p className="text-[13px] text-gray-400 text-center">
                       {activeSpecCount > 0
-                        ? <>{activeSpecCount} thématique{activeSpecCount > 1 ? 's' : ''} · ~{Math.round(totalStats.total / activeSpecCount)} articles chacune</>
+                        ? <>{activeSpecCount} thématique{activeSpecCount > 1 ? 's' : ''} · ~{Math.round(viewData.preProgDays / activeSpecCount)} articles chacune</>
                         : 'Sélectionnez au moins une thématique'
                       }
                     </p>
