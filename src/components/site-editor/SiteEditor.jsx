@@ -28,7 +28,7 @@ import {
 } from "./defaults";
 import { loadSaved, saveTo } from "./storage";
 
-const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle }) => {
+const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, initialPage }) => {
   const proofreading = useProofreading();
   const [activeEditId, setActiveEditIdRaw] = useState(null);
   const canvasRef = useRef(null);
@@ -104,7 +104,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle })
   }, [viewMode]);
 
   // Page navigation
-  const [currentPage, setCurrentPage] = useState("accueil");
+  const [currentPage, setCurrentPage] = useState(initialPage || "accueil");
 
   // Data states
   const [content, setContent] = useState(() => loadSaved("content", defaultContent));
@@ -776,71 +776,319 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle })
           const profName = [globalSettings.firstName, globalSettings.lastName].filter(Boolean).join(' ') || 'Votre praticien';
           const city = globalSettings.city || 'votre ville';
           const profession = globalSettings.profession || 'Ostéopathe';
+          const otherSpecs = painTypes.filter(p => p.id !== specId).slice(0, 3);
           return (
-            <main className={cn("bg-white overflow-hidden mx-auto", viewMode === "mobile" ? "w-[375px] rounded-2xl shadow-lg border border-gray-300" : "w-full max-w-6xl rounded-2xl border-2 border-gray-200")} style={{ background: 'var(--page-bg, #fff)' }}>
-              {/* Hero */}
-              <div className="relative overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 py-10" : "px-16 py-20 max-w-5xl")}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-3xl">{spec.icon}</span>
-                    <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--page-accent, #b8860b)', fontFamily: 'var(--page-font-body)' }}>{profession} · {city}</span>
+            <div className={cn(
+              "bg-[hsl(var(--page-bg))] overflow-auto transition-all duration-500 ease-out scrollbar-hide scroll-smooth relative",
+              "rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2),0_10px_25px_-10px_rgba(0,0,0,0.1)]",
+              viewMode === "desktop" ? "w-full max-w-6xl max-h-[80vh]" : "w-[375px] max-h-[80vh]"
+            )}>
+              {/* Navigation */}
+              <nav className={cn("bg-[hsl(var(--page-hero-bg))] py-4 flex items-center justify-between sticky top-0 z-30", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className="flex items-center gap-3">
+                  {identitySettings.logo && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-[hsl(var(--page-bg))] border border-[hsl(var(--page-text))]/10 flex items-center justify-center">
+                      <img src={identitySettings.logo} alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div className="font-display text-xl font-semibold text-[hsl(var(--page-text))] max-w-[200px]">
+                    <span className="block truncate">{globalSettings.firstName || <span className="opacity-40">Prénom</span>}</span>
+                    <span className="block truncate">{globalSettings.lastName || <span className="opacity-40">Nom</span>}</span>
                   </div>
-                  <h1 className={cn("font-bold leading-tight", viewMode === "mobile" ? "text-2xl" : "text-4xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{spec.title}</h1>
-                  <p className={cn("mt-3 leading-relaxed", viewMode === "mobile" ? "text-sm" : "text-lg")} style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{spec.desc}</p>
-                  <button className={cn("mt-6 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+                </div>
+                {viewMode === "desktop" && (
+                  <div className="flex items-center gap-6">
+                    <span className="text-sm text-[hsl(var(--page-accent))] font-medium">{spec.icon} {spec.title}</span>
+                    <button className="bg-[hsl(var(--page-accent-dark))] text-white px-5 py-2.5 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                  </div>
+                )}
+              </nav>
+
+              {/* Hero Section */}
+              <div className="bg-[hsl(var(--page-hero-bg))] relative">
+                <div className={cn("flex", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  {/* Left Content */}
+                  <div className={cn("flex flex-col justify-center", viewMode === "desktop" ? "w-1/2 p-8 py-12" : "w-full p-5")}>
+                    <span className="self-start inline-flex mb-6 border border-[hsl(var(--page-accent))] text-[hsl(var(--page-accent))] px-4 py-1.5 text-sm" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>
+                      {spec.icon} {profession} à {city}
+                    </span>
+                    <h1 className={cn("font-display font-bold text-[hsl(var(--page-text))] leading-tight mb-4", viewMode === "mobile" ? "text-3xl" : "text-4xl md:text-5xl")}>{spec.title}</h1>
+                    <p className="text-[hsl(var(--page-text-muted))] mb-8 max-w-md">{spec.desc}</p>
+                    <div className={cn("flex gap-3 mb-8", viewMode === "mobile" ? "flex-col items-start" : "items-center gap-4")}>
+                      <button className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                      <button className="border border-[hsl(var(--page-text))] text-[hsl(var(--page-text))] px-6 py-3 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>{globalSettings.phoneNumber || '06 00 00 00 00'}</button>
+                    </div>
+                    {/* Decorative dots */}
+                    <div className="flex gap-1 mb-4">
+                      {Array.from({ length: viewMode === "mobile" ? 15 : 30 }).map((_, i) => (
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--page-accent))]/40" />
+                      ))}
+                    </div>
+                  </div>
+                  {/* Right Image */}
+                  <div className={cn("relative", viewMode === "desktop" ? "w-1/2 min-h-[400px]" : "w-full aspect-video")}>
+                    <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&h=600&fit=crop" alt={spec.title} className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
                 </div>
               </div>
 
-              {/* Content section */}
-              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-14 max-w-5xl")}>
-                <h2 className={cn("font-semibold mb-4", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Pourquoi consulter pour {spec.title.toLowerCase()} ?</h2>
-                <div className="space-y-3" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>
-                  <p className={viewMode === "mobile" ? "text-xs leading-relaxed" : "text-sm leading-relaxed"}>Les patients souffrant de {spec.title.toLowerCase()} trouvent souvent un soulagement durable grâce à une approche ostéopathique adaptée. En identifiant les causes profondes de vos douleurs, nous pouvons élaborer un plan de traitement personnalisé.</p>
-                  <p className={viewMode === "mobile" ? "text-xs leading-relaxed" : "text-sm leading-relaxed"}>Chaque séance est pensée pour répondre à vos besoins spécifiques, en combinant des techniques manuelles douces et des conseils pratiques pour améliorer votre quotidien.</p>
-                </div>
-
-                {/* Benefits grid */}
-                <div className={cn("mt-8 grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
+              {/* Why consult section */}
+              <div className={cn("py-12 text-center", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-4", viewMode === "mobile" ? "text-2xl" : "text-3xl")}>Pourquoi consulter pour {spec.title.toLowerCase()} ?</h2>
+                <p className="text-[hsl(var(--page-text-muted))] mb-8 max-w-2xl mx-auto">Des techniques manuelles adaptées pour soulager durablement vos douleurs</p>
+                <div className={cn("grid gap-4 text-left", viewMode === "desktop" ? "grid-cols-3" : "grid-cols-1")}>
                   {[
-                    { icon: '🎯', title: 'Diagnostic précis', desc: 'Bilan complet pour identifier l\'origine de vos douleurs' },
-                    { icon: '🤲', title: 'Techniques douces', desc: 'Manipulations adaptées à votre condition et sensibilité' },
-                    { icon: '📋', title: 'Suivi personnalisé', desc: 'Conseils et exercices pour prolonger les bienfaits' },
+                    { icon: '🎯', title: 'Diagnostic précis', desc: 'Bilan complet pour identifier l\'origine de vos douleurs et élaborer un plan de traitement adapté.' },
+                    { icon: '🤲', title: 'Techniques douces', desc: 'Manipulations adaptées à votre condition et sensibilité pour un soulagement en douceur.' },
+                    { icon: '📋', title: 'Suivi personnalisé', desc: 'Conseils et exercices pour prolonger les bienfaits entre chaque séance.' },
                   ].map((b, i) => (
-                    <div key={i} className="p-4 rounded-xl" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                      <span className="text-xl">{b.icon}</span>
-                      <h3 className="font-medium mt-2 text-sm" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{b.title}</h3>
-                      <p className="text-xs mt-1" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{b.desc}</p>
+                    <div key={i} className={cn("border border-[hsl(var(--page-accent))]/20 transition-all", viewMode === "mobile" ? "p-4" : "p-6")} style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{b.icon}</span>
+                        <div>
+                          <h3 className="font-semibold text-[hsl(var(--page-text))] mb-2">{b.title}</h3>
+                          <p className="text-sm text-[hsl(var(--page-text-muted))]">{b.desc}</p>
+                        </div>
+                      </div>
                     </div>
                   ))}
+                </div>
+                <button className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium mt-8" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+              </div>
+
+              {/* Content section with image */}
+              <div className={cn("bg-[hsl(var(--page-accent))]/10 py-12", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("flex gap-8 w-full", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div className={cn("overflow-hidden", viewMode === "mobile" ? "w-full h-48" : "w-2/5 min-h-[350px] shrink-0")} style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                    <img src="https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&h=400&fit=crop" alt="Traitement" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <span className="text-[hsl(var(--page-accent))] text-sm font-medium">{spec.icon} {spec.title}</span>
+                    <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mt-2 mb-4", viewMode === "mobile" ? "text-2xl" : "text-3xl")}>Un traitement adapté à vos besoins</h2>
+                    <div className="text-[hsl(var(--page-text-muted))] space-y-3 text-sm leading-relaxed">
+                      <p>Les patients souffrant de {spec.title.toLowerCase()} trouvent souvent un soulagement durable grâce à une approche ostéopathique adaptée. En identifiant les causes profondes de vos douleurs, nous élaborons un plan de traitement personnalisé.</p>
+                      <p>Chaque séance combine des techniques manuelles douces et des conseils pratiques pour améliorer votre quotidien et retrouver une mobilité optimale.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Related articles */}
-              <div className={cn("mx-auto border-t", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-14 max-w-5xl")} style={{ borderColor: 'var(--page-hero-bg, #eee)' }}>
-                <h2 className={cn("font-semibold mb-5", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Articles liés</h2>
-                <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-2")}>
+              <div className={cn("py-12", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-4 text-center", viewMode === "mobile" ? "text-2xl" : "text-3xl")}>Articles liés</h2>
+                <p className="text-[hsl(var(--page-text-muted))] mb-8 text-center">Nos derniers articles sur {spec.title.toLowerCase()}</p>
+                <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
                   {[
-                    { title: `${spec.title} : comprendre et soulager`, date: '15 Fév 2026' },
-                    { title: `5 exercices pour prévenir les ${spec.title.toLowerCase()}`, date: '8 Fév 2026' },
+                    { title: `${spec.title} : comprendre et soulager`, date: '15 Fév 2026', time: '5 min' },
+                    { title: `5 exercices pour prévenir les ${spec.title.toLowerCase()}`, date: '8 Fév 2026', time: '4 min' },
+                    { title: `Quand consulter pour ${spec.title.toLowerCase()} ?`, date: '1 Fév 2026', time: '3 min' },
                   ].map((a, i) => (
-                    <div key={i} className="flex gap-3 p-3 rounded-xl" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                      <div className="w-16 h-16 rounded-lg bg-gray-200 shrink-0 flex items-center justify-center text-2xl">{spec.icon}</div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium truncate" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-body)' }}>{a.title}</p>
-                        <p className="text-[10px] mt-1" style={{ color: 'var(--page-text-muted, #999)' }}>{a.date}</p>
+                    <div key={i} className="border border-[hsl(var(--page-accent))]/20 overflow-hidden" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                      <div className="h-28 bg-[hsl(var(--page-hero-bg))] flex items-center justify-center text-4xl">{spec.icon}</div>
+                      <div className={viewMode === "mobile" ? "p-4" : "p-5"}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-[hsl(var(--page-accent))]">{spec.title}</span>
+                          <span className="text-xs text-[hsl(var(--page-text-muted))]">· {a.time}</span>
+                        </div>
+                        <h3 className="font-semibold text-sm text-[hsl(var(--page-text))]">{a.title}</h3>
+                        <p className="text-xs text-[hsl(var(--page-text-muted))] mt-1">{a.date}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* CTA footer */}
-              <div className={cn("text-center", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-12")} style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Besoin d'un rendez-vous ?</h2>
-                <p className="text-sm mt-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{profName}, {profession} à {city}</p>
-                <button className={cn("mt-5 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+              {/* Other specialties */}
+              {otherSpecs.length > 0 && (
+                <div className={cn("bg-[hsl(var(--page-accent))] py-8", viewMode === "mobile" ? "px-5" : "px-8")}>
+                  <h3 className={cn("font-display font-bold text-white mb-6 text-center", viewMode === "mobile" ? "text-xl" : "text-2xl")}>Nos autres spécialités</h3>
+                  <div className={cn("grid gap-4", viewMode === "desktop" ? "grid-cols-3" : "grid-cols-1")}>
+                    {otherSpecs.map((other) => (
+                      <div key={other.id} className="flex items-center gap-3 text-white p-3 rounded-lg hover:bg-white/10 transition-all cursor-pointer">
+                        <span className="text-2xl shrink-0">{other.icon}</span>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{other.title}</p>
+                          <p className="text-xs opacity-80 line-clamp-1">{other.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className={cn("bg-[hsl(var(--page-bg))] py-8", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("flex gap-8 justify-between", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-[hsl(var(--page-text))]">{globalSettings.firstName || 'Prénom'} {globalSettings.lastName || 'Nom'}</h3>
+                    <p className="text-sm text-[hsl(var(--page-text-muted))] mt-1">{profession} • {city}</p>
+                  </div>
+                  <div className={cn("flex gap-3", viewMode === "mobile" ? "flex-col items-start" : "gap-4")}>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">Prendre Rendez-Vous</button>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">{globalSettings.phoneNumber || 'Appeler'}</button>
+                  </div>
+                </div>
+                <div className={cn("mt-8 pt-6 border-t text-sm text-[hsl(var(--page-text-muted))]", viewMode === "mobile" ? "flex flex-col items-start gap-4" : "flex items-center justify-between")}>
+                  <span>© {new Date().getFullYear()} {profName}</span>
+                  <span>Mentions légales</span>
+                </div>
               </div>
-            </main>
+            </div>
+          );
+        })()}
+
+        {/* ——— Article page template ——— */}
+        {currentPage.startsWith("article-") && (() => {
+          const specId = currentPage.replace("article-", "");
+          const spec = painTypes.find(p => p.id === specId);
+          if (!spec) return null;
+          const profName = [globalSettings.firstName, globalSettings.lastName].filter(Boolean).join(' ') || 'Votre praticien';
+          const city = globalSettings.city || 'votre ville';
+          const profession = globalSettings.profession || 'Ostéopathe';
+          const otherArticles = painTypes.filter(p => p.id !== specId).slice(0, 3);
+          return (
+            <div className={cn(
+              "bg-[hsl(var(--page-bg))] overflow-auto transition-all duration-500 ease-out scrollbar-hide scroll-smooth relative",
+              "rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2),0_10px_25px_-10px_rgba(0,0,0,0.1)]",
+              viewMode === "desktop" ? "w-full max-w-6xl max-h-[80vh]" : "w-[375px] max-h-[80vh]"
+            )}>
+              {/* Navigation */}
+              <nav className={cn("bg-[hsl(var(--page-hero-bg))] py-4 flex items-center justify-between sticky top-0 z-30", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className="flex items-center gap-3">
+                  {identitySettings.logo && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-[hsl(var(--page-bg))] border border-[hsl(var(--page-text))]/10 flex items-center justify-center">
+                      <img src={identitySettings.logo} alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div className="font-display text-xl font-semibold text-[hsl(var(--page-text))] max-w-[200px]">
+                    <span className="block truncate">{globalSettings.firstName || <span className="opacity-40">Prénom</span>}</span>
+                    <span className="block truncate">{globalSettings.lastName || <span className="opacity-40">Nom</span>}</span>
+                  </div>
+                </div>
+                {viewMode === "desktop" && (
+                  <div className="flex items-center gap-6">
+                    <span className="text-sm text-[hsl(var(--page-text-muted))] hover:text-[hsl(var(--page-text))] cursor-pointer transition-colors">← Blog</span>
+                    <button className="bg-[hsl(var(--page-accent-dark))] text-white px-5 py-2.5 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                  </div>
+                )}
+              </nav>
+
+              {/* Article header */}
+              <div className="bg-[hsl(var(--page-hero-bg))]">
+                <div className={cn(viewMode === "mobile" ? "px-5 pt-8 pb-6" : "px-8 pt-12 pb-10 max-w-3xl mx-auto")}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="bg-[hsl(var(--page-accent))] text-white px-3 py-0.5 text-xs font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>{spec.icon} {spec.title}</span>
+                    <span className="text-xs text-[hsl(var(--page-text-muted))]">15 Fév 2026 · 5 min de lecture</span>
+                  </div>
+                  <h1 className={cn("font-display font-bold text-[hsl(var(--page-text))] leading-tight mb-4", viewMode === "mobile" ? "text-2xl" : "text-4xl")}>{spec.title} : comprendre les causes et traitements</h1>
+                  <p className="text-[hsl(var(--page-text-muted))] leading-relaxed">Découvrez comment l'ostéopathie peut vous aider à soulager les {spec.title.toLowerCase()} de manière naturelle et durable grâce à une approche personnalisée.</p>
+                  <div className="flex items-center gap-3 mt-6">
+                    <div className="w-10 h-10 rounded-full bg-[hsl(var(--page-accent))]/20 flex items-center justify-center text-sm font-bold text-[hsl(var(--page-accent))]">{(globalSettings.firstName?.[0] || 'T')}{(globalSettings.lastName?.[0] || 'G')}</div>
+                    <div>
+                      <p className="text-sm font-medium text-[hsl(var(--page-text))]">{profName}</p>
+                      <p className="text-xs text-[hsl(var(--page-text-muted))]">{profession} à {city}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cover image */}
+              <div className={cn(viewMode === "mobile" ? "px-5 py-6" : "px-8 py-8 max-w-3xl mx-auto")}>
+                <div className="w-full h-48 bg-[hsl(var(--page-hero-bg))] flex items-center justify-center overflow-hidden" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                  <span className="text-7xl">{spec.icon}</span>
+                </div>
+              </div>
+
+              {/* Article body */}
+              <div className={cn(viewMode === "mobile" ? "px-5 pb-8" : "px-8 pb-12 max-w-3xl mx-auto")}>
+                <div className="text-[hsl(var(--page-text-muted))] leading-relaxed space-y-6">
+                  <div>
+                    <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-3", viewMode === "mobile" ? "text-xl" : "text-2xl")}>Qu'est-ce que {spec.title.toLowerCase()} ?</h2>
+                    <p className="text-sm">Les {spec.title.toLowerCase()} sont un motif de consultation fréquent en ostéopathie. {spec.desc} Notre approche vise à identifier les causes profondes de ces douleurs pour proposer un traitement adapté et durable.</p>
+                  </div>
+
+                  <div>
+                    <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-3", viewMode === "mobile" ? "text-xl" : "text-2xl")}>Les causes fréquentes</h2>
+                    <p className="text-sm mb-4">Plusieurs facteurs peuvent être à l'origine de ces troubles :</p>
+                    <div className="space-y-2">
+                      {['Postures prolongées au travail ou à la maison', 'Stress et tensions émotionnelles accumulées', 'Manque d\'activité physique régulière', 'Traumatismes anciens non traités'].map((item, i) => (
+                        <div key={i} className="flex items-start gap-3 p-3 bg-[hsl(var(--page-hero-bg))]" style={{ borderRadius: 'var(--page-radius, 8px)' }}>
+                          <span className="text-[hsl(var(--page-accent))] font-bold text-sm mt-0.5">•</span>
+                          <span className="text-sm">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-[hsl(var(--page-accent))]/10 p-6" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                    <h3 className="font-display font-bold text-[hsl(var(--page-text))] mb-2">L'approche ostéopathique</h3>
+                    <p className="text-sm">L'ostéopathe utilise des techniques manuelles douces pour rétablir l'équilibre du corps. Chaque séance est adaptée à votre situation spécifique, en tenant compte de votre historique médical et de vos objectifs de santé.</p>
+                  </div>
+
+                  <div>
+                    <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-3", viewMode === "mobile" ? "text-xl" : "text-2xl")}>Conseils pratiques</h2>
+                    <p className="text-sm mb-4">Entre les séances, quelques habitudes simples peuvent prolonger les bienfaits du traitement :</p>
+                    <div className={cn("grid gap-3", viewMode === "desktop" ? "grid-cols-3" : "grid-cols-1")}>
+                      {[
+                        { icon: '🧘', title: 'Étirements', desc: 'Pratiquez des étirements doux chaque matin pendant 10 minutes' },
+                        { icon: '🚶', title: 'Mouvement', desc: 'Marchez au moins 30 minutes par jour pour maintenir votre mobilité' },
+                        { icon: '💤', title: 'Repos', desc: 'Veillez à la qualité de votre sommeil avec une bonne posture' },
+                      ].map((tip, i) => (
+                        <div key={i} className="border border-[hsl(var(--page-accent))]/20 p-4" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                          <span className="text-2xl">{tip.icon}</span>
+                          <h4 className="font-semibold text-[hsl(var(--page-text))] text-sm mt-2">{tip.title}</h4>
+                          <p className="text-xs mt-1">{tip.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA banner */}
+                <div className="bg-[hsl(var(--page-accent-dark))] text-white p-6 mt-8 text-center" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                  <h3 className={cn("font-display font-bold mb-2", viewMode === "mobile" ? "text-lg" : "text-xl")}>Besoin d'un rendez-vous ?</h3>
+                  <p className="text-white/80 text-sm mb-4">{profName}, {profession} à {city}</p>
+                  <button className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                </div>
+              </div>
+
+              {/* Related articles */}
+              {otherArticles.length > 0 && (
+                <div className={cn("py-12 border-t border-[hsl(var(--page-accent))]/10", viewMode === "mobile" ? "px-5" : "px-8")}>
+                  <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))] mb-6 text-center", viewMode === "mobile" ? "text-xl" : "text-2xl")}>Articles similaires</h2>
+                  <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
+                    {otherArticles.map((other) => (
+                      <div key={other.id} className="border border-[hsl(var(--page-accent))]/20 overflow-hidden cursor-pointer hover:border-[hsl(var(--page-accent))]/40 transition-all" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                        <div className="h-24 bg-[hsl(var(--page-hero-bg))] flex items-center justify-center text-3xl">{other.icon}</div>
+                        <div className="p-4">
+                          <span className="text-xs font-medium text-[hsl(var(--page-accent))]">{other.title}</span>
+                          <h3 className="font-semibold text-sm text-[hsl(var(--page-text))] mt-1">{other.title} : comprendre et soulager</h3>
+                          <p className="text-xs text-[hsl(var(--page-text-muted))] mt-1 line-clamp-2">{other.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className={cn("bg-[hsl(var(--page-bg))] py-8 border-t border-[hsl(var(--page-accent))]/10", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("flex gap-8 justify-between", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-[hsl(var(--page-text))]">{globalSettings.firstName || 'Prénom'} {globalSettings.lastName || 'Nom'}</h3>
+                    <p className="text-sm text-[hsl(var(--page-text-muted))] mt-1">{profession} • {city}</p>
+                  </div>
+                  <div className={cn("flex gap-3", viewMode === "mobile" ? "flex-col items-start" : "gap-4")}>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm whitespace-nowrap">Prendre Rendez-Vous</button>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm whitespace-nowrap">{globalSettings.phoneNumber || 'Appeler'}</button>
+                  </div>
+                </div>
+                <div className={cn("mt-8 pt-6 border-t text-sm text-[hsl(var(--page-text-muted))]", viewMode === "mobile" ? "flex flex-col items-start gap-4" : "flex items-center justify-between")}>
+                  <span>© {new Date().getFullYear()} {profName}</span>
+                  <span>Mentions légales</span>
+                </div>
+              </div>
+            </div>
           );
         })()}
 
@@ -854,66 +1102,222 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle })
             ...(si < 3 ? [{ id: `${spec.id}-2`, icon: spec.icon, category: spec.title, title: `Exercices et conseils pour ${spec.title.toLowerCase()}`, date: '8 Fév 2026', readTime: '4 min', excerpt: `Des exercices pratiques recommandés par votre ${profession.toLowerCase()} pour prévenir et soulager.` }] : []),
           ]);
           return (
-            <main className={cn("bg-white overflow-hidden mx-auto", viewMode === "mobile" ? "w-[375px] rounded-2xl shadow-lg border border-gray-300" : "w-full max-w-6xl rounded-2xl border-2 border-gray-200")} style={{ background: 'var(--page-bg, #fff)' }}>
+            <div className={cn(
+              "bg-[hsl(var(--page-bg))] overflow-auto transition-all duration-500 ease-out scrollbar-hide scroll-smooth relative",
+              "rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2),0_10px_25px_-10px_rgba(0,0,0,0.1)]",
+              viewMode === "desktop" ? "w-full max-w-6xl max-h-[80vh]" : "w-[375px] max-h-[80vh]"
+            )}>
+              {/* Navigation */}
+              <nav className={cn("bg-[hsl(var(--page-hero-bg))] py-4 flex items-center justify-between sticky top-0 z-30", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className="flex items-center gap-3">
+                  {identitySettings.logo && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-[hsl(var(--page-bg))] border border-[hsl(var(--page-text))]/10 flex items-center justify-center">
+                      <img src={identitySettings.logo} alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div className="font-display text-xl font-semibold text-[hsl(var(--page-text))] max-w-[200px]">
+                    <span className="block truncate">{globalSettings.firstName || <span className="opacity-40">Prénom</span>}</span>
+                    <span className="block truncate">{globalSettings.lastName || <span className="opacity-40">Nom</span>}</span>
+                  </div>
+                </div>
+                {viewMode === "desktop" && (
+                  <div className="flex items-center gap-6">
+                    <span className="text-sm text-[hsl(var(--page-accent))] font-medium">Blog</span>
+                    <button className="bg-[hsl(var(--page-accent-dark))] text-white px-5 py-2.5 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                  </div>
+                )}
+              </nav>
+
               {/* Hero */}
-              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pt-8 pb-6" : "px-16 pt-14 pb-10 max-w-5xl")}>
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--page-accent, #b8860b)', fontFamily: 'var(--page-font-body)' }}>{profession} · {city}</span>
-                <h1 className={cn("font-bold mt-2", viewMode === "mobile" ? "text-2xl" : "text-4xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Blog & Conseils Santé</h1>
-                <p className={cn("mt-2", viewMode === "mobile" ? "text-xs" : "text-base")} style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>Articles et conseils de {profName} pour votre bien-être au quotidien</p>
+              <div className="bg-[hsl(var(--page-hero-bg))]">
+                <div className={cn(viewMode === "mobile" ? "px-5 pt-8 pb-6" : "px-8 pt-12 pb-10")}>
+                  <span className="self-start inline-flex mb-4 border border-[hsl(var(--page-accent))] text-[hsl(var(--page-accent))] px-4 py-1.5 text-sm" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>
+                    ✍️ {profession} à {city}
+                  </span>
+                  <h1 className={cn("font-display font-bold text-[hsl(var(--page-text))] leading-tight mb-4", viewMode === "mobile" ? "text-3xl" : "text-4xl md:text-5xl")}>Blog & Conseils Santé</h1>
+                  <p className="text-[hsl(var(--page-text-muted))] max-w-lg">Articles et conseils de {profName} pour votre bien-être au quotidien</p>
+                  {/* Decorative dots */}
+                  <div className="flex gap-1 mt-6">
+                    {Array.from({ length: viewMode === "mobile" ? 15 : 30 }).map((_, i) => (
+                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--page-accent))]/40" />
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Category pills */}
-              <div className={cn("mx-auto flex flex-wrap gap-2", viewMode === "mobile" ? "px-5 pb-5" : "px-16 pb-8 max-w-5xl")}>
-                <span className="px-3 py-1 text-xs font-medium rounded-full text-white" style={{ background: 'var(--page-accent, #b8860b)' }}>Tous</span>
-                {painTypes.slice(0, 4).map(s => (
-                  <span key={s.id} className="px-3 py-1 text-xs font-medium rounded-full" style={{ background: 'var(--page-hero-bg, #f5f5f5)', color: 'var(--page-text-muted, #666)' }}>{s.icon} {s.title}</span>
+              <div className={cn("flex flex-wrap gap-2 py-6", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <span className="bg-[hsl(var(--page-accent))] text-white px-4 py-1.5 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Tous</span>
+                {painTypes.slice(0, 5).map(s => (
+                  <span key={s.id} className="bg-[hsl(var(--page-hero-bg))] text-[hsl(var(--page-text-muted))] px-4 py-1.5 text-sm font-medium cursor-pointer hover:text-[hsl(var(--page-text))] transition-colors" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>{s.icon} {s.title}</span>
                 ))}
               </div>
 
               {/* Featured article */}
               {blogArticles[0] && (
-                <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pb-6" : "px-16 pb-10 max-w-5xl")}>
-                  <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                    <div className={cn(viewMode === "mobile" ? "p-5" : "p-8")}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full" style={{ background: 'var(--page-accent, #b8860b)', color: '#fff' }}>{blogArticles[0].category}</span>
-                        <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #999)' }}>{blogArticles[0].date} · {blogArticles[0].readTime}</span>
+                <div className={cn("pb-8", viewMode === "mobile" ? "px-5" : "px-8")}>
+                  <div className="bg-[hsl(var(--page-hero-bg))] overflow-hidden" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                    <div className={cn("flex", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                      <div className={cn("bg-[hsl(var(--page-accent))]/10 flex items-center justify-center", viewMode === "mobile" ? "h-40 w-full" : "w-2/5 min-h-[220px]")}>
+                        <span className="text-6xl">{blogArticles[0].icon}</span>
                       </div>
-                      <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-base" : "text-xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{blogArticles[0].title}</h2>
-                      <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{blogArticles[0].excerpt}</p>
-                      <button className="mt-4 text-xs font-medium" style={{ color: 'var(--page-accent, #b8860b)' }}>Lire l'article →</button>
+                      <div className={cn("flex flex-col justify-center", viewMode === "mobile" ? "p-5" : "p-8 flex-1")}>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="bg-[hsl(var(--page-accent))] text-white px-3 py-0.5 text-xs font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>{blogArticles[0].category}</span>
+                          <span className="text-xs text-[hsl(var(--page-text-muted))]">{blogArticles[0].date} · {blogArticles[0].readTime}</span>
+                        </div>
+                        <h2 className={cn("font-display font-bold text-[hsl(var(--page-text))]", viewMode === "mobile" ? "text-lg" : "text-xl")}>{blogArticles[0].title}</h2>
+                        <p className="text-sm text-[hsl(var(--page-text-muted))] mt-2 leading-relaxed">{blogArticles[0].excerpt}</p>
+                        <button className="self-start mt-4 text-sm font-medium text-[hsl(var(--page-accent))] hover:underline">Lire l'article →</button>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Article grid */}
-              <div className={cn("mx-auto", viewMode === "mobile" ? "px-5 pb-8" : "px-16 pb-14 max-w-5xl")}>
+              <div className={cn("pb-12", viewMode === "mobile" ? "px-5" : "px-8")}>
                 <div className={cn("grid gap-4", viewMode === "mobile" ? "grid-cols-1" : "grid-cols-3")}>
                   {blogArticles.slice(1, 7).map(a => (
-                    <div key={a.id} className="rounded-xl overflow-hidden" style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                      <div className="h-24 flex items-center justify-center bg-gray-100 text-3xl">{a.icon}</div>
-                      <div className="p-4">
+                    <div key={a.id} className="border border-[hsl(var(--page-accent))]/20 overflow-hidden cursor-pointer hover:border-[hsl(var(--page-accent))]/40 transition-all" style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                      <div className="h-28 bg-[hsl(var(--page-hero-bg))] flex items-center justify-center text-4xl">{a.icon}</div>
+                      <div className={viewMode === "mobile" ? "p-4" : "p-5"}>
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-[10px] font-medium" style={{ color: 'var(--page-accent, #b8860b)' }}>{a.category}</span>
-                          <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #bbb)' }}>·</span>
-                          <span className="text-[10px]" style={{ color: 'var(--page-text-muted, #999)' }}>{a.readTime}</span>
+                          <span className="text-xs font-medium text-[hsl(var(--page-accent))]">{a.category}</span>
+                          <span className="text-xs text-[hsl(var(--page-text-muted))]">· {a.readTime}</span>
                         </div>
-                        <h3 className="text-xs font-medium leading-snug" style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>{a.title}</h3>
-                        <p className="text-[10px] mt-1.5 leading-relaxed line-clamp-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{a.excerpt}</p>
+                        <h3 className="font-semibold text-sm text-[hsl(var(--page-text))] leading-snug">{a.title}</h3>
+                        <p className="text-xs text-[hsl(var(--page-text-muted))] mt-1.5 leading-relaxed line-clamp-2">{a.excerpt}</p>
+                        <span className="block mt-3 text-xs font-medium text-[hsl(var(--page-accent))]">Lire →</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* CTA footer */}
-              <div className={cn("text-center", viewMode === "mobile" ? "px-5 py-8" : "px-16 py-12")} style={{ background: 'var(--page-hero-bg, #f8f6f3)' }}>
-                <h2 className={cn("font-semibold", viewMode === "mobile" ? "text-lg" : "text-2xl")} style={{ color: 'var(--page-text, #1a1a1a)', fontFamily: 'var(--page-font-display)' }}>Une question ? Prenez rendez-vous</h2>
-                <p className="text-sm mt-2" style={{ color: 'var(--page-text-muted, #666)', fontFamily: 'var(--page-font-body)' }}>{profName}, {profession} à {city}</p>
-                <button className={cn("mt-5 font-medium text-white", viewMode === "mobile" ? "px-5 py-2.5 text-sm" : "px-8 py-3 text-base")} style={{ background: 'var(--page-accent, #b8860b)', borderRadius: 'var(--page-radius, 12px)' }}>Prendre Rendez-Vous</button>
+              {/* Newsletter CTA */}
+              <div className={cn("bg-[hsl(var(--page-accent-dark))] text-white py-12 text-center", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <h2 className={cn("font-display font-bold mb-4", viewMode === "mobile" ? "text-2xl" : "text-3xl")}>Restez informé</h2>
+                <p className="text-white/80 mb-6 max-w-md mx-auto text-sm">Recevez nos derniers articles et conseils santé directement dans votre boîte mail</p>
+                <div className={cn("flex max-w-md mx-auto gap-2", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div className="flex-1 bg-white/10 px-4 py-3 text-sm text-white/50 text-left" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>votre@email.fr</div>
+                  <button className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium whitespace-nowrap" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>S'abonner</button>
+                </div>
               </div>
-            </main>
+
+              {/* Footer */}
+              <div className={cn("bg-[hsl(var(--page-bg))] py-8", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("flex gap-8 justify-between", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-[hsl(var(--page-text))]">{globalSettings.firstName || 'Prénom'} {globalSettings.lastName || 'Nom'}</h3>
+                    <p className="text-sm text-[hsl(var(--page-text-muted))] mt-1">{profession} • {city}</p>
+                  </div>
+                  <div className={cn("flex gap-3", viewMode === "mobile" ? "flex-col items-start" : "gap-4")}>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">Prendre Rendez-Vous</button>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">{globalSettings.phoneNumber || 'Appeler'}</button>
+                  </div>
+                </div>
+                <div className={cn("mt-8 pt-6 border-t text-sm text-[hsl(var(--page-text-muted))]", viewMode === "mobile" ? "flex flex-col items-start gap-4" : "flex items-center justify-between")}>
+                  <span>© {new Date().getFullYear()} {profName}</span>
+                  <span>Mentions légales</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ——— Mentions légales page template ——— */}
+        {currentPage === "mentions" && (() => {
+          const profName = [globalSettings.firstName, globalSettings.lastName].filter(Boolean).join(' ') || 'Votre praticien';
+          const city = globalSettings.city || 'votre ville';
+          const profession = globalSettings.profession || 'Ostéopathe';
+          const sections = [
+            { icon: '🏢', title: 'Éditeur du site', content: `Ce site est édité par ${profName}, ${profession} à ${city}.\nSIRET : 000 000 000 00000\nAdresse : Cabinet d'ostéopathie, ${city}\nTéléphone : ${globalSettings.phoneNumber || '01 23 45 67 89'}\nEmail : contact@${profName.toLowerCase().replace(/\s+/g, '')}.fr` },
+            { icon: '🌐', title: 'Hébergement', content: 'Ce site est hébergé par Theralys SAS\nAdresse : Paris, France\nContact : support@theralys.fr' },
+            { icon: '©️', title: 'Propriété intellectuelle', content: 'L\'ensemble du contenu de ce site (textes, images, graphismes, logo, icônes) est la propriété exclusive de l\'éditeur, sauf mention contraire. Toute reproduction, distribution, modification ou utilisation sans autorisation préalable est strictement interdite.' },
+            { icon: '🔒', title: 'Protection des données personnelles', content: 'Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d\'un droit d\'accès, de rectification, de suppression et de portabilité de vos données personnelles.\n\nLes données collectées via le formulaire de contact sont utilisées uniquement pour répondre à vos demandes. Elles ne sont ni cédées ni vendues à des tiers.\n\nPour exercer vos droits, contactez-nous par email.' },
+            { icon: '🍪', title: 'Cookies', content: 'Ce site utilise des cookies strictement nécessaires à son fonctionnement. Aucun cookie publicitaire ou de traçage n\'est utilisé. Vous pouvez configurer votre navigateur pour refuser les cookies.' },
+            { icon: '⚖️', title: 'Responsabilité', content: 'Les informations fournies sur ce site sont à titre informatif et ne remplacent pas une consultation professionnelle. L\'éditeur ne saurait être tenu responsable des dommages directs ou indirects résultant de l\'utilisation de ce site.' },
+          ];
+          return (
+            <div className={cn(
+              "bg-[hsl(var(--page-bg))] overflow-auto transition-all duration-500 ease-out scrollbar-hide scroll-smooth relative",
+              "rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2),0_10px_25px_-10px_rgba(0,0,0,0.1)]",
+              viewMode === "desktop" ? "w-full max-w-6xl max-h-[80vh]" : "w-[375px] max-h-[80vh]"
+            )}>
+              {/* Navigation */}
+              <nav className={cn("bg-[hsl(var(--page-hero-bg))] py-4 flex items-center justify-between sticky top-0 z-30", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className="flex items-center gap-3">
+                  {identitySettings.logo && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-[hsl(var(--page-bg))] border border-[hsl(var(--page-text))]/10 flex items-center justify-center">
+                      <img src={identitySettings.logo} alt="Logo" className="w-full h-full object-contain" />
+                    </div>
+                  )}
+                  <div className="font-display text-xl font-semibold text-[hsl(var(--page-text))] max-w-[200px]">
+                    <span className="block truncate">{globalSettings.firstName || <span className="opacity-40">Prénom</span>}</span>
+                    <span className="block truncate">{globalSettings.lastName || <span className="opacity-40">Nom</span>}</span>
+                  </div>
+                </div>
+                {viewMode === "desktop" && (
+                  <div className="flex items-center gap-6">
+                    <span className="text-sm text-[hsl(var(--page-accent))] font-medium">Mentions légales</span>
+                    <button className="bg-[hsl(var(--page-accent-dark))] text-white px-5 py-2.5 text-sm font-medium" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>Prendre Rendez-Vous</button>
+                  </div>
+                )}
+              </nav>
+
+              {/* Hero */}
+              <div className="bg-[hsl(var(--page-hero-bg))]">
+                <div className={cn(viewMode === "mobile" ? "px-5 pt-8 pb-6" : "px-8 pt-12 pb-10")}>
+                  <span className="self-start inline-flex mb-4 border border-[hsl(var(--page-accent))] text-[hsl(var(--page-accent))] px-4 py-1.5 text-sm" style={{ borderRadius: 'var(--page-radius, 9999px)' }}>
+                    ⚖️ Informations légales
+                  </span>
+                  <h1 className={cn("font-display font-bold text-[hsl(var(--page-text))] leading-tight mb-4", viewMode === "mobile" ? "text-3xl" : "text-4xl md:text-5xl")}>Mentions légales</h1>
+                  <p className="text-[hsl(var(--page-text-muted))]">Dernière mise à jour : Février 2026</p>
+                  {/* Decorative dots */}
+                  <div className="flex gap-1 mt-6">
+                    {Array.from({ length: viewMode === "mobile" ? 15 : 30 }).map((_, i) => (
+                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--page-accent))]/40" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sections */}
+              <div className={cn("py-12", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("grid gap-4", viewMode === "desktop" ? "grid-cols-2" : "grid-cols-1")}>
+                  {sections.map((s, i) => (
+                    <div key={i} className={cn("border border-[hsl(var(--page-accent))]/20", viewMode === "mobile" ? "p-4" : "p-6")} style={{ borderRadius: 'var(--page-radius, 12px)' }}>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl shrink-0">{s.icon}</span>
+                        <div className="min-w-0">
+                          <h2 className="font-semibold text-[hsl(var(--page-text))] mb-2">{s.title}</h2>
+                          <div className="text-sm text-[hsl(var(--page-text-muted))] whitespace-pre-line leading-relaxed">{s.content}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className={cn("bg-[hsl(var(--page-bg))] py-8 border-t border-[hsl(var(--page-accent))]/10", viewMode === "mobile" ? "px-5" : "px-8")}>
+                <div className={cn("flex gap-8 justify-between", viewMode === "mobile" ? "flex-col" : "flex-row")}>
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-[hsl(var(--page-text))]">{globalSettings.firstName || 'Prénom'} {globalSettings.lastName || 'Nom'}</h3>
+                    <p className="text-sm text-[hsl(var(--page-text-muted))] mt-1">{profession} • {city}</p>
+                  </div>
+                  <div className={cn("flex gap-3", viewMode === "mobile" ? "flex-col items-start" : "gap-4")}>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">Prendre Rendez-Vous</button>
+                    <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">{globalSettings.phoneNumber || 'Appeler'}</button>
+                  </div>
+                </div>
+                <div className={cn("mt-8 pt-6 border-t text-sm text-[hsl(var(--page-text-muted))]", viewMode === "mobile" ? "flex flex-col items-start gap-4" : "flex items-center justify-between")}>
+                  <span>© {new Date().getFullYear()} {profName}</span>
+                  <span>Tous droits réservés</span>
+                </div>
+              </div>
+            </div>
           );
         })()}
 
@@ -1360,10 +1764,10 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle })
 };
 
 // Wrap with ProofreadingProvider
-const SiteEditor = ({ onGoToSetup, onBackToDashboard, initialOpenStyle }) => {
+const SiteEditor = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, initialPage }) => {
   return (
     <ProofreadingProvider>
-      <SiteEditorContent onGoToSetup={onGoToSetup} onBackToDashboard={onBackToDashboard} initialOpenStyle={initialOpenStyle} />
+      <SiteEditorContent onGoToSetup={onGoToSetup} onBackToDashboard={onBackToDashboard} initialOpenStyle={initialOpenStyle} initialPage={initialPage} />
     </ProofreadingProvider>
   );
 };

@@ -83,7 +83,6 @@ export const radiusOptions = [
   { id: "small", value: "6px", label: "Petit" },
   { id: "medium", value: "12px", label: "Moyen" },
   { id: "large", value: "20px", label: "Grand" },
-  { id: "full", value: "9999px", label: "Arrondi" },
 ];
 
 const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange, onComplete }) => {

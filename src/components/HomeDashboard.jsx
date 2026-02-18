@@ -56,18 +56,24 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
   // Specialty distribution state
   const allSpecialties = [
-    { id: '1', icon: '\u{1F9B4}', title: 'Douleurs musculaires' },
-    { id: '2', icon: '\u{1F930}', title: 'Femmes enceintes' },
-    { id: '3', icon: '\u{1F476}', title: 'Nourrissons' },
-    { id: '4', icon: '\u26BD', title: 'Sportifs' },
-    { id: '5', icon: '\u{1F4BC}', title: 'Troubles posturaux' },
-    { id: '6', icon: '\u{1F9D3}', title: 'Seniors' },
+    { id: '1', icon: '\u{1F9B4}', title: 'Douleurs dorsales' },
+    { id: '2', icon: '\u{1F915}', title: 'Maux de t\u00eate' },
+    { id: '3', icon: '\u{1F3C3}', title: 'Blessures sportives' },
+    { id: '4', icon: '\u{1F476}', title: 'P\u00e9diatrie' },
+    { id: '5', icon: '\u{1F930}', title: 'Grossesse' },
+    { id: '6', icon: '\u{1F634}', title: 'Troubles du sommeil' },
   ]
   const [checkedSpecs, setCheckedSpecs] = useState(['1', '2', '3', '4', '5', '6'])
   const [rebalanceMode, setRebalanceMode] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null) // set by useEffect after batch computed
   const [showRepartition, setShowRepartition] = useState(false)
+  const [seoSearchQuery, setSeoSearchQuery] = useState('')
+  const [seoFilterStatus, setSeoFilterStatus] = useState(null) // null | 'published' | 'unpublished'
+  const [seoFilterSpec, setSeoFilterSpec] = useState(null) // null = all, or specialty id
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const filterMenuRef = useRef(null)
   const [showPexels, setShowPexels] = useState(false)
+  // Article modal states removed — Voir/Modifier/Créer navigate to SiteEditor
   const [showParrainageVideo, setShowParrainageVideo] = useState(false)
   const [showNewsModal, setShowNewsModal] = useState(null) // index of news item or null
   const [completedActions, setCompletedActions] = useState(() => {
@@ -115,10 +121,18 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const completionPercent = Math.round((doneActions.length / allActions.length) * 100)
 
   // Dashboard state machine (0-5)
+  // Stats cooldown: real 30-day timer from goLiveDate
+  const statsCooldownDays = (() => {
+    if (!tourFlags.goLiveDate) return 30
+    const elapsed = (Date.now() - tourFlags.goLiveDate) / (1000 * 60 * 60 * 24)
+    return Math.max(0, Math.ceil(30 - elapsed))
+  })()
+  const statsCooldownMet = statsCooldownDays === 0
+
   const dashboardState = (() => {
     if (completionPercent < 100) return 0
     if (!tourFlags.tour1Done) return 1
-    if (!tourFlags.delayMet) return 2
+    if (!statsCooldownMet) return 2
     if (!tourFlags.tour2Done) return 3
     return 5
   })()
@@ -171,12 +185,91 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const articleImgs = [articleImg1, articleImg2, articleImg3, articleImg4]
 
   const articleTitlesMap = {
-    'Douleurs musculaires': ['5 étirements pour soulager les tensions', 'Prévenir les courbatures après le sport', 'Les causes des douleurs au dos'],
-    'Femmes enceintes': ['Exercices doux pendant la grossesse', 'Préparer son corps à l\u2019accouchement', 'Soulager les jambes lourdes enceinte'],
-    'Nourrissons': ['Les bienfaits de la kiné pour bébé', 'Torticolis du nourrisson : quand consulter\u00a0?', 'Massage bébé : les gestes essentiels'],
-    'Sportifs': ['Récupération sportive : les bons réflexes', 'Prévenir les entorses de cheville', 'Tendinite du coureur : causes et solutions'],
-    'Troubles posturaux': ['Améliorer sa posture au bureau', 'Scoliose : exercices de correction', 'Les effets du télétravail sur le dos'],
-    'Seniors': ['Garder son équilibre après 60 ans', 'Exercices doux pour l\u2019arthrose', 'Prévenir les chutes : guide pratique'],
+    'Douleurs dorsales': ['5 exercices pour soulager une lombalgie chronique', 'Hernie discale\u00a0: comprendre et pr\u00e9venir', 'Cervicalgie\u00a0: les causes les plus fr\u00e9quentes'],
+    'Maux de t\u00eate': ['C\u00e9phal\u00e9es de tension\u00a0: 7 solutions naturelles', 'Migraine et posture\u00a0: le lien m\u00e9connu', 'Maux de t\u00eate au bureau\u00a0: les gestes qui soulagent'],
+    'Blessures sportives': ['Entorse de cheville\u00a0: protocole de r\u00e9\u00e9ducation', 'Tendinite du coureur\u00a0: causes et traitements', 'Pr\u00e9venir les blessures musculaires au football'],
+    'P\u00e9diatrie': ['Torticolis du nourrisson\u00a0: quand consulter\u00a0?', 'D\u00e9veloppement moteur du b\u00e9b\u00e9\u00a0: les \u00e9tapes cl\u00e9s', 'Kin\u00e9sith\u00e9rapie respiratoire chez l\u2019enfant'],
+    'Grossesse': ['Douleurs lombaires pendant la grossesse\u00a0: solutions', 'Pr\u00e9parer son p\u00e9rin\u00e9e \u00e0 l\u2019accouchement', 'Exercices doux pour le troisi\u00e8me trimestre'],
+    'Troubles du sommeil': ['Insomnie et tensions musculaires\u00a0: le cercle vicieux', 'Am\u00e9liorer son sommeil par la relaxation corporelle', '\u00c9tirements du soir\u00a0: routine de 10 minutes'],
+  }
+
+  // Rich structured article content per specialty — kept for future use
+  const articleContentMap = {
+    'Douleurs dorsales': {
+      intro: 'Les douleurs dorsales repr\u00e9sentent le premier motif de consultation en kin\u00e9sith\u00e9rapie. Qu\u2019il s\u2019agisse d\u2019une lombalgie aigu\u00eb, d\u2019une cervicalgie chronique ou d\u2019une dorsalgie li\u00e9e \u00e0 la posture, une prise en charge adapt\u00e9e permet de soulager durablement la douleur et de pr\u00e9venir les r\u00e9cidives.',
+      sections: [
+        { heading: 'Comprendre l\u2019origine de la douleur', body: 'La colonne vert\u00e9brale est une structure complexe compos\u00e9e de 33 vert\u00e8bres, de disques intervert\u00e9braux, de ligaments et de muscles. Une mauvaise posture prolong\u00e9e, un faux mouvement ou un stress chronique peuvent d\u00e9s\u00e9quilibrer cette m\u00e9canique fine et provoquer des douleurs.', bullets: ['Contractures musculaires paravert\u00e9brales', 'Compression discale ou hernie', 'Inflammation des facettes articulaires', 'D\u00e9s\u00e9quilibre postural global'] },
+        { heading: 'Les techniques de kin\u00e9sith\u00e9rapie', body: 'Le traitement repose sur une combinaison de techniques manuelles et d\u2019exercices th\u00e9rapeutiques. L\u2019objectif est double\u00a0: soulager la douleur \u00e0 court terme et renforcer les structures musculaires pour pr\u00e9venir les r\u00e9cidives.', bullets: ['Mobilisations vert\u00e9brales douces', 'Massage des tissus profonds (trigger points)', 'Exercices de gainage et renforcement du core', '\u00c9tirements cibl\u00e9s des cha\u00eenes musculaires'] },
+        { heading: 'Pr\u00e9vention au quotidien', body: 'Au-del\u00e0 des s\u00e9ances, adopter les bons r\u00e9flexes posturaux au quotidien est essentiel. R\u00e9gler la hauteur de son \u00e9cran, faire des pauses r\u00e9guli\u00e8res et pratiquer 10 minutes d\u2019\u00e9tirements chaque soir r\u00e9duit consid\u00e9rablement le risque de rechute.' },
+      ],
+      conclusion: 'N\u2019attendez pas que la douleur devienne chronique. Un bilan postural complet permet d\u2019identifier les d\u00e9s\u00e9quilibres et de mettre en place un programme de correction personnalis\u00e9. Prenez rendez-vous d\u00e8s les premiers signes.',
+      metaDesc: 'D\u00e9couvrez les causes des douleurs dorsales et les solutions en kin\u00e9sith\u00e9rapie\u00a0: techniques manuelles, exercices de renforcement et conseils de pr\u00e9vention au quotidien.',
+      keywords: ['douleurs dorsales', 'lombalgie', 'kin\u00e9sith\u00e9rapie dos', 'mal de dos traitement', 'exercices lombalgie'],
+      readingTime: 4,
+      wordCount: 620,
+    },
+    'Maux de t\u00eate': {
+      intro: 'Les maux de t\u00eate chroniques affectent pr\u00e8s de 30% de la population active. Si les causes sont multiples, les tensions musculaires cervicales et les d\u00e9s\u00e9quilibres posturaux jouent un r\u00f4le majeur souvent sous-estim\u00e9. La kin\u00e9sith\u00e9rapie offre des solutions concr\u00e8tes et durables.',
+      sections: [
+        { heading: 'C\u00e9phal\u00e9es de tension vs migraines', body: 'Les c\u00e9phal\u00e9es de tension se manifestent par une douleur diffuse en \u00e9tau, souvent li\u00e9e aux contractures des muscles cervicaux et trap\u00e8zes. Les migraines, plus intenses et pulsatiles, peuvent \u00e9galement \u00eatre d\u00e9clench\u00e9es par des facteurs musculo-squelettiques.', bullets: ['Contracture des trap\u00e8zes et sous-occipitaux', 'Blocage des premi\u00e8res vert\u00e8bres cervicales', 'Bruxisme et tension de la m\u00e2choire', 'Syndrome de la t\u00eate en avant (text neck)'] },
+        { heading: 'L\u2019approche kin\u00e9sith\u00e9rapique', body: 'Le bilan commence par une analyse posturale compl\u00e8te et une \u00e9valuation des tensions musculaires. Le traitement associe des techniques manuelles de rel\u00e2chement myofascial, des mobilisations cervicales et un programme d\u2019auto-\u00e9tirements.', bullets: ['Rel\u00e2chement myofascial cervical', 'Mobilisations douces C1-C2', 'Renforcement des muscles profonds du cou', 'Correction posturale globale'] },
+        { heading: 'R\u00e9sultats et suivi', body: 'La majorit\u00e9 des patients constatent une am\u00e9lioration significative d\u00e8s les 3 premi\u00e8res s\u00e9ances. Un suivi r\u00e9gulier et l\u2019int\u00e9gration des exercices au quotidien permettent de r\u00e9duire la fr\u00e9quence et l\u2019intensit\u00e9 des \u00e9pisodes de 60 \u00e0 80% en moyenne.' },
+      ],
+      conclusion: 'Les maux de t\u00eate ne sont pas une fatalit\u00e9. Une prise en charge kin\u00e9sith\u00e9rapique cibl\u00e9e, combin\u00e9e \u00e0 de bonnes habitudes posturales, peut transformer votre quotidien. Consultez pour un bilan personnalis\u00e9.',
+      metaDesc: 'Maux de t\u00eate r\u00e9currents\u00a0? D\u00e9couvrez comment la kin\u00e9sith\u00e9rapie soulage c\u00e9phal\u00e9es de tension et migraines gr\u00e2ce aux techniques manuelles et exercices posturaux.',
+      keywords: ['maux de t\u00eate', 'c\u00e9phal\u00e9es de tension', 'migraine kin\u00e9', 'cervicalgie', 'posture cervicale'],
+      readingTime: 4,
+      wordCount: 580,
+    },
+    'Blessures sportives': {
+      intro: 'Que vous soyez sportif amateur ou athl\u00e8te confirm\u00e9, les blessures font partie des risques inh\u00e9rents \u00e0 la pratique. Entorse, tendinite, claquage ou fracture de fatigue\u00a0: chaque pathologie n\u00e9cessite un protocole de r\u00e9\u00e9ducation sp\u00e9cifique pour un retour au sport s\u00e9curis\u00e9.',
+      sections: [
+        { heading: 'Les blessures les plus fr\u00e9quentes', body: 'Selon les disciplines, certaines structures sont plus sollicit\u00e9es. La course \u00e0 pied fragilise les tendons d\u2019Achille et les genoux, les sports collectifs exposent aux entorses de cheville, et la musculation peut provoquer des l\u00e9sions de l\u2019\u00e9paule.', bullets: ['Entorse de cheville (ligament lat\u00e9ral externe)', 'Tendinopathie rotulienne ou achille\u00e9nne', 'L\u00e9sion musculaire (claquage, \u00e9longation)', 'Syndrome de la bandelette ilio-tibiale'] },
+        { heading: 'Protocole de r\u00e9\u00e9ducation', body: 'La r\u00e9\u00e9ducation suit un protocole progressif en 3 phases\u00a0: r\u00e9duction de l\u2019inflammation et de la douleur, restauration de la mobilit\u00e9 et de la force, puis retour progressif \u00e0 l\u2019activit\u00e9 sportive avec tests fonctionnels.', bullets: ['Phase 1\u00a0: cryoth\u00e9rapie, d\u00e9charge, \u00e9lectrostimulation', 'Phase 2\u00a0: mobilisations, renforcement progressif', 'Phase 3\u00a0: propioception, reprise du geste sportif', 'Crit\u00e8res de reprise valid\u00e9s par tests isokin\u00e9tiques'] },
+        { heading: 'Pr\u00e9vention des r\u00e9cidives', body: 'Le travail de pr\u00e9vention est tout aussi important que la r\u00e9\u00e9ducation. Un programme d\u2019\u00e9chauffement structur\u00e9, des exercices de proprioception et un suivi r\u00e9gulier r\u00e9duisent de 50% le risque de r\u00e9cidive.' },
+      ],
+      conclusion: 'Un retour au sport pr\u00e9cipit\u00e9 est la premi\u00e8re cause de r\u00e9cidive. Respectez les d\u00e9lais de cicatrisation et suivez un programme de r\u00e9\u00e9ducation complet. Votre kin\u00e9sith\u00e9rapeute vous accompagne \u00e0 chaque \u00e9tape.',
+      metaDesc: 'Entorse, tendinite, claquage\u00a0: d\u00e9couvrez les protocoles de r\u00e9\u00e9ducation en kin\u00e9sith\u00e9rapie du sport et les cl\u00e9s pour un retour \u00e0 l\u2019activit\u00e9 sans r\u00e9cidive.',
+      keywords: ['blessures sportives', 'r\u00e9\u00e9ducation sport', 'entorse cheville', 'tendinite traitement', 'kin\u00e9 du sport'],
+      readingTime: 5,
+      wordCount: 680,
+    },
+    'P\u00e9diatrie': {
+      intro: 'La kin\u00e9sith\u00e9rapie p\u00e9diatrique intervient d\u00e8s les premiers mois de vie pour accompagner le d\u00e9veloppement moteur de l\u2019enfant. Torticolis, retard de marche, troubles respiratoires\u00a0: des techniques douces et adapt\u00e9es permettent de corriger ces probl\u00e9matiques pr\u00e9cocement.',
+      sections: [
+        { heading: 'Quand consulter pour son enfant\u00a0?', body: 'Certains signaux doivent alerter les parents\u00a0: une pr\u00e9f\u00e9rence de rotation de la t\u00eate, une asym\u00e9trie posturale, un retard dans l\u2019acquisition de la marche ou des bronchiolites \u00e0 r\u00e9p\u00e9tition. Une consultation pr\u00e9coce permet souvent une r\u00e9solution rapide.', bullets: ['Torticolis cong\u00e9nital ou positionnel', 'Plagioc\u00e9phalie (t\u00eate plate)', 'Retard d\u2019acquisition motrice', 'Bronchiolite et encombrement respiratoire'] },
+        { heading: 'Des techniques adapt\u00e9es \u00e0 l\u2019enfant', body: 'Les s\u00e9ances sont ludiques et respectent le rythme de l\u2019enfant. Le kin\u00e9sith\u00e9rapeute utilise des mobilisations tr\u00e8s douces, des stimulations motrices par le jeu et des techniques de d\u00e9sencombrement bronchique non invasives.' },
+      ],
+      conclusion: 'Une prise en charge pr\u00e9coce est la cl\u00e9 du succ\u00e8s en kin\u00e9sith\u00e9rapie p\u00e9diatrique. N\u2019h\u00e9sitez pas \u00e0 consulter d\u00e8s le moindre doute\u00a0: plus l\u2019intervention est t\u00f4t, plus les r\u00e9sultats sont rapides.',
+      metaDesc: 'Kin\u00e9sith\u00e9rapie p\u00e9diatrique\u00a0: torticolis, retard moteur, bronchiolite. D\u00e9couvrez les indications et les techniques douces adapt\u00e9es aux nourrissons et enfants.',
+      keywords: ['kin\u00e9 p\u00e9diatrique', 'torticolis b\u00e9b\u00e9', 'bronchiolite kin\u00e9', 'd\u00e9veloppement moteur', 'plagioc\u00e9phalie'],
+      readingTime: 3,
+      wordCount: 480,
+    },
+    'Grossesse': {
+      intro: 'La grossesse s\u2019accompagne de profondes transformations corporelles qui peuvent g\u00e9n\u00e9rer des inconforts\u00a0: douleurs lombaires, sciatique, jambes lourdes. La kin\u00e9sith\u00e9rapie p\u00e9rinatale aide \u00e0 traverser ces \u00e9tapes en toute s\u00e9r\u00e9nit\u00e9.',
+      sections: [
+        { heading: 'Soulager les douleurs de la grossesse', body: 'Le d\u00e9placement du centre de gravit\u00e9, le rel\u00e2chement ligamentaire et la prise de poids sollicitent la colonne vert\u00e9brale et le bassin. Des techniques manuelles douces et des exercices adapt\u00e9s soulagent efficacement ces douleurs.', bullets: ['Lombalgies et douleurs sacro-iliaques', 'Sciatique de la grossesse', 'Syndrome du canal carpien gestationnel', 'Lourdeur et \u0153d\u00e8me des jambes'] },
+        { heading: 'Pr\u00e9paration \u00e0 l\u2019accouchement', body: 'La pr\u00e9paration du p\u00e9rin\u00e9e et le travail respiratoire sont essentiels pour un accouchement serein. Le kin\u00e9sith\u00e9rapeute enseigne les positions de confort, la gestion de la douleur par la respiration et les exercices de mobilit\u00e9 pelvienne.' },
+      ],
+      conclusion: 'Chaque grossesse est unique. Un suivi kin\u00e9sith\u00e9rapique personnalis\u00e9, du premier trimestre au post-partum, vous accompagne pour vivre cette p\u00e9riode en pleine forme.',
+      metaDesc: 'Kin\u00e9sith\u00e9rapie et grossesse\u00a0: soulager les douleurs, pr\u00e9parer l\u2019accouchement et accompagner la r\u00e9cup\u00e9ration post-partum. Conseils et exercices adapt\u00e9s.',
+      keywords: ['kin\u00e9 grossesse', 'douleur dos enceinte', 'pr\u00e9paration accouchement', 'p\u00e9rin\u00e9e', 'post-partum'],
+      readingTime: 3,
+      wordCount: 450,
+    },
+    'Troubles du sommeil': {
+      intro: 'Les troubles du sommeil touchent 1 Fran\u00e7ais sur 3. Les tensions musculaires accumul\u00e9es, le stress et les douleurs chroniques sont des facteurs aggravants souvent n\u00e9glig\u00e9s. La kin\u00e9sith\u00e9rapie propose une approche corporelle compl\u00e9mentaire pour retrouver un sommeil r\u00e9parateur.',
+      sections: [
+        { heading: 'Le lien corps-sommeil', body: 'Les tensions musculaires chroniques maintiennent le syst\u00e8me nerveux en \u00e9tat d\u2019hypervigilance, emp\u00eachant l\u2019endormissement et la r\u00e9cup\u00e9ration profonde. Lib\u00e9rer ces tensions par des techniques manuelles restaure les conditions d\u2019un sommeil de qualit\u00e9.', bullets: ['Contractures cervicales et dorsales', 'Respiration thoracique superficielle', 'Bruxisme et tensions maxillaires', 'Syndrome des jambes sans repos'] },
+        { heading: 'Techniques de relaxation corporelle', body: 'Les s\u00e9ances combinent massage d\u00e9contracturant, exercices de respiration diaphragmatique et \u00e9tirements myofasciaux. Le patient repart avec une routine du soir de 10 minutes pour prolonger les bienfaits.' },
+      ],
+      conclusion: 'Un sommeil de qualit\u00e9 commence par un corps d\u00e9tendu. Int\u00e9grez les exercices de rel\u00e2chement \u00e0 votre routine du soir et consultez si les troubles persistent.',
+      metaDesc: 'Troubles du sommeil et tensions musculaires\u00a0: d\u00e9couvrez comment la kin\u00e9sith\u00e9rapie aide \u00e0 mieux dormir gr\u00e2ce \u00e0 la relaxation corporelle et aux \u00e9tirements.',
+      keywords: ['insomnie', 'troubles du sommeil', 'relaxation musculaire', '\u00e9tirements soir', 'kin\u00e9 relaxation'],
+      readingTime: 3,
+      wordCount: 420,
+    },
   }
 
   // Rolling 2-week view — continuous, no batch boundaries
@@ -290,11 +383,11 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const seoArticleRef = useRef(null)
   const seoPublicationsRef = useRef(null)
   const news = [
-    { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre' },
-    { title: 'Boostoncab — Boostez votre visibilité avec Google Ads', desc: 'Nouveau partenariat avec Boostoncab : lancez vos campagnes Google Ads en quelques clics et attirez plus de patients.', date: '12 fév.', tag: 'Partenaire' },
-    { title: 'Génération d\'articles V2 — Plus rapide, plus pertinent', desc: 'Vos articles sont désormais générés avec un style plus naturel et adapté à votre spécialité.', date: '11 fév.', tag: 'Nouveau' },
-    { title: 'Tableau de bord repensé', desc: 'Visualisez vos statistiques clés en un coup d\'œil avec le nouveau design.', date: '3 fév.', tag: 'Mise à jour' },
-    { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau' },
+    { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { title: 'Boostoncab — Boostez votre visibilité avec Google Ads', desc: 'Nouveau partenariat avec Boostoncab : lancez vos campagnes Google Ads en quelques clics et attirez plus de patients.', date: '12 fév.', tag: 'Partenaire', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { title: 'Génération d\'articles V2 — Plus rapide, plus pertinent', desc: 'Vos articles sont désormais générés avec un style plus naturel et adapté à votre spécialité.', date: '11 fév.', tag: 'Nouveau', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { title: 'Tableau de bord repensé', desc: 'Visualisez vos statistiques clés en un coup d\'œil avec le nouveau design.', date: '3 fév.', tag: 'Mise à jour', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
   ]
   const articles = [
     { title: '5 étirements essentiels après une séance de kinésithérapie', date: '12 fév.', realDate: new Date(2026, 1, 12), status: 'published', img: articleImg1 },
@@ -589,7 +682,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const handleTourComplete = () => {
     setTourActive(false)
     if (dashboardState === 1) {
-      updateTourFlag({ tour1Done: true })
+      updateTourFlag({ tour1Done: true, goLiveDate: Date.now() })
     } else if (dashboardState === 3) {
       updateTourFlag({ tour2Done: true })
     }
@@ -652,6 +745,19 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     }
   }, [dashboardState])
 
+  // SEO guided tour — auto-start when entering Référencement tab in state 0
+  const seoTourBlocks = ['seoCalendar', 'seoArticle', 'seoPublications']
+  useEffect(() => {
+    if (activeTab === 'referencement' && dashboardState === 0 && !tourFlags.seoTourDone && !activeBlockInfo) {
+      const timer = setTimeout(() => {
+        setActiveBlockInfo('seoCalendar')
+        setBlockInfoDetail(0)
+        setSeoHighlight('planning')
+      }, 400)
+      return () => clearTimeout(timer)
+    }
+  }, [activeTab, dashboardState, tourFlags.seoTourDone])
+
   // Close profile menu on outside click
   useEffect(() => {
     if (!showProfileMenu) return
@@ -666,6 +772,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
+
+  // Close filter menu on outside click
+  useEffect(() => {
+    if (!showFilterMenu) return
+    const handler = (e) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target)) setShowFilterMenu(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showFilterMenu])
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
@@ -696,19 +812,19 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     const allIds = allActions.flatMap(a => a.subIds || [a.id])
                     localStorage.setItem("completedActions", JSON.stringify(allIds))
                     setCompletedActions(allIds)
-                    updateTourFlag({ tour1Done: true, delayMet: false, tour2Done: false })
+                    updateTourFlag({ tour1Done: true, goLiveDate: Date.now(), tour2Done: false })
                     window.dispatchEvent(new Event("actionsUpdated"))
                   } else if (s === 3) {
                     const allIds = allActions.flatMap(a => a.subIds || [a.id])
                     localStorage.setItem("completedActions", JSON.stringify(allIds))
                     setCompletedActions(allIds)
-                    updateTourFlag({ tour1Done: true, delayMet: true, tour2Done: false })
+                    updateTourFlag({ tour1Done: true, goLiveDate: Date.now() - 31 * 24 * 60 * 60 * 1000, tour2Done: false })
                     window.dispatchEvent(new Event("actionsUpdated"))
                   } else if (s === 5) {
                     const allIds = allActions.flatMap(a => a.subIds || [a.id])
                     localStorage.setItem("completedActions", JSON.stringify(allIds))
                     setCompletedActions(allIds)
-                    updateTourFlag({ tour1Done: true, delayMet: true, tour2Done: true })
+                    updateTourFlag({ tour1Done: true, goLiveDate: Date.now() - 31 * 24 * 60 * 60 * 1000, tour2Done: true })
                     window.dispatchEvent(new Event("actionsUpdated"))
                   }
                 }}
@@ -805,145 +921,369 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         {showSettings ? (
         null
         ) : activeTab === 'referencement' ? (
-        <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div key="referencement" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
           {/* Top-left — Article calendar */}
-          <div ref={seoCalendarRef} className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <h2 className="text-base font-bold text-color-1">Articles SEO</h2>
-                <span className="text-sm text-gray-300">·</span>
-                <span className="text-sm text-gray-400">{totalStats.total} publiés · 18 742 vues</span>
+          <div ref={seoCalendarRef} className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden col-start-1 row-start-1">
+            {/* Header — z-30 so toggle stays above pause overlay, but under tour overlay in state 0 */}
+            <div className={`flex items-center gap-2.5 shrink-0 relative ${dashboardState === 0 ? 'z-[5]' : 'z-30'}`}>
+              <h2 className={`text-base font-bold shrink-0 transition-colors ${autoPublish ? 'text-color-1' : 'text-white'}`}>Articles</h2>
+
+              {/* On/Off toggle pill */}
+              <button
+                onClick={() => setAutoPublish(!autoPublish)}
+                className={`relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${autoPublish ? 'bg-green-400' : 'bg-red-400'}`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoPublish ? 'left-[18px]' : 'left-0.5'}`} />
+              </button>
+
+              {autoPublish && <>
+              {/* Active filter tags */}
+              {seoFilterStatus && (
+                <span className="inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded-md bg-gray-100 text-[11px] font-medium text-color-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${seoFilterStatus === 'published' ? 'bg-green-400' : 'bg-orange-400'}`} />
+                  {seoFilterStatus === 'published' ? 'Publiés' : 'Programmés'}
+                  <button onClick={() => setSeoFilterStatus(null)} className="w-4 h-4 rounded hover:bg-gray-300 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                </span>
+              )}
+              {seoFilterSpec && (() => {
+                const spec = allSpecialties.find(s => s.id === seoFilterSpec)
+                return spec ? (
+                  <span className="inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded-md bg-gray-100 text-[11px] font-medium text-color-1">
+                    {spec.icon} {spec.title}
+                    <button onClick={() => setSeoFilterSpec(null)} className="w-4 h-4 rounded hover:bg-gray-300 flex items-center justify-center cursor-pointer transition-colors">
+                      <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                  </span>
+                ) : null
+              })()}
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Search — flexible width */}
+              <div className="relative flex-1 min-w-[140px] max-w-[320px]">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" value={seoSearchQuery} onChange={e => setSeoSearchQuery(e.target.value)} placeholder="Rechercher..." className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-gray-100 text-xs text-color-1 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-color-2/30 transition-all" />
+                {seoSearchQuery && (
+                  <button onClick={() => setSeoSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                )}
               </div>
-              <div className="flex items-center gap-2.5">
-                <div className="flex items-center gap-1">
-                  <button disabled={!viewData.hasPrev} onClick={() => { setWeekOffset(o => o - 1); setSelectedDay(null) }} className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${viewData.hasPrev ? 'hover:bg-gray-100 cursor-pointer text-gray-400' : 'text-gray-200 cursor-not-allowed'}`}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                  </button>
-                  <span className="text-sm text-gray-400">{viewData.week1Start} – {viewData.week2End}</span>
-                  <button disabled={!viewData.hasNext} onClick={() => { setWeekOffset(o => o + 1); setSelectedDay(null) }} className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${viewData.hasNext ? 'hover:bg-gray-100 cursor-pointer text-gray-400' : 'text-gray-200 cursor-not-allowed'}`}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </button>
-                  {weekOffset !== 0 && (
-                    <button onClick={() => { setWeekOffset(0); setSelectedDay(null) }} className="text-xs text-color-2 font-medium ml-1 cursor-pointer hover:underline">Aujourd'hui</button>
-                  )}
-                </div>
-                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer text-gray-400 hover:text-color-1">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                  <span className="text-xs font-medium">Créer un article</span>
+
+              {/* Filter button — right side */}
+              <div ref={filterMenuRef} className="relative">
+                <button
+                  onClick={() => setShowFilterMenu(!showFilterMenu)}
+                  className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-sm ${
+                    showFilterMenu || seoFilterStatus || seoFilterSpec ? 'bg-gray-200 text-color-1 font-medium' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                  }`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+                  <span>Filtrer</span>
                 </button>
+                {showFilterMenu && (
+                  <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-20 min-w-[180px]">
+                    <p className="px-3 py-1 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Statut</p>
+                    {[
+                      { key: 'published', label: 'Publiés', dot: 'bg-green-400' },
+                      { key: 'unpublished', label: 'Programmés', dot: 'bg-orange-400' },
+                    ].map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => { setSeoFilterStatus(seoFilterStatus === f.key ? null : f.key); setShowFilterMenu(false) }}
+                        className={`flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left transition-colors cursor-pointer ${
+                          seoFilterStatus === f.key ? 'text-color-1 font-semibold bg-gray-50' : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${f.dot}`} />
+                        {f.label}
+                        {seoFilterStatus === f.key && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="ml-auto"><path d="M20 6L9 17l-5-5"/></svg>}
+                      </button>
+                    ))}
+                    <div className="h-px bg-gray-100 my-1" />
+                    <p className="px-3 py-1 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Spécialité</p>
+                    {allSpecialties.filter(s => checkedSpecs.includes(s.id)).map(spec => (
+                      <button
+                        key={spec.id}
+                        onClick={() => { setSeoFilterSpec(seoFilterSpec === spec.id ? null : spec.id); setShowFilterMenu(false) }}
+                        className={`flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left transition-colors cursor-pointer ${
+                          seoFilterSpec === spec.id ? 'text-color-1 font-semibold bg-gray-50' : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="text-xs">{spec.icon}</span>
+                        {spec.title}
+                        {seoFilterSpec === spec.id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="ml-auto"><path d="M20 6L9 17l-5-5"/></svg>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              </>}
             </div>
 
-            {/* 5×3 article grid */}
-            <div className={`grid grid-cols-6 gap-2 mt-4 flex-1 min-h-0 transition-all rounded-xl ${seoHighlight === 'planning' ? 'ring-2 ring-color-2 ring-offset-4' : ''}`} style={{ gridTemplateRows: 'repeat(5, 1fr)' }}>
-              {(() => { let publishedSeen = 0, programmedSeen = 0, preProgrammedSeen = 0; return viewData.days.map((item) => {
-                const isSelected = selectedDay === item.index
+            {/* Cards — search results or Hier/Aujourd'hui/Demain */}
+            <div className={`flex flex-col mt-2 flex-1 min-h-0 transition-all rounded-xl ${seoHighlight === 'planning' ? 'ring-2 ring-color-2 ring-offset-4' : ''}`}>
+              {(() => {
+                const q = seoSearchQuery.toLowerCase().trim()
+                const todayIdx = viewData.days.findIndex(d => d.isToday)
+                const hasFilters = q || seoFilterStatus !== null || seoFilterSpec !== null
 
-                {/* Published — green tint overlay: "done" */}
-                if (item.published) {
-                  publishedSeen++
-                  const hlImages = seoHighlight === 'images' && publishedSeen <= 2
-                  const hlStatuts = seoHighlight === 'statuts' && publishedSeen === 1
+                const matchesFilters = (d) => {
+                  if (seoFilterStatus === 'published' && !d.published) return false
+                  if (seoFilterStatus === 'unpublished' && !(d.programmed || d.preProgrammed)) return false
+                  if (seoFilterSpec && d.specId !== seoFilterSpec) return false
+                  if (q) {
+                    const title = (customArticleTitles[d.index] || d.articleTitle || '').toLowerCase()
+                    const spec = (d.title || '').toLowerCase()
+                    if (!title.includes(q) && !spec.includes(q)) return false
+                  }
+                  return true
+                }
+
+                // If searching or filtering, show filtered list; otherwise show trio
+                let displayItems
+                if (hasFilters) {
+                  displayItems = viewData.days
+                    .filter(matchesFilters)
+                    .map(item => {
+                      const diff = item.index - todayIdx
+                      const label = diff === -1 ? 'Hier' : diff === 0 ? "Aujourd'hui" : diff === 1 ? 'Demain' : `${item.dayNum} ${item.monthShort}`
+                      return { item, label }
+                    })
+                } else {
+                  displayItems = [
+                    { item: viewData.days[todayIdx - 1], label: 'Hier' },
+                    { item: viewData.days[todayIdx], label: "Aujourd'hui" },
+                    { item: viewData.days[todayIdx + 1], label: 'Demain' },
+                  ].filter(d => d.item)
+                }
+
+                if (hasFilters && displayItems.length === 0) {
                   return (
-                    <div
-                      key={item.index}
-                      onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : (hlImages || hlStatuts) ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
-                    >
-                      <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-green-600/40" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <p className="text-white/60 text-[10px] font-medium mb-0.5">{item.dayNum} {item.monthShort}</p>
-                        <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.articleTitle}</p>
-                      </div>
+                    <div className="flex-1 flex items-center justify-center text-gray-300">
+                      <p className="text-sm">{q ? `Aucun article trouvé pour « ${seoSearchQuery} »` : 'Aucun article trouvé'}</p>
                     </div>
                   )
                 }
 
-                {/* Programmé — full opacity. The richness IS the signal. */}
-                if (item.programmed) {
-                  programmedSeen++
-                  const hlImages = seoHighlight === 'images' && programmedSeen <= 2
-                  const hlStatuts = seoHighlight === 'statuts' && programmedSeen === 1
+                // Filtered/search results — scrollable list
+                if (hasFilters) {
                   return (
-                    <div
-                      key={item.index}
-                      onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : (hlImages || hlStatuts) ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
-                    >
-                      <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2">
-                        <p className="text-white/60 text-[10px] font-medium mb-0.5">{item.dayNum} {item.monthShort}</p>
-                        <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.articleTitle}</p>
-                      </div>
+                    <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 min-h-0">
+                      {displayItems.map(({ item, label }) => {
+                        const isSelected = selectedDay === item.index
+                        const displayImage = customArticleImages[item.index] || item.articleImage
+                        const displayTitle = customArticleTitles[item.index] || item.articleTitle
+                        return (
+                          <div
+                            key={item.index}
+                            onClick={() => setSelectedDay(item.index)}
+                            className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all shrink-0 ${isSelected ? 'bg-gray-100 border-l-2 border-color-2' : 'hover:bg-gray-50'}`}
+                          >
+                            {displayImage && <img src={displayImage} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-color-1 truncate">{displayTitle}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs text-gray-400">{item.icon} {item.title}</span>
+                                <span className="text-xs text-gray-300">·</span>
+                                <span className="text-xs text-gray-400">{label}</span>
+                                {item.published && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
+                                {item.programmed && <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 }
 
-                {/* Préprogrammé — empty card. The absence of image IS the signal. */}
-                if (item.preProgrammed) {
-                  preProgrammedSeen++
-                  const hlStatuts = seoHighlight === 'statuts' && preProgrammedSeen === 1
-                  return (
-                    <div
-                      key={item.index}
-                      onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-gray-50 hover:bg-gray-100 ${isSelected ? 'ring-2 ring-color-2 ring-offset-1' : hlStatuts ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}
-                    >
-                      <span className="text-2xl opacity-30">{item.icon}</span>
-                      <span className={`text-sm font-bold mt-1 ${item.isToday ? 'text-color-2' : 'text-gray-300'}`}>{item.dayNum}</span>
-                      {item.dayNum === 1 && <span className="text-[8px] text-gray-300">{item.monthShort}</span>}
-                    </div>
-                  )
-                }
-
+                // Default — 3 cards (Hier / Aujourd'hui / Demain)
                 return (
-                  <div key={item.index} className="rounded-xl bg-gray-50/50 flex items-center justify-center">
-                    <span className="text-sm font-medium text-gray-200">{item.dayNum}</span>
+                  <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
+                    {displayItems.map(({ item, label }) => {
+                      const isSelected = selectedDay === item.index
+                      const displayImage = customArticleImages[item.index] || item.articleImage
+                      const displayTitle = customArticleTitles[item.index] || item.articleTitle
+                      const isPublished = item.published
+                      const isProgrammed = item.programmed
+                      const isPreProg = item.preProgrammed
+                      return (
+                        <div
+                          key={item.index}
+                          onClick={() => setSelectedDay(item.index)}
+                          className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all flex flex-col ${isSelected ? 'shadow-lg' : 'brightness-[0.6] hover:brightness-[0.8]'} ${isPreProg ? 'bg-gray-50' : ''}`}
+                        >
+                          {(isPublished || isProgrammed) && displayImage && (
+                            <>
+                              <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+                            </>
+                          )}
+                          <div className="relative z-10 p-4 shrink-0">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm font-bold uppercase tracking-wide ${(isPublished || isProgrammed) ? 'text-white/70' : 'text-gray-400'}`}>{label}</span>
+                              {isPublished && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 backdrop-blur-sm text-xs font-semibold text-green-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-300" />Publié
+                                </span>
+                              )}
+                              {isProgrammed && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-semibold text-white/80">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-300" />Programmé
+                                </span>
+                              )}
+                              {isPreProg && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-400">
+                                  <span className="inline-block animate-spin" style={{ animationDuration: '3s', fontSize: 10 }}>&#9203;</span>
+                                  {item.daysFromToday > 0 ? `Dans ${item.daysFromToday}j` : 'En cours'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="relative z-10 flex-1 flex flex-col justify-end p-4 pt-0">
+                            {isPreProg ? (
+                              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                                <span className="text-4xl opacity-30">{item.icon}</span>
+                                <p className="text-sm font-semibold text-gray-400 mt-2">{item.dayNum} {item.monthShort}</p>
+                                <p className="text-sm text-gray-300 mt-1">{item.title}</p>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-white/60 text-sm font-medium mb-1">{item.dayNum} {item.monthShort}</p>
+                                <p className="text-white text-base font-bold leading-tight line-clamp-3">{displayTitle}</p>
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <span className="text-white/50 text-sm">{item.icon} {item.title}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
                 )
-              }) })()}
+              })()}
             </div>
-            {/* Calendar locked overlay — state 0 */}
-            {dashboardState === 0 && activeBlockInfo !== 'seoCalendar' && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
-                <button
-                  onClick={() => { setActiveBlockInfo('seoCalendar'); setBlockInfoDetail(0); setSeoHighlight('planning') }}
-                  className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
-                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
-                >
-                  <span className="text-lg">📅</span>
-                  <div className="text-left">
-                    <h3 className="text-xs font-bold text-color-1">Calendrier éditorial</h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
-                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
-                      En savoir plus
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
-                    </p>
-                  </div>
-                </button>
+            {/* Paused overlay — autoPublish off */}
+            {!autoPublish && dashboardState >= 1 && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl overflow-hidden pointer-events-none" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center mb-3">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                </div>
+                <p className="text-white text-sm font-semibold">Publication en pause</p>
+                <p className="text-white/60 text-xs mt-1">Aucun article n'est publié automatiquement</p>
               </div>
             )}
           </div>
 
-          {/* Right column */}
-          <div className="flex flex-col gap-2.5">
-
-            {/* Article preview card */}
-            <div ref={seoArticleRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-base font-bold text-color-1">Article</h2>
-                {selectedDay !== null && viewData.days[selectedDay] && (viewData.days[selectedDay].published || viewData.days[selectedDay].programmed) && (
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-semibold ${viewData.days[selectedDay].published ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-color-2'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${viewData.days[selectedDay].published ? 'bg-green-500' : 'bg-color-2'}`} />
-                    {viewData.days[selectedDay].published ? 'Publié' : 'Programmé'}
-                  </span>
-                )}
+          {/* Bottom-left — Cumulative Views Chart (rank-chart style) */}
+          <div ref={seoPublicationsRef} className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden col-start-1 row-start-2">
+            {/* Header */}
+            <div className="flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-color-1">Vues cumulées</h2>
+                <p className="text-sm text-gray-400 mt-0.5">Évolution du trafic sur vos articles SEO</p>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="bg-gray-50 rounded-xl px-4 py-2.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span className="text-sm text-gray-500">Articles publiés</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-color-1">{totalStats.total}</span>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-xl px-4 py-2.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span className="text-sm text-gray-500">Total actuel</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-color-1">{(slicedArticleVisits[slicedArticleVisits.length - 1] || 0).toLocaleString('fr-FR')}</span>
+                    {(() => {
+                      const current = slicedArticleVisits[slicedArticleVisits.length - 1] || 0
+                      const first = slicedArticleVisits[0] || 0
+                      const pctChange = first > 0 ? Math.round(((current - first) / first) * 100) : 0
+                      return pctChange !== 0 && (
+                        <span className={`text-sm font-semibold px-1.5 py-0.5 rounded-full ${pctChange > 0 ? 'text-green-500 bg-green-50' : 'text-red-500 bg-red-50'}`}>{pctChange > 0 ? '↑' : '↓'} {Math.abs(pctChange)}%</span>
+                      )
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Chart */}
+            <div className="flex-1 mt-3 min-h-0 flex">
+              {/* Y-axis labels */}
+              <div className="flex flex-col justify-between pr-2 text-sm text-gray-400 shrink-0 text-right">
+                {(() => {
+                  const max = Math.ceil(articleVisitsMax)
+                  const steps = [max, Math.round(max * 0.75), Math.round(max * 0.5), Math.round(max * 0.25), 0]
+                  return steps.map((v, i) => <span key={i}>{v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}</span>)
+                })()}
+              </div>
+
+              <div className="flex-1 flex flex-col min-w-0">
+                <div
+                  className="flex-1 relative min-h-0"
+                  onMouseMove={dashboardState >= 1 ? (e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    const x = (e.clientX - rect.left) / rect.width
+                    const idx = Math.round(x * (slicedArticleVisits.length - 1))
+                    setHoveredSeoVisit(Math.max(0, Math.min(idx, slicedArticleVisits.length - 1)))
+                  } : undefined}
+                  onMouseLeave={dashboardState >= 1 ? () => setHoveredSeoVisit(null) : undefined}
+                >
+                  {/* Grid lines */}
+                  {[0, 25, 50, 75, 100].map((pct) => (
+                    <div key={pct} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: `${pct}%` }} />
+                  ))}
+                  {/* SVG curve */}
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+                    <defs>
+                      <linearGradient id="seoVisitGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FC6D41" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#FC6D41" stopOpacity="0.01" />
+                      </linearGradient>
+                    </defs>
+                    <path d={toPath(slicedArticleVisits, articleVisitsMax, true)} fill="url(#seoVisitGrad)" />
+                    <path d={toPath(slicedArticleVisits, articleVisitsMax, false)} fill="none" stroke="#FC6D41" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                  </svg>
+
+                  {/* Hover tooltip */}
+                  {hoveredSeoVisit !== null && (() => {
+                    const hx = (hoveredSeoVisit / (slicedArticleVisits.length - 1)) * 100
+                    const hy = 100 - (slicedArticleVisits[hoveredSeoVisit] / articleVisitsMax) * 100
+                    return <>
+                      <div className="absolute w-px pointer-events-none" style={{ left: `${hx}%`, top: 0, bottom: 0, backgroundColor: '#FC6D41', opacity: 0.2 }} />
+                      <div className="absolute pointer-events-none" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -100%)' }}>
+                        <div className="px-2 py-0.5 rounded-md border border-color-2 bg-white text-sm font-semibold text-color-2 whitespace-nowrap mb-1 mx-auto w-fit shadow-sm">
+                          {slicedArticleVisits[hoveredSeoVisit].toLocaleString('fr-FR')} <span className="text-gray-400 font-normal">{slicedMonths[hoveredSeoVisit]}</span>
+                        </div>
+                      </div>
+                      <div className="absolute w-2.5 h-2.5 rounded-full pointer-events-none border-2 border-white bg-color-2 shadow-sm" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -50%)' }} />
+                    </>
+                  })()}
+                </div>
+
+                {/* X-axis labels */}
+                <div className="flex justify-between text-sm text-gray-400 pt-1.5 shrink-0">
+                  {slicedMonths.map((m) => <span key={m}>{m}</span>)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column — Article + SEO panel */}
+          <div className="flex flex-col col-start-2 row-start-1 row-span-2 min-w-0 overflow-hidden">
+            <div ref={seoArticleRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
               {(() => {
                 const item = selectedDay !== null ? viewData.days[selectedDay] : null
                 if (!item) return (
@@ -951,55 +1291,117 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <p className="text-sm text-gray-300">Sélectionnez un article</p>
                   </div>
                 )
+                const content = articleContentMap[item.title] || articleContentMap['Douleurs dorsales']
                 if (item.published || item.programmed) {
                   const displayImage = customArticleImages[item.index] || item.articleImage
                   const displayTitle = customArticleTitles[item.index] || item.articleTitle
                   return (
                     <div className="flex-1 flex flex-col min-h-0">
+                      {/* Image — fixed */}
                       <button
-                        className={`relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left transition-all ${seoHighlight === 'contenu' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}
+                        className={`relative h-28 shrink-0 rounded-xl overflow-hidden cursor-pointer group text-left transition-all ${seoHighlight === 'contenu' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}
                         onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
                       >
                         <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                        {/* Pexels overlay */}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                            <span className="text-white text-xs font-medium">Changer l'image</span>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            <span className="text-white text-sm font-medium">Changer</span>
                           </div>
                         </div>
+                        <div className="absolute top-2 left-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
+                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.published ? 'bg-green-500' : 'bg-color-2'}`} />
+                            {item.published ? `Publié le ${item.dayNum} ${item.monthShort}` : `Programmé le ${item.dayNum} ${item.monthShort}`}
+                          </span>
+                        </div>
                       </button>
-                      {/* Notion-style properties */}
-                      <div className="mt-2.5 flex flex-col gap-1.5 shrink-0">
-                        <div className="flex items-start gap-2">
-                          <span className="text-sm text-gray-400 w-16 shrink-0 mt-0.5">Titre</span>
+                      {/* Content area */}
+                      <div className="flex-1 min-h-0 overflow-y-auto mt-1.5 flex flex-col justify-between">
+                        {/* Title + meta */}
+                        <div>
                           <input
                             type="text"
                             value={displayTitle}
                             onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
-                            className="flex-1 text-sm font-semibold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors py-0.5 -my-0.5"
+                            className="w-full text-sm font-bold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors"
                           />
+                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
+                            <span>{item.icon} {item.title}</span>
+                            <span>·</span>
+                            <span>{item.dayNum} {item.monthShort}</span>
+                            <span>·</span>
+                            <span>{content.wordCount} mots</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-400 w-16 shrink-0">Thème</span>
-                          <span className="text-sm font-medium text-color-1">{item.icon} {item.title}</span>
+                        {/* SEO score ring + individual scores */}
+                        <div className={`flex items-center gap-3 px-2.5 py-1.5 rounded-xl bg-gray-50 transition-all ${seoHighlight === 'seo' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
+                          <div className="relative w-10 h-10 shrink-0">
+                            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#E5E7EB" strokeWidth="3" />
+                              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#22C55E" strokeWidth="3" strokeDasharray={`${item.seo.global * 0.975} 100`} strokeLinecap="round" />
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-sm font-bold text-green-600">{item.seo.global}</span>
+                            </div>
+                          </div>
+                          <div className="flex-1 flex flex-col gap-1 min-w-0">
+                            {[
+                              { label: 'Régularité', score: item.seo.regularite },
+                              { label: 'Balises', score: item.seo.balises },
+                              { label: 'Meta', score: item.seo.meta },
+                              { label: 'Mots-clés', score: item.seo.motsCles },
+                            ].map(s => (
+                              <div key={s.label} className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">{s.label}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-gray-200"><div className="h-full rounded-full bg-green-400" style={{ width: `${s.score}%` }} /></div>
+                                <span className="text-xs font-semibold text-green-600 shrink-0">{s.score}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-400 w-16 shrink-0">Date</span>
-                          <span className="text-sm font-medium text-color-1">{item.dayNum} {item.monthShort}</span>
+                        {/* Keywords */}
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Mots-clés ciblés</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {content.keywords.map((kw, ki) => (
+                              <span key={ki} className="px-2 py-0.5 rounded bg-color-2/10 text-sm font-medium text-color-2">{kw}</span>
+                            ))}
+                          </div>
                         </div>
-                        <div className={`flex items-center gap-2 transition-all rounded-lg ${seoHighlight === 'seo' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
-                          <span className="text-sm text-gray-400 w-16 shrink-0">SEO</span>
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-16 h-1.5 rounded-full bg-gray-100"><div className="h-full rounded-full bg-green-400" style={{ width: `${item.seo.global}%` }} /></div>
-                            <span className="text-sm font-semibold text-green-600">{item.seo.global}</span>
+                        {/* SEO checklist */}
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Optimisations</p>
+                          <div className="flex flex-col gap-1">
+                            {[
+                              { ok: true, text: 'Mot-clé dans le titre' },
+                              { ok: true, text: 'Meta description < 160 car.' },
+                              { ok: true, text: 'Balises H2 structurées' },
+                              { ok: true, text: `${content.wordCount} mots (min. 300)` },
+                              { ok: true, text: 'Image avec alt renseigné' },
+                            ].map((c, ci) => (
+                              <div key={ci} className="flex items-center gap-1.5">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                                <span className="text-xs text-gray-500">{c.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Google preview */}
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Aperçu Google</p>
+                          <div className="rounded-lg border border-gray-200 p-2.5 bg-white">
+                            <p className="text-sm text-blue-700 font-medium truncate">{displayTitle}</p>
+                            <p className="text-xs text-green-700 truncate">theralys.fr/blog/{(displayTitle || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}</p>
+                            <p className="text-xs text-gray-500 line-clamp-2 leading-tight mt-0.5">{content.metaDesc}</p>
                           </div>
                         </div>
                       </div>
-                      <div className={`flex gap-2 mt-3 shrink-0 transition-all rounded-xl ${seoHighlight === 'actions' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
-                        <button className="flex-1 py-2 rounded-xl bg-gray-50 text-sm font-medium text-color-1 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200">Modifier</button>
-                        <button className="flex-1 py-2 rounded-xl bg-color-1 text-sm font-medium text-white hover:bg-color-1/90 transition-colors cursor-pointer">Voir</button>
+                      {/* Actions — pinned bottom */}
+                      <div className={`flex gap-2 shrink-0 mt-1.5 transition-all rounded-xl ${seoHighlight === 'actions' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
+                        <button onClick={() => onGoToSiteEditor({ page: `article-${item.specId}` })} className="flex-1 py-2 rounded-xl bg-gray-50 text-sm font-medium text-color-1 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200">Modifier</button>
+                        <button onClick={() => onGoToSiteEditor({ page: `article-${item.specId}` })} className="flex-1 py-2 rounded-xl bg-color-1 text-sm font-medium text-white hover:bg-color-1/90 transition-colors cursor-pointer">Voir</button>
                       </div>
                     </div>
                   )
@@ -1008,11 +1410,10 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 const preDisplayImage = customArticleImages[item.index]
                 const preDisplayTitle = customArticleTitles[item.index] || item.articleTitle || ''
                 return (
-                  <div className="flex-1 flex flex-col min-h-0">
-                    {/* Image area — either custom image or placeholder */}
+                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <button
                       className="relative rounded-xl overflow-hidden cursor-pointer group text-left shrink-0"
-                      style={{ height: preDisplayImage ? '45%' : 80 }}
+                      style={{ height: preDisplayImage ? 100 : 70 }}
                       onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
                     >
                       {preDisplayImage ? (
@@ -1022,122 +1423,43 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         </>
                       ) : (
                         <div className="absolute inset-0 bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                          <span className="text-3xl">{item.icon}</span>
+                          <span className="text-2xl">{item.icon}</span>
                         </div>
                       )}
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                          <span className="text-white text-xs font-medium">Choisir une image</span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                          <span className="text-white text-[11px] font-medium">Choisir une image</span>
                         </div>
                       </div>
                     </button>
-                    {/* Notion-style properties */}
-                    <div className="mt-2.5 flex flex-col gap-1.5 shrink-0">
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm text-gray-400 w-16 shrink-0 mt-0.5">Titre</span>
-                        <input
-                          type="text"
-                          value={preDisplayTitle}
-                          onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
-                          placeholder="Titre de l'article..."
-                          className="flex-1 text-sm font-semibold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors py-0.5 -my-0.5 placeholder:text-gray-300 placeholder:font-normal"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-400 w-16 shrink-0">Thème</span>
-                        <span className="text-sm font-medium text-color-1">{item.icon} {item.title}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-400 w-16 shrink-0">Date</span>
-                        <span className="text-sm font-medium text-color-1">{item.dayNum} {item.monthShort}</span>
+                    <div className="mt-2 flex flex-col gap-1 shrink-0">
+                      <input
+                        type="text"
+                        value={preDisplayTitle}
+                        onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
+                        placeholder="Titre de l'article..."
+                        className="w-full text-sm font-bold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors placeholder:text-gray-300 placeholder:font-normal"
+                      />
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>{item.icon} {item.title}</span>
+                        <span>·</span>
+                        <span>{item.dayNum} {item.monthShort}</span>
                       </div>
                     </div>
-                    <div className="flex-1" />
-                    <div className="flex items-center justify-center gap-2 py-2 shrink-0 text-gray-400">
-                      <span className="inline-block animate-spin" style={{ animationDuration: '3s' }}>&#9203;</span>
-                      <span className="text-sm font-medium">Rédaction dans {item.daysFromToday} j</span>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center text-gray-400">
+                        <span className="inline-block animate-spin text-lg" style={{ animationDuration: '3s' }}>&#9203;</span>
+                        <p className="text-sm font-medium mt-1">Rédaction dans {item.daysFromToday} j</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => { const specId = item.specId || '1'; onGoToSiteEditor({ page: `article-${specId}` }) }}
+                      className="w-full py-2 rounded-xl bg-color-2/10 text-sm font-medium text-color-2 hover:bg-color-2/20 transition-colors cursor-pointer shrink-0"
+                    >Pré-visualiser</button>
                   </div>
                 )
               })()}
-              {/* Article preview locked overlay — state 0 */}
-              {dashboardState === 0 && activeBlockInfo !== 'seoArticle' && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
-                  <button
-                    onClick={() => { setActiveBlockInfo('seoArticle'); setBlockInfoDetail(0); setSeoHighlight('contenu'); const idx = viewData.days.findIndex(d => d.published || d.programmed); if (idx >= 0) setSelectedDay(idx) }}
-                    className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
-                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
-                  >
-                    <span className="text-lg">🔍</span>
-                    <div className="text-left">
-                      <h3 className="text-xs font-bold text-color-1">Aperçu article</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
-                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
-                        En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Articles par thème — only préprogrammé batch */}
-            <div ref={seoPublicationsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0 relative overflow-hidden">
-              <div className="flex items-center justify-between mb-1 shrink-0">
-                <h2 className="text-base font-bold text-color-1">Prochaines publications</h2>
-                <button onClick={() => setShowRepartition(true)} className={`text-sm text-color-2 font-medium hover:underline cursor-pointer transition-all rounded-lg px-1.5 -mx-1.5 ${seoHighlight === 'equilibre' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>Modifier</button>
-              </div>
-              <div className="flex items-center justify-between mb-2 shrink-0">
-                <p className="text-xs text-gray-400">{viewData.preProgDays} articles programmés</p>
-                <div className="flex items-center gap-4">
-                  <span className="text-[10px] text-gray-300 uppercase tracking-wide">À venir</span>
-                  <span className="text-[10px] text-gray-300 uppercase tracking-wide">Total</span>
-                </div>
-              </div>
-              <div className={`flex flex-col gap-0.5 flex-1 justify-center transition-all rounded-xl ${seoHighlight === 'themes' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
-                {allSpecialties.map(spec => {
-                  const isActive = checkedSpecs.includes(spec.id)
-                  const upcoming = viewData.preProgCounts[spec.id] || 0
-                  const allTime = totalStats.counts[spec.id] || 0
-                  return (
-                    <div key={spec.id} className={`flex items-center py-1.5 ${isActive ? '' : 'opacity-30'}`}>
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <span className="text-base shrink-0">{spec.icon}</span>
-                        <span className="text-sm text-color-1 font-medium truncate">{spec.title}</span>
-                      </div>
-                      <span className={`text-sm font-bold text-color-1 tabular-nums w-8 text-right transition-all rounded ${seoHighlight === 'volume' ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}>{isActive ? upcoming : '–'}</span>
-                      <span className={`text-sm text-gray-400 tabular-nums w-8 text-right ml-3 transition-all rounded ${seoHighlight === 'volume' ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}>{allTime}</span>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="flex items-center pt-2 mt-1 border-t border-gray-100 shrink-0">
-                <span className="text-sm font-bold text-color-1 flex-1">Total</span>
-                <span className="text-sm font-bold text-color-1 tabular-nums w-8 text-right">{viewData.preProgDays}</span>
-                <span className="text-sm font-bold text-gray-400 tabular-nums w-8 text-right ml-3">{totalStats.total}</span>
-              </div>
-              {/* Publications locked overlay — state 0 */}
-              {dashboardState === 0 && activeBlockInfo !== 'seoPublications' && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
-                  <button
-                    onClick={() => { setActiveBlockInfo('seoPublications'); setBlockInfoDetail(0); setSeoHighlight('themes') }}
-                    className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
-                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
-                  >
-                    <span className="text-lg">📊</span>
-                    <div className="text-left">
-                      <h3 className="text-xs font-bold text-color-1">Répartition</h3>
-                      <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
-                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
-                        En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1277,18 +1599,10 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </div>
             )
           })()}
+
         </div>
         ) : activeTab === 'parrainage' ? (
         <div key="parrainage" className="flex flex-col gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-          {/* State 0 overlay */}
-          {dashboardState === 0 && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
-              <div className="bg-orange-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-center shadow-sm">
-                <h3 className="text-base font-bold text-color-1 mb-1">🎁 Parrainage</h3>
-                <p className="text-sm text-gray-500">Disponible après la mise en ligne de votre site.</p>
-              </div>
-            </div>
-          )}
 
           {/* Hero section — warm bg with floating emojis */}
           <div className="relative border-2 border-gray-200 rounded-2xl flex flex-col items-center justify-center py-6 px-8 shrink-0 overflow-hidden" style={{ backgroundColor: '#fef4f1' }}>
@@ -1396,9 +1710,15 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowParrainageVideo(false)}>
               <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
               <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
-                {/* Video placeholder */}
-                <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
-                  <p className="text-sm text-gray-400">Vidéo explicative</p>
+                {/* YouTube video */}
+                <div className="w-full aspect-video bg-black">
+                  <iframe
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
                 {/* Content */}
                 <div className="p-5">
@@ -1609,9 +1929,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </div>
             </div>
 
-            {/* Stats locked overlay — states 0-2 */}
+            {/* Stats locked overlay — state 0 or 30-day cooldown */}
             {dashboardState <= 2 && activeBlockInfo !== 'stats' && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
                 <button
                   onClick={() => { setActiveBlockInfo('stats'); setBlockInfoDetail(0); setSelectedKpi('visites'); setSeoHighlight('kpi-visites') }}
                   className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
@@ -1620,6 +1940,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   <span className="text-sm">📊</span>
                   <div className="text-left">
                     <h3 className="text-xs font-bold text-color-1">Statistiques</h3>
+                    {dashboardState >= 1 && statsCooldownDays > 0 && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Disponible dans {statsCooldownDays} jour{statsCooldownDays > 1 ? 's' : ''}</p>
+                    )}
                     <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
                       En savoir plus
                       <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
@@ -1635,20 +1958,19 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
             {/* Actions */}
             <div ref={actionsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3 flex flex-col min-h-0">
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <h2 className="text-sm font-bold text-color-1">Actions</h2>
+                {completionPercent < 100 && (
+                  <span className="text-[10px] text-gray-400 font-medium">{doneActions.length}/{allActions.length} · {completionPercent}%</span>
+                )}
+              </div>
               {completionPercent < 100 && (
-                <>
-                  <div className="flex items-center justify-between mb-2 shrink-0">
-                    <h2 className="text-sm font-bold text-color-1">Actions</h2>
-                    <span className="text-[10px] text-gray-400 font-medium">{doneActions.length}/{allActions.length} · {completionPercent}%</span>
-                  </div>
-                  <div className="w-full h-1 bg-gray-100 rounded-full mb-2 shrink-0 overflow-hidden">
-                    <div className="h-full bg-color-2 rounded-full transition-all duration-500" style={{ width: `${completionPercent}%` }} />
-                  </div>
-                </>
+                <div className="w-full h-1 bg-gray-100 rounded-full mb-2 shrink-0 overflow-hidden">
+                  <div className="h-full bg-color-2 rounded-full transition-all duration-500" style={{ width: `${completionPercent}%` }} />
+                </div>
               )}
               {completionPercent === 100 ? (
-                <div className="flex-1 flex flex-col gap-1 pt-0.5">
-                  <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider px-1 pt-0.5 pb-0.5">Prochaines étapes</p>
+                <div className="flex-1 flex flex-col gap-1">
                   {[
                     { label: 'Collecter 3 avis clients', action: () => onGoToSetup('avis') },
                     { label: 'Vérifier vos articles', action: () => { const scheduled = articles.find(a => a.status === 'scheduled'); if (scheduled) navigateToArticle(scheduled) } },
@@ -1781,7 +2103,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </button>
               {/* State 0 overlay */}
               {dashboardState === 0 && activeBlockInfo !== 'articles' && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
                   <button
                     onClick={() => { setActiveBlockInfo('articles'); setBlockInfoDetail(0) }}
                     className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
@@ -1804,7 +2126,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             <div ref={newsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
               {/* State 0 overlay */}
               {dashboardState === 0 && activeBlockInfo !== 'news' && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
                   <button
                     onClick={() => { setActiveBlockInfo('news'); setBlockInfoDetail(0) }}
                     className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
@@ -1953,7 +2275,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
             {/* Ranking locked overlay — states 0-2 */}
             {dashboardState <= 2 && activeBlockInfo !== 'ranking' && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
                 <button
                   onClick={() => { setActiveBlockInfo('ranking'); setBlockInfoDetail(0); setSeoHighlight('rank-keyword') }}
                   className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
@@ -2324,7 +2646,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         return (
           <>
             {/* Click capture background */}
-            <div className={`fixed inset-0 z-40 ${hasSpotlight ? '' : 'bg-black/60'}`} onClick={() => { setActiveBlockInfo(null); setSeoHighlight(null) }} />
+            <div className={`fixed inset-0 z-40 ${hasSpotlight ? '' : 'bg-black/60'}`} onClick={() => { setActiveBlockInfo(null); setSeoHighlight(null); if (seoTourBlocks.includes(activeBlockInfo) && dashboardState === 0 && !tourFlags.seoTourDone) updateTourFlag({ seoTourDone: true }) }} />
             {/* Spotlight hole — only if ref exists */}
             {hasSpotlight && (
               <div
@@ -2367,27 +2689,45 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                       ))}
                     </div>
                     <p className="text-xs text-gray-500 leading-relaxed mb-3 min-h-[32px]">{current.desc}</p>
-                    <button
-                      onClick={() => {
-                        if (isLast) {
-                          setActiveBlockInfo(null);
-                          setBlockInfoDetail(0);
-                          setSeoHighlight(null);
-                        } else {
-                          const next = blockInfoDetail + 1;
-                          setBlockInfoDetail(next);
-                          if (info.details[next]?.sync) info.details[next].sync();
-                        }
-                      }}
-                      className="w-full py-2 rounded-xl text-xs font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      {isLast ? 'Compris' : (
-                        <>
-                          Suivant
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                        </>
-                      )}
-                    </button>
+                    {(() => {
+                      const seoIdx = seoTourBlocks.indexOf(activeBlockInfo)
+                      const inSeoTour = seoIdx >= 0 && dashboardState === 0 && !tourFlags.seoTourDone
+                      const hasNextSeoBlock = inSeoTour && seoIdx < seoTourBlocks.length - 1
+                      const btnLabel = isLast ? (hasNextSeoBlock ? 'Suivant bloc' : 'Compris') : 'Suivant'
+                      return (
+                        <button
+                          onClick={() => {
+                            if (isLast) {
+                              if (hasNextSeoBlock) {
+                                const nextBlock = seoTourBlocks[seoIdx + 1]
+                                setActiveBlockInfo(nextBlock)
+                                setBlockInfoDetail(0)
+                                if (blockInfos[nextBlock]?.details?.[0]?.sync) blockInfos[nextBlock].details[0].sync()
+                              } else {
+                                setActiveBlockInfo(null)
+                                setBlockInfoDetail(0)
+                                setSeoHighlight(null)
+                                if (inSeoTour || (seoIdx === seoTourBlocks.length - 1 && dashboardState === 0)) {
+                                  updateTourFlag({ seoTourDone: true })
+                                }
+                              }
+                            } else {
+                              const next = blockInfoDetail + 1
+                              setBlockInfoDetail(next)
+                              if (info.details[next]?.sync) info.details[next].sync()
+                            }
+                          }}
+                          className="w-full py-2 rounded-xl text-xs font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {btnLabel === 'Compris' ? 'Compris' : (
+                            <>
+                              {btnLabel}
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                            </>
+                          )}
+                        </button>
+                      )
+                    })()}
                   </>
                 );
               })()}
@@ -2400,51 +2740,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowNewsModal(null)}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
           <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
-            {/* Header area */}
-            {/* Header — special design for Boostoncab */}
-            {news[showNewsModal].tag === 'Partenaire' ? (
-              <div className="w-full aspect-video relative overflow-hidden flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #243352 40%, #1e2d4a 100%)' }}>
-                {/* Paper texture overlay */}
-                <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
-                {/* Decorative arrows */}
-                <svg className="absolute left-8 top-6 opacity-20" width="40" height="80" viewBox="0 0 40 80" fill="none">
-                  <path d="M20 80V10M20 10L5 25M20 10L35 25" stroke="#7ba0cc" strokeWidth="2" />
-                </svg>
-                <svg className="absolute left-16 top-3 opacity-15" width="30" height="60" viewBox="0 0 30 60" fill="none">
-                  <path d="M15 60V8M15 8L4 19M15 8L26 19" stroke="#7ba0cc" strokeWidth="1.5" />
-                </svg>
-                {/* Paper airplane */}
-                <div className="absolute left-6 bottom-4 opacity-30">
-                  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#8bafd4" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(-20deg)' }}>
-                    <path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" />
-                  </svg>
-                </div>
-                {/* Main text */}
-                <h2 className="relative text-3xl font-bold text-center" style={{ color: '#e8dfc4', fontFamily: 'Georgia, "Times New Roman", serif' }}>Plateforme Privée</h2>
-                <p className="relative text-sm text-center mt-2 max-w-[320px] leading-relaxed" style={{ color: '#b0bfd4', fontFamily: 'Georgia, "Times New Roman", serif' }}>Accessible uniquement aux membres de l'accompagnement BoostTonCab</p>
-                {/* Bottom-right branding */}
-                <div className="absolute bottom-3 right-4 flex items-center gap-2">
-                  <div className="w-7 h-7 rounded bg-white/10 flex items-center justify-center">
-                    <span className="text-sm font-bold" style={{ color: '#e8dfc4', fontFamily: 'Georgia, serif' }}>B</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold" style={{ color: '#e8dfc4' }}>Boost ton cab</span>
-                    <span className="text-[9px]" style={{ color: '#7b8da6' }}>© 2024</span>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full aspect-video bg-gradient-to-br from-color-1 to-gray-700 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute top-2 right-3 text-6xl opacity-10">✨</div>
-                <div className="absolute top-4 left-5 right-5 flex items-center justify-between">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-color-2 text-white text-sm font-semibold">
-                    {news[showNewsModal].tag}
-                  </span>
-                  <span className="text-white/60 text-sm">{news[showNewsModal].date}</span>
-                </div>
-                <p className="text-white/30 text-sm">Contenu à venir</p>
-              </div>
-            )}
+            {/* Header — YouTube video */}
+            <div className="w-full aspect-video bg-black">
+              <iframe
+                src={news[showNewsModal].video}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
             {/* Content */}
             <div className="p-5">
               <h3 className="text-lg font-bold text-color-1 mb-2">{news[showNewsModal].title}</h3>

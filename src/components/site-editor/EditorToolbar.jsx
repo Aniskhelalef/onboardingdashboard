@@ -38,12 +38,13 @@ const EditorToolbar = ({
     return () => document.removeEventListener("mousedown", handler);
   }, [pagesOpen]);
 
-  const specialtyLocked = !isHomePublished;
+  const specialtyLocked = false;
 
   const getCurrentPageIcon = () => {
     if (currentPage === "accueil") return <Home className="w-4 h-4" />;
     if (currentPage === "blog") return <FileText className="w-4 h-4" />;
     if (currentPage === "mentions") return <FileCheck className="w-4 h-4" />;
+    if (currentPage.startsWith("article-")) return <FileText className="w-4 h-4" />;
     const spec = specialties.find(s => currentPage === `specialite-${s.id}`);
     if (spec) return <span className="text-sm leading-none">{spec.icon}</span>;
     return <Home className="w-4 h-4" />;
@@ -53,6 +54,10 @@ const EditorToolbar = ({
     if (currentPage === "accueil") return "Accueil";
     if (currentPage === "blog") return "Blog";
     if (currentPage === "mentions") return "Mentions";
+    if (currentPage.startsWith("article-")) {
+      const spec = specialties.find(s => currentPage === `article-${s.id}`);
+      return spec ? spec.title : "Article";
+    }
     const spec = specialties.find(s => currentPage === `specialite-${s.id}`);
     if (spec) return spec.title;
     return "Pages";
@@ -128,6 +133,8 @@ const EditorToolbar = ({
                   <FileText className="w-4 h-4" />
                   Blog
                 </button>
+
+                <div className="h-px bg-gray-100 my-1" />
 
                 <button
                   onClick={() => { onPageChange("mentions"); setPagesOpen(false); }}
