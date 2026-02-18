@@ -1128,13 +1128,13 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                             <div className="flex items-center justify-between">
                               <span className={`text-sm font-bold uppercase tracking-wide ${(isPublished || isProgrammed) ? 'text-white/70' : 'text-gray-400'}`}>{label}</span>
                               {isPublished && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 backdrop-blur-sm text-xs font-semibold text-green-200">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-green-300" />Publié
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-xs font-semibold backdrop-blur-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />Publié
                                 </span>
                               )}
                               {isProgrammed && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/20 backdrop-blur-sm text-xs font-semibold text-white/80">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-300" />Programmé
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-xs font-semibold backdrop-blur-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-color-2 shrink-0" />Programmé
                                 </span>
                               )}
                               {isPreProg && (
