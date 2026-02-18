@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Home, FileCheck, FileText, Monitor, Smartphone, Paintbrush, Settings, ChevronUp, Lock, Undo2, Redo2, ArrowLeft, Eye, Rocket } from "lucide-react";
+import { Home, FileCheck, FileText, Monitor, Smartphone, Paintbrush, Settings, ChevronDown, Lock, Undo2, Redo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const CIRCLE_BTN = "rounded-full bg-white flex items-center justify-center transition-all shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)]";
-const CIRCLE_HOVER = "hover:shadow-[0_2px_6px_rgba(0,0,0,0.14)] active:scale-95";
 
 const EditorToolbar = ({
   currentPage,
@@ -44,12 +41,12 @@ const EditorToolbar = ({
   const specialtyLocked = !isHomePublished;
 
   const getCurrentPageIcon = () => {
-    if (currentPage === "accueil") return <Home className="w-[18px] h-[18px]" />;
-    if (currentPage === "blog") return <FileText className="w-[18px] h-[18px]" />;
-    if (currentPage === "mentions") return <FileCheck className="w-[18px] h-[18px]" />;
+    if (currentPage === "accueil") return <Home className="w-4 h-4" />;
+    if (currentPage === "blog") return <FileText className="w-4 h-4" />;
+    if (currentPage === "mentions") return <FileCheck className="w-4 h-4" />;
     const spec = specialties.find(s => currentPage === `specialite-${s.id}`);
     if (spec) return <span className="text-sm leading-none">{spec.icon}</span>;
-    return <Home className="w-[18px] h-[18px]" />;
+    return <Home className="w-4 h-4" />;
   };
 
   const getCurrentPageLabel = () => {
@@ -61,25 +58,26 @@ const EditorToolbar = ({
     return "Pages";
   };
 
-  const iconCls = "w-[18px] h-[18px]";
+  const BTN = "w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer";
 
   return (
     <>
-      {/* ── BOTTOM-CENTER — Tools ── */}
       <div className={cn("fixed left-0 right-0 z-[60] px-4 pointer-events-none", isMobileDevice ? "bottom-4" : "bottom-6")}>
-        <div className="flex items-end justify-center gap-2 max-w-screen-xl mx-auto">
-          <div className="pointer-events-auto relative flex items-center gap-2">
+        <div className="flex items-end justify-center max-w-screen-xl mx-auto">
+          <div className="pointer-events-auto relative flex items-center">
+
             {/* Pages popover */}
             {pagesOpen && (
               <div
                 ref={popoverRef}
-                className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl shadow-xl border border-gray-200/60 p-2 min-w-[200px]"
+                className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl border-2 border-gray-200 p-1.5 min-w-[200px]"
+                style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}
               >
                 <button
                   onClick={() => { onPageChange("accueil"); setPagesOpen(false); }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
-                    currentPage === "accueil" ? "bg-gray-100 text-foreground font-medium" : "text-muted-foreground hover:bg-gray-50 hover:text-foreground"
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                    currentPage === "accueil" ? "bg-gray-50 text-color-1 font-medium" : "text-gray-400 hover:bg-gray-50 hover:text-color-1"
                   )}
                 >
                   <Home className="w-4 h-4" />
@@ -88,7 +86,7 @@ const EditorToolbar = ({
 
                 {specialties.length > 0 && (
                   <>
-                    <div className="px-3 py-1.5 text-sm font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                    <div className="px-3 py-1.5 text-[10px] font-medium text-gray-300 uppercase tracking-wider mt-1">
                       Spécialités
                     </div>
                     {specialties.map((spec) => (
@@ -102,17 +100,17 @@ const EditorToolbar = ({
                         }}
                         disabled={specialtyLocked}
                         className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
+                          "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
                           specialtyLocked
-                            ? "opacity-40 cursor-not-allowed"
+                            ? "opacity-30 cursor-not-allowed"
                             : currentPage === `specialite-${spec.id}`
-                            ? "bg-gray-100 text-foreground font-medium"
-                            : "text-muted-foreground hover:bg-gray-50 hover:text-foreground"
+                            ? "bg-gray-50 text-color-1 font-medium"
+                            : "text-gray-400 hover:bg-gray-50 hover:text-color-1"
                         )}
                       >
                         <span className="text-base leading-none">{spec.icon}</span>
                         <span className="truncate">{spec.title}</span>
-                        {specialtyLocked && <Lock className="w-3 h-3 ml-auto text-muted-foreground/50" />}
+                        {specialtyLocked && <Lock className="w-3 h-3 ml-auto text-gray-300" />}
                       </button>
                     ))}
                   </>
@@ -123,8 +121,8 @@ const EditorToolbar = ({
                 <button
                   onClick={() => { onPageChange("blog"); setPagesOpen(false); }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
-                    currentPage === "blog" ? "bg-gray-100 text-foreground font-medium" : "text-muted-foreground hover:bg-gray-50 hover:text-foreground"
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                    currentPage === "blog" ? "bg-gray-50 text-color-1 font-medium" : "text-gray-400 hover:bg-gray-50 hover:text-color-1"
                   )}
                 >
                   <FileText className="w-4 h-4" />
@@ -134,8 +132,8 @@ const EditorToolbar = ({
                 <button
                   onClick={() => { onPageChange("mentions"); setPagesOpen(false); }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-colors",
-                    currentPage === "mentions" ? "bg-gray-100 text-foreground font-medium" : "text-muted-foreground hover:bg-gray-50 hover:text-foreground"
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors",
+                    currentPage === "mentions" ? "bg-gray-50 text-color-1 font-medium" : "text-gray-400 hover:bg-gray-50 hover:text-color-1"
                   )}
                 >
                   <FileCheck className="w-4 h-4" />
@@ -144,65 +142,53 @@ const EditorToolbar = ({
               </div>
             )}
 
-            {/* Tools pill */}
-            <div className="flex items-center gap-1.5 rounded-full bg-[#e8e8e8] px-2.5 py-2 shadow-lg">
-              {/* Pages */}
+            {/* Unified toolbar */}
+            <div className="flex items-center bg-white border-2 border-gray-200 rounded-2xl px-1.5 py-1.5 gap-0.5" style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+
+              {/* Page selector */}
               <button
                 ref={buttonRef}
                 onClick={() => setPagesOpen(!pagesOpen)}
                 className={cn(
-                  CIRCLE_BTN,
-                  "h-10 px-3 gap-2",
-                  CIRCLE_HOVER,
-                  "text-gray-700",
-                  pagesOpen && "ring-2 ring-gray-400/30"
+                  "flex items-center gap-1.5 h-8 px-3 rounded-xl text-sm font-medium transition-colors cursor-pointer",
+                  pagesOpen ? "bg-gray-100 text-color-1" : "text-gray-500 hover:bg-gray-50 hover:text-color-1"
                 )}
               >
                 {getCurrentPageIcon()}
-                <span className="text-xs font-medium max-w-[80px] truncate">{getCurrentPageLabel()}</span>
-                <ChevronUp className={cn("w-3 h-3 shrink-0 transition-transform", !pagesOpen && "rotate-180")} />
+                <span className="max-w-[80px] truncate">{getCurrentPageLabel()}</span>
+                <ChevronDown className={cn("w-3 h-3 shrink-0 transition-transform text-gray-400", pagesOpen && "rotate-180")} />
               </button>
+
+              <div className="w-px h-5 bg-gray-200 mx-1" />
 
               {/* Style */}
               <button
                 onClick={onStyleClick}
                 title="Style"
-                className={cn(
-                  CIRCLE_BTN,
-                  "w-10 h-10",
-                  CIRCLE_HOVER,
-                  "text-gray-700"
-                )}
+                className={cn(BTN, "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
               >
-                <Paintbrush className={iconCls} />
+                <Paintbrush className="w-4 h-4" />
               </button>
 
               {/* Settings */}
               <button
                 onClick={onSettingsClick}
                 title="Paramètres"
-                className={cn(
-                  CIRCLE_BTN,
-                  "w-10 h-10",
-                  CIRCLE_HOVER,
-                  "text-gray-700"
-                )}
+                className={cn(BTN, "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
               >
-                <Settings className={iconCls} />
+                <Settings className="w-4 h-4" />
               </button>
+
+              <div className="w-px h-5 bg-gray-200 mx-1" />
 
               {/* Undo */}
               <button
                 onClick={onUndo}
                 disabled={!canUndo}
                 title="Annuler (⌘Z)"
-                className={cn(
-                  CIRCLE_BTN,
-                  "w-10 h-10",
-                  !canUndo ? "opacity-30 cursor-not-allowed" : cn(CIRCLE_HOVER, "text-gray-700")
-                )}
+                className={cn(BTN, !canUndo ? "opacity-20 cursor-not-allowed text-gray-400" : "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
               >
-                <Undo2 className={iconCls} />
+                <Undo2 className="w-4 h-4" />
               </button>
 
               {/* Redo */}
@@ -210,43 +196,31 @@ const EditorToolbar = ({
                 onClick={onRedo}
                 disabled={!canRedo}
                 title="Rétablir (⌘⇧Z)"
-                className={cn(
-                  CIRCLE_BTN,
-                  "w-10 h-10",
-                  !canRedo ? "opacity-30 cursor-not-allowed" : cn(CIRCLE_HOVER, "text-gray-700")
-                )}
+                className={cn(BTN, !canRedo ? "opacity-20 cursor-not-allowed text-gray-400" : "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
               >
-                <Redo2 className={iconCls} />
+                <Redo2 className="w-4 h-4" />
               </button>
+
+              {/* Desktop/Mobile toggle */}
+              {!isMobileDevice && (
+                <>
+                  <div className="w-px h-5 bg-gray-200 mx-1" />
+                  <button
+                    onClick={() => onViewModeChange("desktop")}
+                    className={cn(BTN, viewMode === "desktop" ? "bg-color-1 text-white" : "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
+                  >
+                    <Monitor className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onViewModeChange("mobile")}
+                    className={cn(BTN, viewMode === "mobile" ? "bg-color-1 text-white" : "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
+                  >
+                    <Smartphone className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Desktop/Mobile toggle */}
-            {!isMobileDevice && (
-              <div className="flex items-center gap-1.5 bg-[#e8e8e8] rounded-full px-2.5 py-2 shadow-lg">
-                <button
-                  onClick={() => onViewModeChange("desktop")}
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                    viewMode === "desktop"
-                      ? "bg-white text-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)]"
-                      : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  <Monitor className="w-[18px] h-[18px]" />
-                </button>
-                <button
-                  onClick={() => onViewModeChange("mobile")}
-                  className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                    viewMode === "mobile"
-                      ? "bg-white text-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)]"
-                      : "text-gray-400 hover:text-gray-600"
-                  )}
-                >
-                  <Smartphone className="w-[18px] h-[18px]" />
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>

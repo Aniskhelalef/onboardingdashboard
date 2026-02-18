@@ -28,7 +28,7 @@ import {
 } from "./defaults";
 import { loadSaved, saveTo } from "./storage";
 
-const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
+const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle }) => {
   const proofreading = useProofreading();
   const [activeEditId, setActiveEditIdRaw] = useState(null);
   const canvasRef = useRef(null);
@@ -62,9 +62,12 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState(null);
-  const [showStyleModal, setShowStyleModal] = useState(false);
+  const [showStyleModal, setShowStyleModal] = useState(!!initialOpenStyle);
   const [showSpecialtyConfirm, setShowSpecialtyConfirm] = useState(false);
   const [showTherapistConfirm, setShowTherapistConfirm] = useState(false);
+  const [completedActions, setCompletedActions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("completedActions") || "[]"); } catch { return []; }
+  });
   const [showCropModal, setShowCropModal] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);
   const [showPositionModal, setShowPositionModal] = useState(false);
@@ -279,6 +282,15 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
     }
   }, [isMobileDevice]);
 
+  // Sync completedActions from localStorage
+  useEffect(() => {
+    const handler = () => {
+      try { setCompletedActions(JSON.parse(localStorage.getItem("completedActions") || "[]")); } catch {}
+    };
+    window.addEventListener("actionsUpdated", handler);
+    return () => window.removeEventListener("actionsUpdated", handler);
+  }, []);
+
   // Close style panel on click outside
   useEffect(() => {
     if (!showStyleModal) return;
@@ -412,11 +424,39 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
     setHasChanges(false);
   };
 
+  // Map editor page to its review action ID
+  const getReviewActionId = (page) => {
+    if (page === "accueil") return "review-home";
+    if (page?.startsWith("specialite-")) return `review-spec-${page.replace("specialite-", "")}`;
+    if (page === "blog") return "review-blog";
+    if (page === "mentions") return "review-mentions";
+    return null;
+  };
+
+  const isDomainConnected = completedActions.includes("domain");
+  const currentReviewId = getReviewActionId(currentPage);
+  const isCurrentPageValidated = currentReviewId && completedActions.includes(currentReviewId);
+
   const handlePublishClick = () => {
-    if (isSitePublished) {
-      handleDirectSave();
+    if (isDomainConnected) {
+      // Domain connected → real publish/save flow
+      if (isSitePublished) {
+        handleDirectSave();
+      } else {
+        handlePublishComplete();
+      }
     } else {
-      handlePublishComplete();
+      // No domain → validate current page's review action then go back to dashboard
+      if (currentReviewId && !completedActions.includes(currentReviewId)) {
+        const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
+        if (!existing.includes(currentReviewId)) {
+          existing.push(currentReviewId);
+          localStorage.setItem("completedActions", JSON.stringify(existing));
+          setCompletedActions(existing);
+          window.dispatchEvent(new Event("actionsUpdated"));
+        }
+      }
+      onBackToDashboard();
     }
   };
 
@@ -617,7 +657,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
   const currentRadius = radiusOptions.find(r => r.id === styleSettings.radius) || radiusOptions[0];
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
+    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       {/* Top nav bar */}
       <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
         <div className="flex items-center justify-between relative h-10">
@@ -647,28 +687,26 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
           {/* Right actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                const url = `${globalSettings.firstName?.toLowerCase() || 'mon-site'}.theralys.fr`;
-                navigator.clipboard.writeText(url);
-                setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 2000);
-              }}
+              onClick={() => window.open('https://theralys-web.fr/', '_blank')}
               className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200 text-sm font-medium text-gray-600 hover:shadow-md transition-all cursor-pointer"
             >
               <Link2 size={14} />
-              {linkCopied ? 'Copié !' : 'Copier le lien'}
+              Voir le site
             </button>
             <button
               onClick={handlePublishClick}
-              disabled={isSitePublished && !hasChanges}
+              disabled={isDomainConnected ? (isSitePublished && !hasChanges) : isCurrentPageValidated}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full shadow-sm text-sm font-semibold transition-all ${
-                isSitePublished && !hasChanges
+                (isDomainConnected ? (isSitePublished && !hasChanges) : isCurrentPageValidated)
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-color-2 text-white hover:opacity-90 cursor-pointer'
               }`}
             >
               <Rocket size={15} />
-              {isSitePublished && hasChanges ? 'Sauvegarder' : isSitePublished ? 'Publié' : 'Publier'}
+              {isDomainConnected
+                ? (isSitePublished && hasChanges ? 'Sauvegarder' : isSitePublished ? 'Publié' : 'Publier')
+                : (isCurrentPageValidated ? 'Validé' : 'Valider la page')
+              }
             </button>
           </div>
         </div>
@@ -1110,6 +1148,16 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
             onSettingsChange={setStyleSettings}
             logo={identitySettings.logo}
             onLogoChange={(logo) => setIdentitySettings(prev => ({ ...prev, logo }))}
+            onComplete={!completedActions.includes("style") ? () => {
+              const existing = JSON.parse(localStorage.getItem("completedActions") || "[]")
+              if (!existing.includes("style")) {
+                existing.push("style")
+                localStorage.setItem("completedActions", JSON.stringify(existing))
+                window.dispatchEvent(new Event("actionsUpdated"))
+              }
+              setShowStyleModal(false)
+              onBackToDashboard()
+            } : undefined}
           />
         </div>
       )}
@@ -1159,10 +1207,10 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard }) => {
 };
 
 // Wrap with ProofreadingProvider
-const SiteEditor = ({ onGoToSetup, onBackToDashboard }) => {
+const SiteEditor = ({ onGoToSetup, onBackToDashboard, initialOpenStyle }) => {
   return (
     <ProofreadingProvider>
-      <SiteEditorContent onGoToSetup={onGoToSetup} onBackToDashboard={onBackToDashboard} />
+      <SiteEditorContent onGoToSetup={onGoToSetup} onBackToDashboard={onBackToDashboard} initialOpenStyle={initialOpenStyle} />
     </ProofreadingProvider>
   );
 };

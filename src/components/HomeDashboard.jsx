@@ -26,7 +26,9 @@ import pexPolina from '../assets/pexels-polina-tankilevitch-3735747-2048x1365.jp
 
 const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEditor, onGoToSetup }) => {
   const [activeTab, setActiveTab] = useState(initialTab || 'accueil')
-  const [dashboardState, setDashboardState] = useState(1)
+  const [tourFlags, setTourFlags] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("tourFlags") || "{}"); } catch { return {}; }
+  })
   const [devNavVisible, setDevNavVisible] = useState(true)
   const [timePeriod, setTimePeriod] = useState('Depuis la dernière connexion')
   const [timePeriodOpen, setTimePeriodOpen] = useState(false)
@@ -66,6 +68,90 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const [selectedDay, setSelectedDay] = useState(null) // set by useEffect after batch computed
   const [showRepartition, setShowRepartition] = useState(false)
   const [showPexels, setShowPexels] = useState(false)
+  const [showParrainageVideo, setShowParrainageVideo] = useState(false)
+  const [showNewsModal, setShowNewsModal] = useState(null) // index of news item or null
+  const [completedActions, setCompletedActions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("completedActions") || "[]") } catch { return [] }
+  })
+
+  // Load specialties from localStorage for granular review actions
+  const specialties = (() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("setupData") || "{}")
+      return saved.specialties || [
+        { id: "1", icon: "🦴", title: "Douleurs dorsales" },
+        { id: "2", icon: "🤕", title: "Maux de tête" },
+        { id: "3", icon: "🏃", title: "Blessures sportives" },
+        { id: "4", icon: "👶", title: "Pédiatrie" },
+        { id: "5", icon: "🤰", title: "Grossesse" },
+        { id: "6", icon: "😴", title: "Troubles du sommeil" },
+      ]
+    } catch { return [] }
+  })()
+
+  const allActions = [
+    { id: 'setup', label: 'Configuration du cabinet', phase: 'Identité', action: () => onGoToSetup('contact'), subIds: ['contact', 'cabinet', 'therapists', 'specialties', 'google', 'avis'] },
+    { id: 'style', label: 'Choisir le style du site', phase: 'Relecture', action: () => onGoToSiteEditor({ openStyle: true }) },
+    { id: 'review-home', label: 'Relire la page d\'accueil', phase: 'Relecture', action: () => onGoToSiteEditor() },
+    ...specialties.map(spec => ({
+      id: `review-spec-${spec.id}`,
+      label: `Relire ${spec.title}`,
+      phase: 'Relecture',
+      action: () => onGoToSiteEditor(),
+    })),
+    { id: 'review-blog', label: 'Relire le blog', phase: 'Relecture', action: () => onGoToSiteEditor() },
+    { id: 'review-mentions', label: 'Vérifier les mentions légales', phase: 'Relecture', action: () => onGoToSiteEditor() },
+    { id: 'domain', label: 'Connecter votre domaine', phase: 'Lancement', action: () => onGoToSetup('domain') },
+    { id: 'publish', label: 'Publier votre site', phase: 'Lancement', action: () => onGoToSiteEditor() },
+  ]
+
+  const isActionDone = (a) => {
+    if (a.subIds) return a.subIds.every(sub => completedActions.includes(sub))
+    return completedActions.includes(a.id)
+  }
+  const pendingActions = allActions.filter(a => !isActionDone(a))
+  const doneActions = allActions.filter(a => isActionDone(a))
+  const sortedActions = [...pendingActions, ...doneActions]
+  const completionPercent = Math.round((doneActions.length / allActions.length) * 100)
+
+  // Dashboard state machine (0-5)
+  const dashboardState = (() => {
+    if (completionPercent < 100) return 0
+    if (!tourFlags.tour1Done) return 1
+    if (!tourFlags.delayMet) return 2
+    if (!tourFlags.tour2Done) return 3
+    return 5
+  })()
+
+  const updateTourFlag = (flag) => {
+    setTourFlags(prev => {
+      const next = { ...prev, ...flag }
+      localStorage.setItem("tourFlags", JSON.stringify(next))
+      return next
+    })
+  }
+
+  const toggleAction = (action, e) => {
+    e.stopPropagation()
+    setCompletedActions(prev => {
+      const ids = action.subIds || [action.id]
+      const allDone = ids.every(id => prev.includes(id))
+      const next = allDone ? prev.filter(x => !ids.includes(x)) : [...new Set([...prev, ...ids])]
+      localStorage.setItem("completedActions", JSON.stringify(next))
+      return next
+    })
+  }
+
+  // Sync completed actions when returning from Setup
+  useEffect(() => {
+    const handler = () => {
+      try { setCompletedActions(JSON.parse(localStorage.getItem("completedActions") || "[]")) } catch {}
+    }
+    window.addEventListener("actionsUpdated", handler)
+    // Also re-read on focus (when navigating back)
+    window.addEventListener("focus", handler)
+    return () => { window.removeEventListener("actionsUpdated", handler); window.removeEventListener("focus", handler) }
+  }, [])
   const [pexelsSearch, setPexelsSearch] = useState('')
   const [customArticleImages, setCustomArticleImages] = useState({}) // dayIndex → image
   const [customArticleTitles, setCustomArticleTitles] = useState({}) // dayIndex → title
@@ -183,10 +269,16 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
   // Tour state
   const [tourStep, setTourStep] = useState(0)
-  const [tourActive, setTourActive] = useState(true)
+  const [tourActive, setTourActive] = useState(false)
   const [spotlightRect, setSpotlightRect] = useState(null)
 
+  // Per-block info popup (replaces tour for state 0)
+  const [activeBlockInfo, setActiveBlockInfo] = useState(null)
+  const [blockInfoDetail, setBlockInfoDetail] = useState(0)
+  const [blockSpotlightRect, setBlockSpotlightRect] = useState(null)
+
   // Tour refs
+  const statsBlockRef = useRef(null)
   const kpiCardsRef = useRef(null)
   const chartRef = useRef(null)
   const actionsRef = useRef(null)
@@ -201,11 +293,34 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau' },
   ]
   const articles = [
-    { title: '5 étirements essentiels après une séance de kinésithérapie', date: '12 fév.', status: 'published', img: articleImg1 },
-    { title: 'Comment soulager les douleurs lombaires au quotidien', date: '19 fév.', status: 'scheduled', img: articleImg2 },
-    { title: 'Les bienfaits du massage sportif pour la récupération', date: '26 fév.', status: 'scheduled', img: articleImg3 },
-    { title: 'Prévenir les blessures : conseils pour les coureurs', date: '5 mar.', status: 'scheduled', img: articleImg4 },
+    { title: '5 étirements essentiels après une séance de kinésithérapie', date: '12 fév.', realDate: new Date(2026, 1, 12), status: 'published', img: articleImg1 },
+    { title: 'Comment soulager les douleurs lombaires au quotidien', date: '19 fév.', realDate: new Date(2026, 1, 19), status: 'scheduled', img: articleImg2 },
+    { title: 'Les bienfaits du massage sportif pour la récupération', date: '26 fév.', realDate: new Date(2026, 1, 26), status: 'scheduled', img: articleImg3 },
+    { title: 'Prévenir les blessures : conseils pour les coureurs', date: '5 mar.', realDate: new Date(2026, 2, 5), status: 'scheduled', img: articleImg4 },
   ]
+
+  const navigateToArticle = (article) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const currentMonday = new Date(today)
+    const dow = currentMonday.getDay()
+    currentMonday.setDate(currentMonday.getDate() + (dow === 0 ? -6 : 1 - dow))
+    const targetDate = new Date(article.realDate); targetDate.setHours(0, 0, 0, 0)
+    // Find which weekOffset puts targetDate in view (30-day window from viewStart)
+    const diffDays = Math.round((targetDate - currentMonday) / (1000 * 60 * 60 * 24))
+    const neededOffset = Math.floor(diffDays / 7)
+    // Clamp offset to valid range
+    const clampedOffset = Math.max(-4, Math.min(4, neededOffset))
+    setWeekOffset(clampedOffset)
+    // Calculate dayIndex within the 30-day window
+    const viewStart = new Date(currentMonday)
+    viewStart.setDate(viewStart.getDate() + clampedOffset * 7)
+    const dayIndex = Math.round((targetDate - viewStart) / (1000 * 60 * 60 * 24))
+    if (dayIndex >= 0 && dayIndex < 30) {
+      setSelectedDay(dayIndex)
+    }
+    setActiveTab('referencement')
+    setShowSettings(false)
+  }
 
   const calendarDays = (() => {
     const year = calendarMonth.getFullYear()
@@ -341,8 +456,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const rankFirst = slicedRanking[0]
   const rankChange = rankFirst - rankCurrent
 
-  // Tour steps configuration
-  const tourSteps = [
+  // Tour steps configuration per state
+  const tour0Steps = [
     { ref: kpiCardsRef, title: 'Vos indicateurs clés', description: 'Suivez en un coup d\'œil vos visites, prises de rendez-vous et avis Google. Ces métriques se mettent à jour en temps réel.', icon: '📊', position: 'bottom', padding: 12 },
     { ref: chartRef, title: 'Suivi de performance', description: 'Ce graphique retrace l\'évolution de vos indicateurs dans le temps. Sélectionnez une métrique dans les cartes ci-dessus pour changer la vue.', icon: '📈', position: 'right', padding: 12 },
     { ref: actionsRef, title: 'Vos prochaines étapes', description: 'Votre liste de tâches personnalisée pour maximiser votre visibilité en ligne. Complétez-les une par une pour débloquer tout le potentiel de Theralys.', icon: '✅', position: 'left', padding: 8 },
@@ -350,6 +465,100 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     { ref: rankingRef, title: 'Votre position locale', description: 'Suivez votre classement Google pour votre mot-clé principal. L\'objectif : atteindre le top 3 local pour capter un maximum de patients.', icon: '🏆', position: 'top', padding: 12 },
     { ref: newsRef, title: 'Nouveautés produit', description: 'Restez informé des dernières fonctionnalités et améliorations de Theralys. Nous ajoutons régulièrement de nouveaux outils pour vous.', icon: '✨', position: 'left', padding: 8 },
   ]
+  const tour1Steps = [
+    { ref: actionsRef, title: 'Vos prochaines étapes', description: 'Votre site est en ligne ! Retrouvez ici les actions à venir pour développer votre visibilité. Les statistiques seront disponibles dans quelques jours.', icon: '✅', position: 'left', padding: 8 },
+    { ref: articlesRef, title: 'Articles SEO automatiques', description: 'Des articles optimisés sont déjà publiés sur votre site pour attirer de nouveaux patients via Google. Ils apparaissent automatiquement.', icon: '📝', position: 'left', padding: 8 },
+    { ref: newsRef, title: 'Nouveautés produit', description: 'Restez informé des nouvelles fonctionnalités de Theralys. Nous améliorons la plateforme en continu.', icon: '✨', position: 'left', padding: 8 },
+  ]
+  const tour2Steps = [
+    { ref: kpiCardsRef, title: 'Vos indicateurs clés', description: 'Vos premières statistiques sont arrivées ! Suivez vos visites, clics RDV et avis Google en temps réel.', icon: '📊', position: 'bottom', padding: 12 },
+    { ref: chartRef, title: 'Suivi de performance', description: 'Visualisez l\'évolution de vos indicateurs dans le temps. Sélectionnez une métrique pour changer la vue du graphique.', icon: '📈', position: 'right', padding: 12 },
+    { ref: rankingRef, title: 'Votre position locale', description: 'Suivez votre classement Google pour votre mot-clé principal. L\'objectif : atteindre le top 3 pour capter un maximum de patients.', icon: '🏆', position: 'top', padding: 12 },
+  ]
+
+  const tourSteps = dashboardState === 0 ? tour0Steps : dashboardState === 1 ? tour1Steps : dashboardState === 3 ? tour2Steps : tour0Steps
+
+  // Per-block info configs (for disabled block CTAs)
+  const blockInfos = {
+    stats: {
+      ref: statsBlockRef, title: 'Vos indicateurs clés', icon: '📊', position: 'bottom', padding: 12,
+      details: [
+        { label: 'Visites', desc: 'Le nombre de personnes qui ont consulté votre site web. Chaque visite est comptée une seule fois par jour et par visiteur. Utilisez le filtre de période en haut pour comparer différentes plages de temps.', sync: () => setSelectedKpi('visites') },
+        { label: 'Clics RDV', desc: 'Combien de visiteurs ont cliqué sur votre bouton de prise de rendez-vous. C\'est l\'indicateur le plus direct de conversion : plus ce chiffre monte, plus votre site génère de patients.', sync: () => setSelectedKpi('clics') },
+        { label: 'Avis Google', desc: 'Le nombre total d\'avis laissés sur votre fiche Google Business. Les avis influencent directement votre classement local et la confiance des nouveaux patients.', sync: () => setSelectedKpi('avis') },
+      ],
+    },
+    articles: {
+      ref: articlesRef, title: 'Articles SEO automatiques', icon: '📝', position: 'left', padding: 8,
+      details: [
+        { label: 'Rédaction IA', desc: 'Nos algorithmes rédigent des articles de blog adaptés à votre spécialité et votre ville. Chaque article cible un mot-clé stratégique pour attirer des patients qui cherchent un praticien près de chez eux.' },
+        { label: 'Optimisation', desc: 'Chaque article est structuré pour plaire à Google : balises, mots-clés longue traîne, maillage interne. Le score SEO vous indique la qualité de l\'optimisation en temps réel.' },
+        { label: 'Publication', desc: 'Les articles sont publiés automatiquement sur votre site aux dates programmées. Vous pouvez modifier le titre, l\'image et le contenu avant publication si vous le souhaitez.' },
+      ],
+    },
+    news: {
+      ref: newsRef, title: 'Nouveautés produit', icon: '✨', position: 'left', padding: 8,
+      details: [
+        { label: 'Fonctions', desc: 'De nouvelles fonctionnalités sont ajoutées régulièrement pour vous aider à développer votre cabinet : outils d\'analyse, automatisations, intégrations avec vos outils existants.' },
+        { label: 'Partenaires', desc: 'Accédez à des offres exclusives négociées pour les membres Theralys : logiciels de gestion, formations continues, équipements de cabinet à tarif préférentiel.' },
+        { label: 'Mises à jour', desc: 'La plateforme évolue en continu grâce aux retours de nos praticiens. Chaque mise à jour améliore la performance, la stabilité et l\'expérience utilisateur.' },
+      ],
+    },
+    seoCalendar: {
+      ref: null, title: 'Calendrier éditorial', icon: '📅', position: 'bottom', padding: 8,
+      details: [
+        { label: 'Planning', desc: 'Visualisez le planning de publication de vos articles SEO sur un calendrier. Chaque case représente un jour avec un article prévu, programmé ou déjà publié.' },
+        { label: 'Images', desc: 'Cliquez sur un article pour personnaliser son image de couverture via notre bibliothèque Pexels intégrée. Une bonne image améliore le taux de clic de vos articles.' },
+        { label: 'Statuts', desc: 'Les articles verts sont publiés, les articles avec photo sont programmés, et les cases vides sont des créneaux réservés pour vos prochains contenus.' },
+      ],
+    },
+    seoArticle: {
+      ref: null, title: 'Aperçu article', icon: '🔍', position: 'left', padding: 8,
+      details: [
+        { label: 'Contenu', desc: 'Prévisualisez chaque article avant publication. Vous pouvez modifier le titre, changer l\'image et vérifier le score SEO pour vous assurer de la qualité du contenu.' },
+        { label: 'Score SEO', desc: 'Chaque article reçoit un score d\'optimisation en temps réel. Plus le score est élevé, meilleures sont vos chances d\'apparaître dans les résultats Google.' },
+        { label: 'Actions', desc: 'Modifiez le contenu de l\'article, changez l\'image via Pexels, ou consultez-le tel qu\'il apparaîtra sur votre site une fois publié.' },
+      ],
+    },
+    seoPublications: {
+      ref: null, title: 'Répartition thématique', icon: '📊', position: 'left', padding: 8,
+      details: [
+        { label: 'Thématiques', desc: 'Vos articles sont répartis par thématique selon vos spécialités. Chaque thème cible des mots-clés différents pour couvrir un maximum de recherches patients.' },
+        { label: 'Équilibre', desc: 'Cliquez sur "Modifier" pour activer ou désactiver des thématiques. Les articles sont redistribués équitablement entre les thèmes actifs.' },
+        { label: 'Volume', desc: 'Suivez le nombre d\'articles à venir et le total déjà publié par thématique. Plus le volume est élevé, plus votre autorité SEO grandit sur chaque sujet.' },
+      ],
+    },
+    ranking: {
+      ref: rankingRef, title: 'Votre position locale', icon: '🏆', position: 'top', padding: 12,
+      details: [
+        { label: 'Mot-clé', desc: `Nous suivons votre position sur la recherche "${profession} ${ville}". C'est la requête que tapent vos futurs patients pour trouver un praticien dans votre zone.` },
+        { label: 'Objectif', desc: 'Atteindre le top 3 des résultats locaux Google. Les 3 premiers résultats captent plus de 75% des clics. Chaque position gagnée = plus de patients potentiels.' },
+        { label: 'Évolution', desc: 'Le graphique retrace votre progression mois par mois. Une tendance à la hausse signifie que votre stratégie SEO fonctionne et que Google vous fait de plus en plus confiance.' },
+      ],
+    },
+  }
+
+  // Block info spotlight rect
+  useEffect(() => {
+    if (!activeBlockInfo) { setBlockSpotlightRect(null); return }
+    const info = blockInfos[activeBlockInfo]
+    if (!info?.ref?.current) { setBlockSpotlightRect(null); return }
+    const updateRect = () => {
+      const el = info.ref.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const pad = info.padding || 8
+      setBlockSpotlightRect({
+        top: rect.top - pad,
+        left: rect.left - pad,
+        width: rect.width + pad * 2,
+        height: rect.height + pad * 2,
+      })
+    }
+    updateRect()
+    window.addEventListener('resize', updateRect)
+    return () => window.removeEventListener('resize', updateRect)
+  }, [activeBlockInfo])
 
   // Spotlight rect calculation
   const updateSpotlightRect = useCallback(() => {
@@ -373,23 +582,31 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   }, [updateSpotlightRect])
 
   // Tour navigation
+  const handleTourComplete = () => {
+    setTourActive(false)
+    if (dashboardState === 1) {
+      updateTourFlag({ tour1Done: true })
+    } else if (dashboardState === 3) {
+      updateTourFlag({ tour2Done: true })
+    }
+  }
   const handleTourNext = () => {
     if (tourStep < tourSteps.length - 1) {
       setTourStep(tourStep + 1)
     } else {
-      setTourActive(false)
+      handleTourComplete()
     }
   }
   const handleTourPrev = () => {
     if (tourStep > 0) setTourStep(tourStep - 1)
   }
   const handleTourSkip = () => {
-    setTourActive(false)
+    handleTourComplete()
   }
 
   // Keyboard navigation
   useEffect(() => {
-    if (!tourActive || dashboardState !== 0) return
+    if (!tourActive || (dashboardState !== 0 && dashboardState !== 1 && dashboardState !== 3)) return
     const handleKey = (e) => {
       if (e.key === 'ArrowRight' || e.key === 'Enter') handleTourNext()
       if (e.key === 'ArrowLeft') handleTourPrev()
@@ -423,9 +640,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
     return () => clearInterval(interval)
   }, [showSettings, news.length])
 
-  // Restart tour when switching to state 0
+  // Restart tour when entering a tour-able state (states 1 and 3 only)
   useEffect(() => {
-    if (dashboardState === 0) {
+    if (dashboardState === 1 || dashboardState === 3) {
       setTourStep(0)
       setTourActive(true)
     }
@@ -447,24 +664,56 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   }, [showProfileMenu])
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center">
+    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       {/* Dev nav — tiny bottom-left pill */}
       <div className="fixed bottom-1 left-1 z-50">
         {devNavVisible ? (
           <div className="flex items-center gap-px bg-gray-900/80 backdrop-blur rounded px-1 py-px" style={{ fontSize: '9px' }}>
-            {[
-              { id: 0, label: '0' },
-              { id: 1, label: '1' },
-            ].map((s) => (
+            {[0, 1, 2, 3, 5].map((s) => (
               <button
-                key={s.id}
-                onClick={() => setDashboardState(s.id)}
+                key={s}
+                onClick={() => {
+                  if (s === 0) {
+                    // Reset all actions + tour flags
+                    localStorage.setItem("completedActions", "[]")
+                    setCompletedActions([])
+                    localStorage.setItem("tourFlags", "{}")
+                    setTourFlags({})
+                    window.dispatchEvent(new Event("actionsUpdated"))
+                  } else if (s === 1) {
+                    // All actions done, no tours
+                    const allIds = allActions.flatMap(a => a.subIds || [a.id])
+                    localStorage.setItem("completedActions", JSON.stringify(allIds))
+                    setCompletedActions(allIds)
+                    setTourFlags({})
+                    localStorage.setItem("tourFlags", "{}")
+                    window.dispatchEvent(new Event("actionsUpdated"))
+                  } else if (s === 2) {
+                    const allIds = allActions.flatMap(a => a.subIds || [a.id])
+                    localStorage.setItem("completedActions", JSON.stringify(allIds))
+                    setCompletedActions(allIds)
+                    updateTourFlag({ tour1Done: true, delayMet: false, tour2Done: false })
+                    window.dispatchEvent(new Event("actionsUpdated"))
+                  } else if (s === 3) {
+                    const allIds = allActions.flatMap(a => a.subIds || [a.id])
+                    localStorage.setItem("completedActions", JSON.stringify(allIds))
+                    setCompletedActions(allIds)
+                    updateTourFlag({ tour1Done: true, delayMet: true, tour2Done: false })
+                    window.dispatchEvent(new Event("actionsUpdated"))
+                  } else if (s === 5) {
+                    const allIds = allActions.flatMap(a => a.subIds || [a.id])
+                    localStorage.setItem("completedActions", JSON.stringify(allIds))
+                    setCompletedActions(allIds)
+                    updateTourFlag({ tour1Done: true, delayMet: true, tour2Done: true })
+                    window.dispatchEvent(new Event("actionsUpdated"))
+                  }
+                }}
                 className={`px-1.5 py-px rounded font-medium transition-colors cursor-pointer ${
-                  dashboardState === s.id ? 'bg-white text-gray-900' : 'text-gray-500 hover:text-white'
+                  dashboardState === s ? 'bg-white text-gray-900' : 'text-gray-500 hover:text-white'
                 }`}
                 style={{ fontSize: '9px' }}
               >
-                {s.label}
+                {s}
               </button>
             ))}
             <span className="text-gray-600 mx-px">|</span>
@@ -486,7 +735,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0">
         <div className="flex items-center justify-between relative h-10">
           {/* Logo */}
-          <img src={theralysLogo} alt="Theralys" className="h-6" />
+          <img src={theralysLogo} alt="Theralys" className="h-6 cursor-pointer" onClick={() => { setActiveTab('accueil'); setShowSettings(false); }} />
 
           {/* Center nav — floating pill */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
@@ -516,7 +765,14 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           </div>
 
           {/* Right actions */}
-          <div className="relative flex items-center gap-2">
+          <div className="relative flex items-center gap-3">
+            <button
+              onClick={() => window.open('https://theralys-web.fr/', '_blank')}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              Voir le site
+            </button>
             <button
               ref={profileBtnRef}
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -575,10 +831,10 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
         {showSettings ? (
         null
         ) : activeTab === 'referencement' ? (
-        <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
           {/* Top-left — Article calendar */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -669,13 +925,31 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 )
               })}
             </div>
+            {/* Calendar locked overlay — state 0 */}
+            {dashboardState === 0 && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                <button
+                  onClick={() => setActiveBlockInfo('seoCalendar')}
+                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                >
+                  <span className="text-sm">📅</span>
+                  <div className="text-left">
+                    <h3 className="text-xs font-bold text-color-1">Calendrier éditorial</h3>
+                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                      En savoir plus
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right column */}
           <div className="flex flex-col gap-2.5">
 
             {/* Article preview card */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <h2 className="text-base font-bold text-color-1">Article</h2>
                 {selectedDay !== null && viewData.days[selectedDay] && (viewData.days[selectedDay].published || viewData.days[selectedDay].programmed) && (
@@ -802,10 +1076,28 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   </div>
                 )
               })()}
+              {/* Article preview locked overlay — state 0 */}
+              {dashboardState === 0 && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                  <button
+                    onClick={() => setActiveBlockInfo('seoArticle')}
+                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  >
+                    <span className="text-sm">🔍</span>
+                    <div className="text-left">
+                      <h3 className="text-xs font-bold text-color-1">Aperçu article</h3>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                        En savoir plus
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Articles par thème — only préprogrammé batch */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0 relative overflow-hidden">
               <div className="flex items-center justify-between mb-1 shrink-0">
                 <h2 className="text-base font-bold text-color-1">Prochaines publications</h2>
                 <button onClick={() => setShowRepartition(true)} className="text-sm text-color-2 font-medium hover:underline cursor-pointer">Modifier</button>
@@ -839,6 +1131,24 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <span className="text-sm font-bold text-color-1 tabular-nums w-8 text-right">{viewData.preProgDays}</span>
                 <span className="text-sm font-bold text-gray-400 tabular-nums w-8 text-right ml-3">{totalStats.total}</span>
               </div>
+              {/* Publications locked overlay — state 0 */}
+              {dashboardState === 0 && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                  <button
+                    onClick={() => setActiveBlockInfo('seoPublications')}
+                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  >
+                    <span className="text-sm">📊</span>
+                    <div className="text-left">
+                      <h3 className="text-xs font-bold text-color-1">Répartition</h3>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                        En savoir plus
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -980,137 +1290,159 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           })()}
         </div>
         ) : activeTab === 'parrainage' ? (
-        <div key="parrainage" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-
-          {/* Top-left — Referral hero */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
-            <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <h2 className="text-base font-bold text-color-1">Parrainage</h2>
-                <span className="text-sm text-gray-300">·</span>
-                <span className="text-sm text-gray-400">3 filleuls · 4 mois offerts</span>
+        <div key="parrainage" className="flex flex-col gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          {/* State 0 overlay */}
+          {dashboardState === 0 && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
+              <div className="bg-orange-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-center shadow-sm">
+                <h3 className="text-base font-bold text-color-1 mb-1">🎁 Parrainage</h3>
+                <p className="text-sm text-gray-500">Disponible après la mise en ligne de votre site.</p>
               </div>
+            </div>
+          )}
+
+          {/* Hero section — warm bg with floating emojis */}
+          <div className="relative border-2 border-gray-200 rounded-2xl flex flex-col items-center justify-center py-6 px-8 shrink-0 overflow-hidden" style={{ backgroundColor: '#fef4f1' }}>
+            {/* Floating emojis */}
+            <span className="absolute text-2xl opacity-30" style={{ top: '10%', left: '8%' }}>🤩</span>
+            <span className="absolute text-xl opacity-20" style={{ top: '15%', right: '12%' }}>👌</span>
+            <span className="absolute text-xl opacity-20" style={{ top: '55%', left: '15%' }}>🎁</span>
+            <span className="absolute text-lg opacity-15" style={{ top: '40%', left: '25%' }}>🏁</span>
+            <span className="absolute text-xl opacity-20" style={{ top: '50%', right: '8%' }}>🎊</span>
+            <span className="absolute text-lg opacity-15" style={{ top: '25%', right: '25%' }}>😍</span>
+            {/* Headline */}
+            <h2 className="text-2xl font-bold text-color-1 text-center">
+              Offrez 1 mois & <span className="text-color-2">Gagnez 2 mois gratuits</span>
+            </h2>
+            <p className="text-lg font-semibold text-color-1/60 text-center mt-0.5">pour chaque parrainage !</p>
+            <p className="text-sm text-gray-400 text-center mt-2 max-w-[480px]">Offrez 1 mois d'essai et recevez 2 mois offerts du montant de votre forfait.</p>
+            {/* CTA buttons */}
+            <div className="flex items-center gap-3 mt-4">
+              <button onClick={() => setShowParrainageVideo(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 bg-white text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
+                Voir la vidéo
+              </button>
               <button
                 onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
-                className="py-1.5 px-3.5 rounded-lg bg-color-1 text-white text-sm font-medium hover:bg-color-1/90 transition-colors cursor-pointer flex items-center gap-1.5"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-color-2/30 bg-white text-sm font-medium text-color-1 hover:bg-color-2/5 transition-colors cursor-pointer"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                 Copier le lien
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
               </button>
             </div>
-
             {/* Link display */}
-            <div className="flex items-center gap-2 mt-3 shrink-0">
-              <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 font-mono truncate">
-                theralys.com/ref/theo-osteo
+            <div className="flex items-center gap-2 mt-3">
+              <div className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-400 font-mono flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                https://theralys.fr?feg745fe7cc
               </div>
             </div>
+          </div>
 
-            {/* Offer description */}
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <p className="text-2xl font-bold text-color-1">Offrez <span className="text-color-2">1 mois d'essai</span></p>
-              <p className="text-2xl font-bold text-color-1">Gagnez <span className="text-color-2">2 mois gratuits</span></p>
-              <p className="text-sm text-gray-400 mt-3 max-w-[400px]">Pour chaque confrère qui s'inscrit via votre lien, vous recevez 2 mois d'abonnement offerts.</p>
-            </div>
+          {/* Stats row */}
+          <div className="flex gap-3 shrink-0">
+            {[
+              { label: 'Clics sur le lien', value: '11' },
+              { label: 'Inscrits', value: '3' },
+              { label: 'Parrainage activés', value: '3' },
+              { label: 'Commission gagnée', value: '165 €' },
+            ].map((kpi) => (
+              <div key={kpi.label} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-4 py-3">
+                <p className="text-sm text-gray-400 font-medium">{kpi.label}</p>
+                <p className="text-2xl font-bold text-color-1 mt-1">{kpi.value}</p>
+              </div>
+            ))}
+          </div>
 
-            {/* How it works — compact horizontal row */}
-            <div className="flex items-start gap-4 shrink-0 pt-3 border-t border-gray-100">
-              {[
-                { step: '1', title: 'Partagez', desc: 'Envoyez votre lien à un confrère' },
-                { step: '2', title: 'Il s\'inscrit', desc: 'Votre filleul crée son compte' },
-                { step: '3', title: 'Vous gagnez', desc: '2 mois offerts pour vous' },
-              ].map((s, i) => (
-                <div key={i} className="flex-1 flex items-start gap-2.5">
-                  <div className="w-6 h-6 rounded-full bg-color-2 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
-                    {s.step}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-color-1">{s.title}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
-                  </div>
-                </div>
-              ))}
+          {/* Parrainage table */}
+          <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
+            <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Parrainage</h2>
+            <div className="flex-1 min-h-0">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    {['Date d\'inscription', 'Adresse e-mail', 'Statut', 'Commissions', 'Utilisation'].map((h) => (
+                      <th key={h} className="pb-2.5 text-sm font-medium text-gray-400 pr-4">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { date: '12 jan. 2026', email: 'marie.dupont@gmail.com', status: 'Inscrit', statusColor: 'text-green-500', commission: '78 €', usage: '+2 mois offerts' },
+                    { date: '28 déc. 2025', email: 'thomas.b@outlook.fr', status: 'Inscrit', statusColor: 'text-green-500', commission: '78 €', usage: '+2 mois offerts' },
+                    { date: '15 nov. 2025', email: 'sophie.martin@gmail.com', status: 'Annulé', statusColor: 'text-gray-400', commission: '0 €', usage: 'pas d\'utilisation' },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-gray-50">
+                      <td className="py-2.5 text-sm text-color-1 pr-4">{row.date}</td>
+                      <td className="py-2.5 text-sm text-color-1 pr-4">{row.email}</td>
+                      <td className={`py-2.5 text-sm font-medium pr-4 ${row.statusColor}`}>{row.status}</td>
+                      <td className="py-2.5 text-sm text-color-1 pr-4">{row.commission}</td>
+                      <td className="py-2.5 text-sm text-gray-400">{row.usage}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Right column — spans both rows */}
-          <div className="row-span-2 flex flex-col gap-2.5">
+          {/* 3 step cards */}
+          <div className="flex gap-3 shrink-0">
+            {[
+              { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>, title: 'Partagez votre lien à un ami', desc: 'Cliquez ci-dessus pour copier le lien et l\'envoyer à votre ami via email, SMS et autre.' },
+              { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>, title: 'Attendez qu\'il devienne client', desc: 'Votre ami doit s\'inscrire via votre lien et utiliser entièrement la période d\'essai.' },
+              { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>, title: 'Recevez vos commissions', desc: 'Une fois la période d\'essai écoulé, recevez 2 mensualités de votre abonnement en revenu.' },
+            ].map((s, i) => (
+              <div key={i} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col items-center text-center">
+                <div className="w-10 h-10 rounded-xl bg-color-2/10 flex items-center justify-center mb-2">
+                  {s.icon}
+                </div>
+                <p className="text-sm font-semibold text-color-1 mb-1">{s.title}</p>
+                <p className="text-xs text-gray-400 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
 
-            {/* Historique */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
-              <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Historique</h2>
-              <div className="flex flex-col gap-2 flex-1 min-h-0">
-                {[
-                  { name: 'Dr. Marie Dupont', date: '12 jan. 2026', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500' },
-                  { name: 'Thomas Bernard', date: '28 déc. 2025', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500' },
-                  { name: 'Sophie Martin', date: '15 nov. 2025', status: 'En attente', reward: 'En attente', color: 'text-amber-500' },
-                ].map((ref, i) => (
-                  <div key={i} className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-color-2/10 flex items-center justify-center text-sm font-bold text-color-2">
-                        {ref.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-color-1">{ref.name}</p>
-                        <p className="text-xs text-gray-400">{ref.date}</p>
-                      </div>
+          {/* Parrainage video modal */}
+          {showParrainageVideo && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowParrainageVideo(false)}>
+              <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+              <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                {/* Video placeholder */}
+                <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
+                  <p className="text-sm text-gray-400">Vidéo explicative</p>
+                </div>
+                {/* Content */}
+                <div className="p-5">
+                  <p className="text-xs text-gray-400 mb-1">Programme de parrainage Theralys</p>
+                  <h3 className="text-lg font-bold text-color-1 mb-3">Offrez 1 mois & <span className="text-color-2">Gagnez 2 mois gratuits</span></h3>
+                  <p className="text-sm font-semibold text-color-1 mb-2">Comment ça marche ?</p>
+                  <ol className="space-y-1.5 mb-4">
+                    <li className="text-sm text-gray-500 flex gap-2"><span className="text-color-1 font-semibold">1.</span>Copiez votre lien de parrainage généré.</li>
+                    <li className="text-sm text-gray-500 flex gap-2"><span className="text-color-1 font-semibold">2.</span>Partagez le lien à d'autres thérapeutes.</li>
+                    <li className="text-sm text-gray-500 flex gap-2"><span className="text-color-1 font-semibold">3.</span>Une fois leur période d'essai (ou 2 mois si mensuel), vous obtiendrez une réduction sur vos prochaines factures équivalent à 2 mois de votre forfait.</li>
+                  </ol>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-400 font-mono truncate">
+                      https://theralys.fr?feg745fe
                     </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-semibold ${ref.color}`}>{ref.reward}</p>
-                      <p className="text-xs text-gray-400">{ref.status}</p>
-                    </div>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo'); setShowParrainageVideo(false) }}
+                      className="px-4 py-2 rounded-lg bg-color-2/10 border border-color-2/30 text-sm font-medium text-color-1 hover:bg-color-2/15 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+                    >
+                      Copier votre lien de parrainage
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
-
-            {/* Partager — image card like Articles carousel on Accueil */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
-              <h2 className="text-base font-bold text-color-1 mb-2 shrink-0">Partager</h2>
-              <button
-                onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
-                className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left"
-              >
-                <img src={articleImg1} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                <div className="absolute bottom-3 left-3.5 right-3.5">
-                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm mb-2">Partagez votre lien à un confrère thérapeute</p>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm text-color-1 text-sm font-medium">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
-                    Copier le lien
-                  </div>
-                </div>
-              </button>
-            </div>
-
-          </div>
-
-          {/* Bottom-left — KPI stats */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
-            <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Statistiques</h2>
-            <div className="flex gap-3 flex-1">
-              {[
-                { label: 'Clics sur le lien', value: '11', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M15 3h6v6M14 10l6.1-6.1M10 14L3.9 20.1M9 21H3v-6"/></svg>, bg: 'bg-orange-50' },
-                { label: 'Filleuls inscrits', value: '3', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>, bg: 'bg-green-50' },
-                { label: 'Mois offerts', value: '4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"><path d="M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 00-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>, bg: 'bg-purple-50' },
-                { label: 'Commission gagnée', value: '165 €', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>, bg: 'bg-amber-50' },
-              ].map((kpi) => (
-                <div key={kpi.label} className={`flex-1 ${kpi.bg} rounded-xl px-4 py-3`}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    {kpi.icon}
-                    <span className="text-sm font-medium text-color-1">{kpi.label}</span>
-                  </div>
-                  <span className="text-2xl font-bold text-color-1">{kpi.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
         </div>
         ) : (
         <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* 1 — Top left */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
+          <div ref={statsBlockRef} className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-lg font-bold text-color-1">Bonjour {prenom}</h1>
@@ -1288,16 +1620,22 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </div>
             </div>
 
-            {/* State 0 overlay */}
-            {dashboardState === 0 && !tourActive && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
-                <div className="bg-orange-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-left shadow-sm">
-                  <h3 className="text-base font-bold text-color-1 mb-1">🔥 Disponible dans 7 jours</h3>
-                  <p className="text-sm text-gray-500 mb-4">Les premières statistiques de votre site seront disponibles au bout de 7 jours de mise en ligne.</p>
-                  <div className="w-full h-2 bg-orange-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-color-2 rounded-full" style={{ width: '15%' }} />
+            {/* Stats locked overlay — states 0-2 */}
+            {dashboardState <= 2 && activeBlockInfo !== 'stats' && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                <button
+                  onClick={() => { setActiveBlockInfo('stats'); setBlockInfoDetail(0); setSelectedKpi('visites') }}
+                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                >
+                  <span className="text-sm">📊</span>
+                  <div className="text-left">
+                    <h3 className="text-xs font-bold text-color-1">Statistiques</h3>
+                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                      En savoir plus
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </p>
                   </div>
-                </div>
+                </button>
               </div>
             )}
           </div>
@@ -1306,51 +1644,87 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           <div className="row-span-2 flex flex-col gap-2.5">
 
             {/* Actions */}
-            <div ref={actionsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-base font-bold text-color-1">Actions</h2>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-1.5 bg-color-2 rounded-full" />
-                  <div className="w-3.5 h-1.5 bg-color-2 rounded-full" />
-                  <div className="w-3.5 h-1.5 bg-gray-200 rounded-full" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2.5 flex-1 justify-center">
-                {/* Pending action card — animated border */}
-                <div className="relative rounded-xl p-[2px] overflow-hidden" style={{ boxShadow: '0 0 12px rgba(255,69,0,0.3), 0 0 4px rgba(255,215,0,0.2)' }}>
-                  <div
-                    className="absolute top-1/2 left-1/2"
-                    style={{
-                      width: '200%',
-                      height: '800%',
-                      background: 'conic-gradient(from 0deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF6347, #FF4500)',
-                      animation: 'border-spin 3s linear infinite',
-                    }}
-                  />
-                  <button className="relative flex items-center gap-3 bg-white rounded-[10px] px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
-                    <div className="w-5 h-5 rounded-md border-2 border-color-2 flex-shrink-0" />
-                    <p className="text-sm font-semibold text-color-1 min-w-0">Finir de publier le site</p>
+            <div ref={actionsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3 flex flex-col min-h-0">
+              {completionPercent < 100 && (
+                <>
+                  <div className="flex items-center justify-between mb-2 shrink-0">
+                    <h2 className="text-sm font-bold text-color-1">Actions</h2>
+                    <span className="text-[10px] text-gray-400 font-medium">{doneActions.length}/{allActions.length} · {completionPercent}%</span>
+                  </div>
+                  <div className="w-full h-1 bg-gray-100 rounded-full mb-2 shrink-0 overflow-hidden">
+                    <div className="h-full bg-color-2 rounded-full transition-all duration-500" style={{ width: `${completionPercent}%` }} />
+                  </div>
+                </>
+              )}
+              {completionPercent === 100 ? (
+                <div className="flex-1 flex flex-col gap-0.5">
+                  <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider px-1 pt-0.5 pb-1">Prochaines étapes</p>
+                  <button onClick={() => onGoToSetup('avis')} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
+                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
+                    <p className="text-xs font-medium text-gray-600">Collecter 3 avis clients</p>
+                  </button>
+                  <button onClick={() => { const scheduled = articles.find(a => a.status === 'scheduled'); if (scheduled) navigateToArticle(scheduled) }} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
+                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
+                    <p className="text-xs font-medium text-gray-600">Vérifier vos articles</p>
+                  </button>
+                  <button onClick={() => { setActiveTab('parrainage'); setShowSettings(false) }} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
+                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
+                    <p className="text-xs font-medium text-gray-600">Parrainer un confrère</p>
                   </button>
                 </div>
-                {/* Completed action card */}
-                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-5 h-5 rounded-md bg-gray-300 flex items-center justify-center flex-shrink-0">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-400 line-through min-w-0">{'Compl\u00e9ter votre profil'}</p>
-                </button>
-                {/* Completed action card */}
-                <button className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-3 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-5 h-5 rounded-md bg-gray-300 flex items-center justify-center flex-shrink-0">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-400 line-through min-w-0">Configurer la collecte d'avis</p>
-                </button>
+              ) : (
+              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-0.5 pr-0.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#e5e5e5 transparent' }}>
+                {(() => {
+                  let currentPhase = null
+                  return sortedActions.map((action) => {
+                    const isDone = isActionDone(action)
+                    const isNext = !isDone && pendingActions[0]?.id === action.id
+                    const showPhase = !isDone && action.phase !== currentPhase
+                    if (!isDone) currentPhase = action.phase
+                    return (
+                      <div key={action.id}>
+                        {showPhase && (
+                          <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider px-1 pt-1.5 pb-0.5">{action.phase}</p>
+                        )}
+                        {isNext ? (
+                          <div className="relative rounded-lg p-[1.5px] overflow-hidden" style={{ boxShadow: '0 0 6px rgba(255,69,0,0.2)' }}>
+                            <div
+                              className="absolute top-1/2 left-1/2"
+                              style={{
+                                width: '200%',
+                                height: '800%',
+                                background: 'conic-gradient(from 0deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF6347, #FF4500)',
+                                animation: 'border-spin 3s linear infinite',
+                              }}
+                            />
+                            <button onClick={() => action.action()} className="relative flex items-center gap-2 bg-white rounded-[7px] px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
+                              <div onClick={(e) => toggleAction(action, e)} className="w-4 h-4 rounded border-2 border-color-2 flex-shrink-0 hover:bg-color-2/10 transition-colors cursor-pointer" />
+                              <p className="text-xs font-semibold text-color-1 min-w-0 flex-1">{action.label}</p>
+                              {action.subIds && <span className="text-[9px] text-gray-400 font-medium shrink-0">{action.subIds.filter(s => completedActions.includes(s)).length}/{action.subIds.length}</span>}
+                            </button>
+                          </div>
+                        ) : isDone ? (
+                          <button onClick={() => action.action()} className="flex items-center gap-2 bg-gray-50 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-100 transition-colors">
+                            <div onClick={(e) => toggleAction(action, e)} className="w-4 h-4 rounded bg-gray-300 flex items-center justify-center flex-shrink-0 hover:bg-gray-400 transition-colors cursor-pointer">
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                            <p className="text-xs font-medium text-gray-400 line-through min-w-0">{action.label}</p>
+                          </button>
+                        ) : (
+                          <button onClick={() => action.action()} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
+                            <div onClick={(e) => toggleAction(action, e)} className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0 hover:border-gray-400 transition-colors cursor-pointer" />
+                            <p className="text-xs font-medium text-gray-600 min-w-0 flex-1">{action.label}</p>
+                            {action.subIds && <span className="text-[9px] text-gray-400 font-medium shrink-0">{action.subIds.filter(s => completedActions.includes(s)).length}/{action.subIds.length}</span>}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })
+                })()}
               </div>
+              )}
             </div>
 
             {/* Articles carousel */}
@@ -1370,8 +1744,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   </div>
                 )}
               </div>
-              {/* Image area — clickable */}
-              <button className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left">
+              {/* Image area — clickable → navigates to referencement */}
+              <button onClick={() => navigateToArticle(articles[articleIdx])} className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left">
                 <img src={articles[articleIdx].img} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
                 {/* Badge */}
@@ -1407,18 +1781,45 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
               </button>
               {/* State 0 overlay */}
-              {dashboardState === 0 && !tourActive && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
-                  <div className="bg-orange-50 rounded-2xl px-5 py-4 max-w-[260px] w-full text-left shadow-sm">
-                    <h3 className="text-base font-bold text-color-1 mb-1">📝 Publication d'articles SEO</h3>
-                    <p className="text-sm text-gray-500">Des articles optimisés pour le référencement sont publiés automatiquement sur votre site. Disponible après la mise en ligne.</p>
-                  </div>
+              {dashboardState === 0 && activeBlockInfo !== 'articles' && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                  <button
+                    onClick={() => { setActiveBlockInfo('articles'); setBlockInfoDetail(0) }}
+                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  >
+                    <span className="text-sm">📝</span>
+                    <div className="text-left">
+                      <h3 className="text-xs font-bold text-color-1">Articles SEO</h3>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                        En savoir plus
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      </p>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
 
             {/* Quoi de neuf — carousel like Articles */}
-            <div ref={newsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+            <div ref={newsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
+              {/* State 0 overlay */}
+              {dashboardState === 0 && activeBlockInfo !== 'news' && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                  <button
+                    onClick={() => { setActiveBlockInfo('news'); setBlockInfoDetail(0) }}
+                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  >
+                    <span className="text-sm">✨</span>
+                    <div className="text-left">
+                      <h3 className="text-xs font-bold text-color-1">Nouveautés</h3>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                        En savoir plus
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              )}
               {/* Header */}
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <h2 className="text-base font-bold text-color-1">Quoi de neuf</h2>
@@ -1433,7 +1834,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </div>
               </div>
               {/* Card area */}
-              <button className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left bg-gradient-to-br from-color-1 to-gray-700">
+              <button onClick={() => setShowNewsModal(newsIdx)} className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left bg-gradient-to-br from-color-1 to-gray-700">
                 {/* Background pattern */}
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-2 right-3 text-6xl">✨</div>
@@ -1549,16 +1950,22 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               </div>
             </div>
 
-            {/* State 0 overlay */}
-            {dashboardState === 0 && !tourActive && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(255,255,255,0.4)' }}>
-                <div className="bg-green-50 rounded-2xl px-6 py-5 max-w-[380px] w-full text-left shadow-sm">
-                  <h3 className="text-base font-bold text-color-1 mb-1">✅ Disponible dans 30 jours</h3>
-                  <p className="text-sm text-gray-500 mb-4">L'outils de gestion du classement local s'active après 30 jours de collecte de données.</p>
-                  <div className="w-full h-2 bg-green-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: '5%' }} />
+            {/* Ranking locked overlay — states 0-2 */}
+            {dashboardState <= 2 && activeBlockInfo !== 'ranking' && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                <button
+                  onClick={() => { setActiveBlockInfo('ranking'); setBlockInfoDetail(0) }}
+                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                >
+                  <span className="text-sm">🏆</span>
+                  <div className="text-left">
+                    <h3 className="text-xs font-bold text-color-1">Classement Google</h3>
+                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                      En savoir plus
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </p>
                   </div>
-                </div>
+                </button>
               </div>
             )}
           </div>
@@ -1570,65 +1977,57 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       {showSettings && (
       <div className="absolute inset-0 top-[52px] px-6 py-4 w-full max-w-[1200px] mx-auto">
         <div key="settings" className="flex gap-6 h-full" style={{ animation: 'settings-slide-in 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-          {/* Left column */}
-          <div className="w-[240px] shrink-0 flex flex-col gap-4">
-            {/* Settings sidebar */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
-              <h2 className="text-base font-bold text-color-1 mb-4">Paramètres</h2>
-              <div className="flex flex-col gap-0.5">
-                {[
-                  { id: 'compte', label: 'Compte' },
-                  { id: 'upgrade', label: 'Mise à niveau' },
-                  { id: 'billing', label: 'Facturation' },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setSettingsTab(tab.id)}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer text-left ${
-                      settingsTab === tab.id ? 'text-color-2 font-semibold' : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {settingsTab === tab.id && <div className="w-2 h-2 rounded-full bg-color-2" />}
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Cancellation card — Notion style */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              </div>
-              <h3 className="text-base font-bold text-color-1 mb-1">Annulation prévue</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">Votre abonnement sera annulé le <span className="font-semibold text-red-500">22/02/26.</span></p>
-              <button onClick={() => setSettingsTab('billing')} className="mt-3 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-                Réactiver
-              </button>
-            </div>
-
-            {/* Referral card — animated border */}
-            <div className="mt-auto relative rounded-2xl p-[2px] overflow-hidden" style={{ boxShadow: '0 0 12px rgba(255,69,0,0.3), 0 0 4px rgba(255,215,0,0.2)' }}>
-              <div
-                className="absolute top-1/2 left-1/2"
-                style={{
-                  width: '200%',
-                  height: '800%',
-                  background: 'conic-gradient(from 0deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF6347, #FF4500)',
-                  animation: 'border-spin 3s linear infinite',
-                }}
-              />
-              <div className="relative rounded-[14px] p-5 flex flex-col overflow-hidden">
-                <img src={articleImg1} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: '90% 0%', transform: 'scale(1.3)' }} />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.08) 100%)' }} />
-                <div className="relative w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center mb-3">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                </div>
-                <h3 className="relative text-base font-bold text-white mb-1">Parrainage</h3>
-                <p className="relative text-sm text-gray-300 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
-                <button className="relative mt-3 px-4 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
-                  Inviter un confrère
+          {/* Left column — single unified card */}
+          <div className="w-[260px] shrink-0 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+            {/* Settings nav */}
+            <h2 className="text-base font-bold text-color-1 mb-4">Paramètres</h2>
+            <div className="flex flex-col gap-0.5">
+              {[
+                { id: 'compte', label: 'Compte' },
+                { id: 'upgrade', label: 'Mise à niveau' },
+                { id: 'billing', label: 'Facturation' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSettingsTab(tab.id)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer text-left ${
+                    settingsTab === tab.id ? 'text-color-2 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {settingsTab === tab.id && <div className="w-2 h-2 rounded-full bg-color-2" />}
+                  {tab.label}
                 </button>
+              ))}
+            </div>
+
+            {/* Bottom cards */}
+            <div className="mt-auto flex flex-col gap-2.5">
+              {/* Cancellation card */}
+              <div className="bg-gray-50 rounded-xl p-4 flex flex-col">
+                <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center mb-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <h3 className="text-sm font-bold text-color-1 mb-0.5">Annulation prévue</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">Votre abonnement sera annulé le <span className="font-semibold text-red-500">22/02/26.</span></p>
+                <button onClick={() => setSettingsTab('billing')} className="mt-2 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-color-1 hover:bg-white transition-colors cursor-pointer">
+                  Réactiver
+                </button>
+              </div>
+
+              {/* Referral card */}
+              <div className="relative rounded-xl overflow-hidden" style={{ boxShadow: '0 0 8px rgba(255,69,0,0.2)' }}>
+                <div className="relative p-4 flex flex-col overflow-hidden">
+                  <img src={articleImg1} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: '90% 0%', transform: 'scale(1.3)' }} />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.08) 100%)' }} />
+                  <div className="relative w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center mb-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  </div>
+                  <h3 className="relative text-sm font-bold text-white mb-0.5">Parrainage</h3>
+                  <p className="relative text-xs text-gray-300 leading-relaxed">Invitez un confrère et gagnez jusqu'à <span className="text-color-2 font-semibold">2 mois offerts.</span></p>
+                  <button onClick={() => { setShowSettings(false); setActiveTab('parrainage'); }} className="relative mt-2 px-3 py-1.5 rounded-lg bg-color-2 text-white text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+                    Inviter un confrère
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1882,75 +2281,174 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       </div>
       )}
 
-      {/* Tour overlay */}
-      {dashboardState === 0 && tourActive && spotlightRect && (() => {
-        const step = tourSteps[tourStep]
+      {/* Per-block info spotlight */}
+      {activeBlockInfo && (() => {
+        const info = blockInfos[activeBlockInfo]
+        if (!info) return null
+        const hasSpotlight = !!blockSpotlightRect
         const gap = 16
-        const cardStyle = { position: 'fixed', zIndex: 50, width: 300 }
+        const cardStyle = hasSpotlight
+          ? { position: 'fixed', zIndex: 50, width: 300 }
+          : { position: 'fixed', zIndex: 50, width: 340, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
 
-        switch (step.position) {
-          case 'bottom':
-            cardStyle.top = spotlightRect.top + spotlightRect.height + gap
-            cardStyle.left = spotlightRect.left
-            break
-          case 'top':
-            cardStyle.bottom = window.innerHeight - spotlightRect.top + gap
-            cardStyle.left = spotlightRect.left
-            break
-          case 'right':
-            cardStyle.top = spotlightRect.top
-            cardStyle.left = spotlightRect.left + spotlightRect.width + gap
-            break
-          case 'left':
-            cardStyle.top = spotlightRect.top
-            cardStyle.right = window.innerWidth - spotlightRect.left + gap
-            break
+        if (hasSpotlight) {
+          switch (info.position) {
+            case 'bottom':
+              cardStyle.top = blockSpotlightRect.top + blockSpotlightRect.height + gap
+              cardStyle.left = blockSpotlightRect.left
+              break
+            case 'top':
+              cardStyle.bottom = window.innerHeight - blockSpotlightRect.top + gap
+              cardStyle.left = blockSpotlightRect.left
+              break
+            case 'right':
+              cardStyle.top = blockSpotlightRect.top
+              cardStyle.left = blockSpotlightRect.left + blockSpotlightRect.width + gap
+              break
+            case 'left':
+              cardStyle.top = blockSpotlightRect.top
+              cardStyle.right = window.innerWidth - blockSpotlightRect.left + gap
+              break
+          }
         }
 
         return (
           <>
             {/* Click capture background */}
-            <div className="fixed inset-0 z-40" />
-            {/* Spotlight hole */}
-            <div
-              className="fixed z-40 rounded-2xl pointer-events-none"
-              style={{
-                top: spotlightRect.top,
-                left: spotlightRect.left,
-                width: spotlightRect.width,
-                height: spotlightRect.height,
-                boxShadow: '0 0 0 9999px rgba(0,0,0,0.75)',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-            />
-            {/* Tour card */}
-            <div key={tourStep} style={{ ...cardStyle, animation: 'tour-fade-in 0.3s ease' }} className="bg-white rounded-2xl shadow-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-gray-400">{tourStep + 1} / {tourSteps.length}</span>
-                <button onClick={handleTourSkip} className="text-sm text-gray-400 hover:text-color-1 cursor-pointer transition-colors">Passer</button>
+            <div className={`fixed inset-0 z-40 ${hasSpotlight ? '' : 'bg-black/60'}`} onClick={() => setActiveBlockInfo(null)} />
+            {/* Spotlight hole — only if ref exists */}
+            {hasSpotlight && (
+              <div
+                className="fixed z-40 rounded-2xl pointer-events-none"
+                style={{
+                  top: blockSpotlightRect.top,
+                  left: blockSpotlightRect.left,
+                  width: blockSpotlightRect.width,
+                  height: blockSpotlightRect.height,
+                  boxShadow: '0 0 0 9999px rgba(0,0,0,0.75)',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              />
+            )}
+            {/* Info card */}
+            <div key={activeBlockInfo} style={{ ...cardStyle, animation: 'tour-fade-in 0.3s ease', maxWidth: 360 }} className="bg-white rounded-2xl shadow-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">{info.icon}</span>
+                <h3 className="text-sm font-bold text-color-1">{info.title}</h3>
               </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">{step.icon}</span>
-                <h3 className="text-base font-bold text-color-1">{step.title}</h3>
-              </div>
-              <p className="text-sm text-gray-500 leading-relaxed mb-4">{step.description}</p>
-              <div className="flex items-center justify-center gap-1.5 mb-4">
-                {tourSteps.map((_, i) => (
-                  <div key={i} className={`rounded-full transition-all ${i === tourStep ? 'w-4 h-1.5 bg-color-2' : 'w-1.5 h-1.5 bg-gray-300'}`} />
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                {tourStep > 0 && (
-                  <button onClick={handleTourPrev} className="flex-1 py-2 rounded-xl text-sm font-semibold text-color-1 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer">Retour</button>
-                )}
-                <button onClick={handleTourNext} className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer">
-                  {tourStep === tourSteps.length - 1 ? 'Commencer' : 'Suivant'}
-                </button>
-              </div>
+              {info.details && (() => {
+                const isLast = blockInfoDetail >= info.details.length - 1;
+                const current = info.details[blockInfoDetail];
+                return (
+                  <>
+                    <div className="flex gap-1.5 mb-2.5">
+                      {info.details.map((d, i) => (
+                        <div
+                          key={i}
+                          className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-center transition-all ${
+                            blockInfoDetail === i
+                              ? 'bg-color-2 text-white shadow-sm'
+                              : i < blockInfoDetail
+                              ? 'bg-orange-100 text-color-2'
+                              : 'bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {d.label}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 leading-relaxed mb-3 min-h-[32px]">{current.desc}</p>
+                    <button
+                      onClick={() => {
+                        if (isLast) {
+                          setActiveBlockInfo(null);
+                          setBlockInfoDetail(0);
+                        } else {
+                          const next = blockInfoDetail + 1;
+                          setBlockInfoDetail(next);
+                          if (info.details[next]?.sync) info.details[next].sync();
+                        }
+                      }}
+                      className="w-full py-2 rounded-xl text-xs font-semibold text-white bg-color-1 hover:bg-gray-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      {isLast ? 'Compris' : (
+                        <>
+                          Suivant
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        </>
+                      )}
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           </>
         )
       })()}
+      {/* News modal */}
+      {showNewsModal !== null && news[showNewsModal] && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowNewsModal(null)}>
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+            {/* Header area */}
+            {/* Header — special design for Boostoncab */}
+            {news[showNewsModal].tag === 'Partenaire' ? (
+              <div className="w-full aspect-video relative overflow-hidden flex flex-col items-center justify-center" style={{ background: 'linear-gradient(135deg, #1a2744 0%, #243352 40%, #1e2d4a 100%)' }}>
+                {/* Paper texture overlay */}
+                <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
+                {/* Decorative arrows */}
+                <svg className="absolute left-8 top-6 opacity-20" width="40" height="80" viewBox="0 0 40 80" fill="none">
+                  <path d="M20 80V10M20 10L5 25M20 10L35 25" stroke="#7ba0cc" strokeWidth="2" />
+                </svg>
+                <svg className="absolute left-16 top-3 opacity-15" width="30" height="60" viewBox="0 0 30 60" fill="none">
+                  <path d="M15 60V8M15 8L4 19M15 8L26 19" stroke="#7ba0cc" strokeWidth="1.5" />
+                </svg>
+                {/* Paper airplane */}
+                <div className="absolute left-6 bottom-4 opacity-30">
+                  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#8bafd4" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(-20deg)' }}>
+                    <path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                  </svg>
+                </div>
+                {/* Main text */}
+                <h2 className="relative text-3xl font-bold text-center" style={{ color: '#e8dfc4', fontFamily: 'Georgia, "Times New Roman", serif' }}>Plateforme Privée</h2>
+                <p className="relative text-sm text-center mt-2 max-w-[320px] leading-relaxed" style={{ color: '#b0bfd4', fontFamily: 'Georgia, "Times New Roman", serif' }}>Accessible uniquement aux membres de l'accompagnement BoostTonCab</p>
+                {/* Bottom-right branding */}
+                <div className="absolute bottom-3 right-4 flex items-center gap-2">
+                  <div className="w-7 h-7 rounded bg-white/10 flex items-center justify-center">
+                    <span className="text-sm font-bold" style={{ color: '#e8dfc4', fontFamily: 'Georgia, serif' }}>B</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold" style={{ color: '#e8dfc4' }}>Boost ton cab</span>
+                    <span className="text-[9px]" style={{ color: '#7b8da6' }}>© 2024</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full aspect-video bg-gradient-to-br from-color-1 to-gray-700 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute top-2 right-3 text-6xl opacity-10">✨</div>
+                <div className="absolute top-4 left-5 right-5 flex items-center justify-between">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-color-2 text-white text-sm font-semibold">
+                    {news[showNewsModal].tag}
+                  </span>
+                  <span className="text-white/60 text-sm">{news[showNewsModal].date}</span>
+                </div>
+                <p className="text-white/30 text-sm">Contenu à venir</p>
+              </div>
+            )}
+            {/* Content */}
+            <div className="p-5">
+              <h3 className="text-lg font-bold text-color-1 mb-2">{news[showNewsModal].title}</h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-4">{news[showNewsModal].desc}</p>
+              <button
+                onClick={() => setShowNewsModal(null)}
+                className="px-4 py-2 rounded-xl bg-color-1 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ function App() {
   const [userData, setUserData] = useState({ prenom: '', profession: '', ville: '' })
   const [homeTab, setHomeTab] = useState('accueil')
   const [setupStep, setSetupStep] = useState(null)
+  const [editorOpenStyle, setEditorOpenStyle] = useState(false)
 
   return (
     <div className="min-h-screen bg-white">
@@ -26,7 +27,7 @@ function App() {
           userData={userData}
           initialTab={homeTab}
           onGoToOnboarding={() => setCurrentPage('onboarding')}
-          onGoToSiteEditor={() => setCurrentPage('site-editor')}
+          onGoToSiteEditor={(opts) => { setEditorOpenStyle(opts?.openStyle || false); setCurrentPage('site-editor') }}
           onGoToSetup={(step) => { setSetupStep(step || null); setCurrentPage('site-setup') }}
         />
       )}
@@ -34,6 +35,7 @@ function App() {
         <SiteEditor
           onGoToSetup={(step) => { setSetupStep(step || null); setCurrentPage('site-setup') }}
           onBackToDashboard={(tab) => { setHomeTab(tab || 'accueil'); setCurrentPage('home') }}
+          initialOpenStyle={editorOpenStyle}
         />
       )}
       {currentPage === 'site-setup' && (

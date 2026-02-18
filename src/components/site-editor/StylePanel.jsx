@@ -86,7 +86,7 @@ export const radiusOptions = [
   { id: "full", value: "9999px", label: "Arrondi" },
 ];
 
-const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange }) => {
+const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange, onComplete }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -135,45 +135,39 @@ const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange })
   }, [handleFileUpload]);
 
   return (
-    <div className="w-80 bg-card rounded-xl shadow-xl p-5 flex flex-col gap-5 max-h-[70vh] overflow-auto scrollbar-hide relative z-[50]">
+    <div className="w-72 bg-card rounded-xl shadow-xl p-3.5 flex flex-col gap-3 relative z-[50]">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Style du site</h3>
+        <h3 className="text-sm font-semibold text-foreground">Style du site</h3>
         <button
           onClick={onClose}
-          className="w-6 h-6 rounded-full hover:bg-accent flex items-center justify-center"
+          className="w-5 h-5 rounded-full hover:bg-accent flex items-center justify-center cursor-pointer"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Color Palettes */}
       <div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-3">
-          Palette de couleurs
-        </span>
-        <div className="grid grid-cols-2 gap-2">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Couleurs</span>
+        <div className="grid grid-cols-3 gap-1.5">
           {colorPalettes.map((palette) => (
             <button
               key={palette.id}
               onClick={() => handlePaletteChange(palette.id)}
               className={cn(
-                "p-3 rounded-lg border-2 transition-all text-left relative",
+                "p-1.5 rounded-lg border-2 transition-all flex flex-col items-center gap-1 cursor-pointer",
                 settings.palette === palette.id
                   ? "border-primary bg-primary/5"
                   : "border-transparent bg-muted/50 hover:border-muted-foreground/30"
               )}
             >
-              <div className="flex gap-1 mb-2">
+              <div className="flex gap-0.5">
                 {palette.colors.map((color, i) => (
-                  <div
-                    key={i}
-                    className="w-5 h-5 rounded-full border border-black/10"
-                    style={{ backgroundColor: color }}
-                  />
+                  <div key={i} className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: color }} />
                 ))}
               </div>
-              <span className="text-xs font-medium">{palette.name}</span>
+              <span className="text-[10px] font-medium leading-tight">{palette.name}</span>
             </button>
           ))}
         </div>
@@ -181,33 +175,24 @@ const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange })
 
       {/* Typography */}
       <div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-3">
-          Typographie
-        </span>
-        <div className="grid grid-cols-2 gap-2">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Typo</span>
+        <div className="grid grid-cols-4 gap-1.5">
           {typographyPairs.map((typo) => {
-            // Load Google Font dynamically for preview
             const fontLink = `https://fonts.googleapis.com/css2?family=${typo.googleFont}&display=swap`;
-
             return (
               <button
                 key={typo.id}
                 onClick={() => handleTypographyChange(typo.id)}
                 className={cn(
-                  "p-3 rounded-lg border-2 transition-all text-left",
+                  "p-1.5 rounded-lg border-2 transition-all flex flex-col items-center cursor-pointer",
                   settings.typography === typo.id
                     ? "border-primary bg-primary/5"
                     : "border-transparent bg-muted/50 hover:border-muted-foreground/30"
                 )}
               >
                 <link rel="stylesheet" href={fontLink} />
-                <div
-                  className="text-2xl font-semibold mb-1"
-                  style={{ fontFamily: `"${typo.display}", serif` }}
-                >
-                  Aa
-                </div>
-                <span className="text-xs text-muted-foreground">{typo.label}</span>
+                <div className="text-base font-semibold leading-tight" style={{ fontFamily: `"${typo.display}", serif` }}>Aa</div>
+                <span className="text-[9px] text-muted-foreground leading-tight mt-0.5">{typo.label}</span>
               </button>
             );
           })}
@@ -216,26 +201,21 @@ const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange })
 
       {/* Border Radius */}
       <div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-3">
-          Arrondis
-        </span>
-        <div className="flex gap-2">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Arrondis</span>
+        <div className="flex gap-1">
           {radiusOptions.map((radius) => (
             <button
               key={radius.id}
               onClick={() => handleRadiusChange(radius.id)}
               className={cn(
-                "flex-1 p-2 flex flex-col items-center gap-1.5 border-2 transition-all rounded-lg",
+                "flex-1 py-1.5 flex flex-col items-center gap-1 border-2 transition-all rounded-lg cursor-pointer",
                 settings.radius === radius.id
                   ? "border-primary bg-primary/5"
                   : "border-transparent bg-muted/50 hover:border-muted-foreground/30"
               )}
             >
-              <div
-                className="w-8 h-5 bg-foreground/20"
-                style={{ borderRadius: radius.value }}
-              />
-              <span className="text-sm text-muted-foreground">{radius.label}</span>
+              <div className="w-6 h-4 bg-foreground/20" style={{ borderRadius: radius.value }} />
+              <span className="text-[9px] text-muted-foreground">{radius.label}</span>
             </button>
           ))}
         </div>
@@ -243,39 +223,38 @@ const StylePanel = ({ onClose, settings, onSettingsChange, logo, onLogoChange })
 
       {/* Logo */}
       <div>
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-3">
-          Logo
-        </span>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileInputChange}
-          className="hidden"
-        />
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block mb-1.5">Logo</span>
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInputChange} className="hidden" />
         <div
           onClick={() => fileInputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           className={cn(
-            "relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors",
+            "border-2 border-dashed rounded-lg p-2 text-center cursor-pointer transition-colors",
             isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/50"
           )}
         >
           {logo ? (
-            <div className="space-y-2">
-              <img src={logo} alt="Logo" className="max-h-16 mx-auto rounded object-contain" />
-              <p className="text-xs text-muted-foreground">Cliquez pour remplacer</p>
-            </div>
+            <img src={logo} alt="Logo" className="max-h-8 mx-auto rounded object-contain" />
           ) : (
-            <div className="space-y-2 py-2">
-              <Upload className="w-6 h-6 mx-auto text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Glissez une image ou cliquez</p>
+            <div className="flex items-center justify-center gap-1.5">
+              <Upload className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground">Glissez ou cliquez</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* CTA */}
+      {onComplete && (
+        <button
+          onClick={onComplete}
+          className="w-full px-4 py-2 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+        >
+          Terminer
+        </button>
+      )}
     </div>
   );
 };
