@@ -2739,6 +2739,13 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       {showNewsModal !== null && news[showNewsModal] && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowNewsModal(null)}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+          {/* Left arrow */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowNewsModal((showNewsModal - 1 + news.length) % news.length) }}
+            className="absolute left-[calc(50%-300px)] w-9 h-9 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-md z-10"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
           <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
             {/* Header — YouTube video */}
             <div className="w-full aspect-video bg-black">
@@ -2754,14 +2761,33 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             <div className="p-5">
               <h3 className="text-lg font-bold text-color-1 mb-2">{news[showNewsModal].title}</h3>
               <p className="text-sm text-gray-500 leading-relaxed mb-4">{news[showNewsModal].desc}</p>
-              <button
-                onClick={() => setShowNewsModal(null)}
-                className="px-4 py-2 rounded-xl bg-color-1 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Fermer
-              </button>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowNewsModal(null)}
+                  className="px-4 py-2 rounded-xl bg-color-1 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  Fermer
+                </button>
+                {/* Dots */}
+                <div className="flex items-center gap-1.5">
+                  {news.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setShowNewsModal(i)}
+                      className={`rounded-full transition-all cursor-pointer block ${i === showNewsModal ? 'w-5 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-gray-300 hover:bg-gray-400'}`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
+          {/* Right arrow */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowNewsModal((showNewsModal + 1) % news.length) }}
+            className="absolute right-[calc(50%-300px)] w-9 h-9 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-md z-10"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
         </div>
       )}
     </div>
