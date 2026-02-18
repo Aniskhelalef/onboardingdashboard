@@ -40,8 +40,8 @@ function App() {
       )}
       {currentPage === 'site-setup' && (
         <Setup
-          onBackToEditor={() => setCurrentPage('site-editor')}
-          onBackToDashboard={() => setCurrentPage('home')}
+          onBackToDashboard={(tab) => { setHomeTab(tab || 'accueil'); setCurrentPage('home') }}
+          onGoToSiteEditor={() => setCurrentPage('site-editor')}
           initialStep={setupStep}
         />
       )}

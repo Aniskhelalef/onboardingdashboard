@@ -276,6 +276,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const [activeBlockInfo, setActiveBlockInfo] = useState(null)
   const [blockInfoDetail, setBlockInfoDetail] = useState(0)
   const [blockSpotlightRect, setBlockSpotlightRect] = useState(null)
+  const [seoHighlight, setSeoHighlight] = useState(null)
 
   // Tour refs
   const statsBlockRef = useRef(null)
@@ -285,6 +286,9 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
   const articlesRef = useRef(null)
   const rankingRef = useRef(null)
   const newsRef = useRef(null)
+  const seoCalendarRef = useRef(null)
+  const seoArticleRef = useRef(null)
+  const seoPublicationsRef = useRef(null)
   const news = [
     { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre' },
     { title: 'Boostoncab — Boostez votre visibilité avec Google Ads', desc: 'Nouveau partenariat avec Boostoncab : lancez vos campagnes Google Ads en quelques clics et attirez plus de patients.', date: '12 fév.', tag: 'Partenaire' },
@@ -505,27 +509,27 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       ],
     },
     seoCalendar: {
-      ref: null, title: 'Calendrier éditorial', icon: '📅', position: 'bottom', padding: 8,
+      ref: seoCalendarRef, title: 'Calendrier éditorial', icon: '📅', position: 'right', padding: 8,
       details: [
-        { label: 'Planning', desc: 'Visualisez le planning de publication de vos articles SEO sur un calendrier. Chaque case représente un jour avec un article prévu, programmé ou déjà publié.' },
-        { label: 'Images', desc: 'Cliquez sur un article pour personnaliser son image de couverture via notre bibliothèque Pexels intégrée. Une bonne image améliore le taux de clic de vos articles.' },
-        { label: 'Statuts', desc: 'Les articles verts sont publiés, les articles avec photo sont programmés, et les cases vides sont des créneaux réservés pour vos prochains contenus.' },
+        { label: 'Planning', desc: 'Visualisez le planning de publication de vos articles SEO sur un calendrier. Chaque case représente un jour avec un article prévu, programmé ou déjà publié.', sync: () => setSeoHighlight('planning') },
+        { label: 'Images', desc: 'Cliquez sur un article pour personnaliser son image de couverture via notre bibliothèque Pexels intégrée. Une bonne image améliore le taux de clic de vos articles.', sync: () => setSeoHighlight('images') },
+        { label: 'Statuts', desc: 'Les articles verts sont publiés, les articles avec photo sont programmés, et les cases vides sont des créneaux réservés pour vos prochains contenus.', sync: () => setSeoHighlight('statuts') },
       ],
     },
     seoArticle: {
-      ref: null, title: 'Aperçu article', icon: '🔍', position: 'left', padding: 8,
+      ref: seoArticleRef, title: 'Aperçu article', icon: '🔍', position: 'left', padding: 8,
       details: [
-        { label: 'Contenu', desc: 'Prévisualisez chaque article avant publication. Vous pouvez modifier le titre, changer l\'image et vérifier le score SEO pour vous assurer de la qualité du contenu.' },
-        { label: 'Score SEO', desc: 'Chaque article reçoit un score d\'optimisation en temps réel. Plus le score est élevé, meilleures sont vos chances d\'apparaître dans les résultats Google.' },
-        { label: 'Actions', desc: 'Modifiez le contenu de l\'article, changez l\'image via Pexels, ou consultez-le tel qu\'il apparaîtra sur votre site une fois publié.' },
+        { label: 'Contenu', desc: 'Prévisualisez chaque article avant publication. Vous pouvez modifier le titre, changer l\'image et vérifier le score SEO pour vous assurer de la qualité du contenu.', sync: () => setSeoHighlight('contenu') },
+        { label: 'Score SEO', desc: 'Chaque article reçoit un score d\'optimisation en temps réel. Plus le score est élevé, meilleures sont vos chances d\'apparaître dans les résultats Google.', sync: () => setSeoHighlight('seo') },
+        { label: 'Actions', desc: 'Modifiez le contenu de l\'article, changez l\'image via Pexels, ou consultez-le tel qu\'il apparaîtra sur votre site une fois publié.', sync: () => setSeoHighlight('actions') },
       ],
     },
     seoPublications: {
-      ref: null, title: 'Répartition thématique', icon: '📊', position: 'left', padding: 8,
+      ref: seoPublicationsRef, title: 'Répartition thématique', icon: '📊', position: 'left', padding: 8,
       details: [
-        { label: 'Thématiques', desc: 'Vos articles sont répartis par thématique selon vos spécialités. Chaque thème cible des mots-clés différents pour couvrir un maximum de recherches patients.' },
-        { label: 'Équilibre', desc: 'Cliquez sur "Modifier" pour activer ou désactiver des thématiques. Les articles sont redistribués équitablement entre les thèmes actifs.' },
-        { label: 'Volume', desc: 'Suivez le nombre d\'articles à venir et le total déjà publié par thématique. Plus le volume est élevé, plus votre autorité SEO grandit sur chaque sujet.' },
+        { label: 'Thématiques', desc: 'Vos articles sont répartis par thématique selon vos spécialités. Chaque thème cible des mots-clés différents pour couvrir un maximum de recherches patients.', sync: () => setSeoHighlight('themes') },
+        { label: 'Équilibre', desc: 'Cliquez sur "Modifier" pour activer ou désactiver des thématiques. Les articles sont redistribués équitablement entre les thèmes actifs.', sync: () => setSeoHighlight('equilibre') },
+        { label: 'Volume', desc: 'Suivez le nombre d\'articles à venir et le total déjà publié par thématique. Plus le volume est élevé, plus votre autorité SEO grandit sur chaque sujet.', sync: () => setSeoHighlight('volume') },
       ],
     },
     ranking: {
@@ -743,16 +747,17 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               { id: 'accueil', label: 'Accueil', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg> },
               { id: 'referencement', label: 'Référencement', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> },
               { id: 'site', label: 'Site', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-              { id: 'parrainage', label: 'Parrainage', icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg> },
+              { id: 'options', label: 'Options du site', icon: null },
             ].map((item) => (
               <button
                 key={item.id}
                 onClick={() => {
                   if (item.id === 'site') { onGoToSiteEditor(); return }
+                  if (item.id === 'options') { onGoToSetup('contact'); return }
                   setActiveTab(item.id)
                   setShowSettings(false)
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm cursor-pointer transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap cursor-pointer transition-colors ${
                   activeTab === item.id && !showSettings
                     ? 'bg-color-1 text-white font-medium'
                     : 'text-gray-400 hover:text-color-1 hover:bg-gray-50'
@@ -762,10 +767,22 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 {item.label}
               </button>
             ))}
+            <div className="w-px h-5 bg-gray-200 mx-0.5" />
+            <button
+              onClick={() => { setActiveTab('parrainage'); setShowSettings(false) }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap cursor-pointer transition-colors ${
+                activeTab === 'parrainage' && !showSettings
+                  ? 'bg-color-1 text-white font-medium'
+                  : 'text-gray-400 hover:text-color-1 hover:bg-gray-50'
+              }`}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Parrainage
+            </button>
           </div>
 
           {/* Right actions */}
-          <div className="relative flex items-center gap-3">
+          <div className="relative flex items-center gap-2">
             <button
               onClick={() => window.open('https://theralys-web.fr/', '_blank')}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -774,67 +791,24 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               Voir le site
             </button>
             <button
-              ref={profileBtnRef}
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className={`w-8 h-8 rounded-full bg-color-2 flex items-center justify-center text-white text-sm font-bold cursor-pointer transition-all ${showProfileMenu ? 'ring-2 ring-color-2/30' : 'hover:ring-2 hover:ring-color-2/30'}`}
+              onClick={() => { setShowSettings(true); setSettingsTab('compte'); }}
+              className={`w-8 h-8 rounded-full bg-color-2 flex items-center justify-center text-white text-sm font-bold cursor-pointer transition-all ${showSettings ? 'ring-2 ring-color-2/30' : 'hover:ring-2 hover:ring-color-2/30'}`}
             >
               {prenom.charAt(0)}
             </button>
-
-            {/* Profile dropdown */}
-            {showProfileMenu && (
-              <div
-                ref={profileMenuRef}
-                className="absolute top-full right-0 mt-2 w-[260px] bg-white rounded-2xl shadow-xl border border-gray-200/60 p-2 z-50"
-                style={{ animation: 'tab-fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}
-              >
-                {/* User info */}
-                <div className="px-3 py-3 border-b border-gray-100 mb-1">
-                  <p className="text-sm font-semibold text-color-1">{prenom}</p>
-                  <p className="text-sm text-gray-400 mt-0.5">anis.khelalef@gmail.com</p>
-                </div>
-
-                {/* Menu items */}
-                <button
-                  onClick={() => { setShowProfileMenu(false); setShowSettings(true); setSettingsTab('compte'); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  Paramètres
-                </button>
-                <button
-                  onClick={() => { setShowProfileMenu(false); onGoToSetup('domain'); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  Domaines
-                </button>
-
-                {/* Déconnexion */}
-                <div className="border-t border-gray-100 mt-1 pt-1 px-3 py-2">
-                  <button
-                    onClick={() => { setShowProfileMenu(false); onGoToOnboarding(); }}
-                    className="flex items-center gap-2 text-sm text-color-2 hover:text-color-2/80 transition-colors font-medium"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Déconnexion
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </nav>
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden px-6 py-2 w-full max-w-[1200px]">
+      <div className="flex-1 overflow-hidden px-6 py-4 w-full max-w-[1200px]">
         {showSettings ? (
         null
         ) : activeTab === 'referencement' ? (
         <div key="referencement" className="grid grid-cols-[2fr_1fr] gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
           {/* Top-left — Article calendar */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
+          <div ref={seoCalendarRef} className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
@@ -855,24 +829,28 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <button onClick={() => { setWeekOffset(0); setSelectedDay(null) }} className="text-xs text-color-2 font-medium ml-1 cursor-pointer hover:underline">Aujourd'hui</button>
                   )}
                 </div>
-                <button className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer text-gray-400 hover:text-color-1">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer text-gray-400 hover:text-color-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                  <span className="text-xs font-medium">Créer un article</span>
                 </button>
               </div>
             </div>
 
             {/* 5×3 article grid */}
-            <div className="grid grid-cols-6 gap-2 mt-4 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(5, 1fr)' }}>
-              {viewData.days.map((item) => {
+            <div className={`grid grid-cols-6 gap-2 mt-4 flex-1 min-h-0 transition-all rounded-xl ${seoHighlight === 'planning' ? 'ring-2 ring-color-2 ring-offset-4' : ''}`} style={{ gridTemplateRows: 'repeat(5, 1fr)' }}>
+              {(() => { let publishedSeen = 0, programmedSeen = 0, preProgrammedSeen = 0; return viewData.days.map((item) => {
                 const isSelected = selectedDay === item.index
 
                 {/* Published — green tint overlay: "done" */}
                 if (item.published) {
+                  publishedSeen++
+                  const hlImages = seoHighlight === 'images' && publishedSeen <= 2
+                  const hlStatuts = seoHighlight === 'statuts' && publishedSeen === 1
                   return (
                     <div
                       key={item.index}
                       onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : (hlImages || hlStatuts) ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
                     >
                       <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-green-600/40" />
@@ -887,11 +865,14 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
                 {/* Programmé — full opacity. The richness IS the signal. */}
                 if (item.programmed) {
+                  programmedSeen++
+                  const hlImages = seoHighlight === 'images' && programmedSeen <= 2
+                  const hlStatuts = seoHighlight === 'statuts' && programmedSeen === 1
                   return (
                     <div
                       key={item.index}
                       onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
+                      className={`relative rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? 'ring-2 ring-color-2 ring-offset-2' : (hlImages || hlStatuts) ? 'ring-2 ring-color-2 ring-offset-2' : 'hover:shadow-md'}`}
                     >
                       <img src={customArticleImages[item.index] || item.articleImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -905,11 +886,13 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
 
                 {/* Préprogrammé — empty card. The absence of image IS the signal. */}
                 if (item.preProgrammed) {
+                  preProgrammedSeen++
+                  const hlStatuts = seoHighlight === 'statuts' && preProgrammedSeen === 1
                   return (
                     <div
                       key={item.index}
                       onClick={() => setSelectedDay(item.index)}
-                      className={`relative rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-gray-50 hover:bg-gray-100 ${isSelected ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}
+                      className={`relative rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all bg-gray-50 hover:bg-gray-100 ${isSelected ? 'ring-2 ring-color-2 ring-offset-1' : hlStatuts ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}
                     >
                       <span className="text-2xl opacity-30">{item.icon}</span>
                       <span className={`text-sm font-bold mt-1 ${item.isToday ? 'text-color-2' : 'text-gray-300'}`}>{item.dayNum}</span>
@@ -923,21 +906,23 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                     <span className="text-sm font-medium text-gray-200">{item.dayNum}</span>
                   </div>
                 )
-              })}
+              }) })()}
             </div>
             {/* Calendar locked overlay — state 0 */}
-            {dashboardState === 0 && (
+            {dashboardState === 0 && activeBlockInfo !== 'seoCalendar' && (
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                 <button
-                  onClick={() => setActiveBlockInfo('seoCalendar')}
-                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  onClick={() => { setActiveBlockInfo('seoCalendar'); setBlockInfoDetail(0); setSeoHighlight('planning') }}
+                  className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                 >
-                  <span className="text-sm">📅</span>
+                  <span className="text-lg">📅</span>
                   <div className="text-left">
                     <h3 className="text-xs font-bold text-color-1">Calendrier éditorial</h3>
-                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                    <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
+                    <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
                       En savoir plus
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                     </p>
                   </div>
                 </button>
@@ -949,7 +934,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           <div className="flex flex-col gap-2.5">
 
             {/* Article preview card */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
+            <div ref={seoArticleRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <h2 className="text-base font-bold text-color-1">Article</h2>
                 {selectedDay !== null && viewData.days[selectedDay] && (viewData.days[selectedDay].published || viewData.days[selectedDay].programmed) && (
@@ -972,7 +957,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   return (
                     <div className="flex-1 flex flex-col min-h-0">
                       <button
-                        className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left"
+                        className={`relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left transition-all ${seoHighlight === 'contenu' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}
                         onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
                       >
                         <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -1004,7 +989,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                           <span className="text-sm text-gray-400 w-16 shrink-0">Date</span>
                           <span className="text-sm font-medium text-color-1">{item.dayNum} {item.monthShort}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 transition-all rounded-lg ${seoHighlight === 'seo' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
                           <span className="text-sm text-gray-400 w-16 shrink-0">SEO</span>
                           <div className="flex items-center gap-1.5">
                             <div className="w-16 h-1.5 rounded-full bg-gray-100"><div className="h-full rounded-full bg-green-400" style={{ width: `${item.seo.global}%` }} /></div>
@@ -1012,7 +997,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 mt-3 shrink-0">
+                      <div className={`flex gap-2 mt-3 shrink-0 transition-all rounded-xl ${seoHighlight === 'actions' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
                         <button className="flex-1 py-2 rounded-xl bg-gray-50 text-sm font-medium text-color-1 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200">Modifier</button>
                         <button className="flex-1 py-2 rounded-xl bg-color-1 text-sm font-medium text-white hover:bg-color-1/90 transition-colors cursor-pointer">Voir</button>
                       </div>
@@ -1077,18 +1062,20 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 )
               })()}
               {/* Article preview locked overlay — state 0 */}
-              {dashboardState === 0 && (
+              {dashboardState === 0 && activeBlockInfo !== 'seoArticle' && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                   <button
-                    onClick={() => setActiveBlockInfo('seoArticle')}
-                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                    onClick={() => { setActiveBlockInfo('seoArticle'); setBlockInfoDetail(0); setSeoHighlight('contenu'); const idx = viewData.days.findIndex(d => d.published || d.programmed); if (idx >= 0) setSelectedDay(idx) }}
+                    className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                   >
-                    <span className="text-sm">🔍</span>
+                    <span className="text-lg">🔍</span>
                     <div className="text-left">
                       <h3 className="text-xs font-bold text-color-1">Aperçu article</h3>
-                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                      <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
                         En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                       </p>
                     </div>
                   </button>
@@ -1097,10 +1084,10 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
             </div>
 
             {/* Articles par thème — only préprogrammé batch */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0 relative overflow-hidden">
+            <div ref={seoPublicationsRef} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0 relative overflow-hidden">
               <div className="flex items-center justify-between mb-1 shrink-0">
                 <h2 className="text-base font-bold text-color-1">Prochaines publications</h2>
-                <button onClick={() => setShowRepartition(true)} className="text-sm text-color-2 font-medium hover:underline cursor-pointer">Modifier</button>
+                <button onClick={() => setShowRepartition(true)} className={`text-sm text-color-2 font-medium hover:underline cursor-pointer transition-all rounded-lg px-1.5 -mx-1.5 ${seoHighlight === 'equilibre' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>Modifier</button>
               </div>
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <p className="text-xs text-gray-400">{viewData.preProgDays} articles programmés</p>
@@ -1109,7 +1096,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                   <span className="text-[10px] text-gray-300 uppercase tracking-wide">Total</span>
                 </div>
               </div>
-              <div className="flex flex-col gap-0.5 flex-1 justify-center">
+              <div className={`flex flex-col gap-0.5 flex-1 justify-center transition-all rounded-xl ${seoHighlight === 'themes' ? 'ring-2 ring-color-2 ring-offset-2' : ''}`}>
                 {allSpecialties.map(spec => {
                   const isActive = checkedSpecs.includes(spec.id)
                   const upcoming = viewData.preProgCounts[spec.id] || 0
@@ -1120,8 +1107,8 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         <span className="text-base shrink-0">{spec.icon}</span>
                         <span className="text-sm text-color-1 font-medium truncate">{spec.title}</span>
                       </div>
-                      <span className="text-sm font-bold text-color-1 tabular-nums w-8 text-right">{isActive ? upcoming : '–'}</span>
-                      <span className="text-sm text-gray-400 tabular-nums w-8 text-right ml-3">{allTime}</span>
+                      <span className={`text-sm font-bold text-color-1 tabular-nums w-8 text-right transition-all rounded ${seoHighlight === 'volume' ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}>{isActive ? upcoming : '–'}</span>
+                      <span className={`text-sm text-gray-400 tabular-nums w-8 text-right ml-3 transition-all rounded ${seoHighlight === 'volume' ? 'ring-2 ring-color-2 ring-offset-1' : ''}`}>{allTime}</span>
                     </div>
                   )
                 })}
@@ -1132,18 +1119,20 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <span className="text-sm font-bold text-gray-400 tabular-nums w-8 text-right ml-3">{totalStats.total}</span>
               </div>
               {/* Publications locked overlay — state 0 */}
-              {dashboardState === 0 && (
+              {dashboardState === 0 && activeBlockInfo !== 'seoPublications' && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                   <button
-                    onClick={() => setActiveBlockInfo('seoPublications')}
-                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                    onClick={() => { setActiveBlockInfo('seoPublications'); setBlockInfoDetail(0); setSeoHighlight('themes') }}
+                    className="bg-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                   >
-                    <span className="text-sm">📊</span>
+                    <span className="text-lg">📊</span>
                     <div className="text-left">
                       <h3 className="text-xs font-bold text-color-1">Répartition</h3>
-                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
+                      <p className="text-[10px] text-gray-400 mt-0.5">Débloqué après la mise en ligne — {completionPercent}% complété</p>
+                      <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5 mt-1">
                         En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                       </p>
                     </div>
                   </button>
@@ -1448,7 +1437,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <h1 className="text-lg font-bold text-color-1">Bonjour {prenom}</h1>
                 <div className="relative mt-2 inline-block">
                   <button
-                    onClick={() => dashboardState === 1 && setTimePeriodOpen(!timePeriodOpen)}
+                    onClick={() => dashboardState >= 1 && setTimePeriodOpen(!timePeriodOpen)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 text-sm text-gray-600 hover:border-gray-400 transition-colors cursor-pointer"
                   >
                     {timePeriod === 'Personnaliser' && customDateFrom && customDateTo
@@ -1572,13 +1561,13 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 {/* Curve area */}
                 <div
                   className="flex-1 relative min-h-0"
-                  onMouseMove={dashboardState === 1 ? (e) => {
+                  onMouseMove={dashboardState >= 1 ? (e) => {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const x = (e.clientX - rect.left) / rect.width
                     const idx = Math.round(x * (activeCard.data.length - 1))
                     setHoveredKpi(Math.max(0, Math.min(idx, activeCard.data.length - 1)))
                   } : undefined}
-                  onMouseLeave={dashboardState === 1 ? () => setHoveredKpi(null) : undefined}
+                  onMouseLeave={dashboardState >= 1 ? () => setHoveredKpi(null) : undefined}
                 >
                   {/* Grid lines */}
                   {[0, 20, 40, 60, 80, 100].map((pct) => (
@@ -1625,14 +1614,15 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                 <button
                   onClick={() => { setActiveBlockInfo('stats'); setBlockInfoDetail(0); setSelectedKpi('visites') }}
-                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                 >
                   <span className="text-sm">📊</span>
                   <div className="text-left">
                     <h3 className="text-xs font-bold text-color-1">Statistiques</h3>
                     <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
                       En savoir plus
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                     </p>
                   </div>
                 </button>
@@ -1657,20 +1647,30 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 </>
               )}
               {completionPercent === 100 ? (
-                <div className="flex-1 flex flex-col gap-0.5">
-                  <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider px-1 pt-0.5 pb-1">Prochaines étapes</p>
-                  <button onClick={() => onGoToSetup('avis')} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
-                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
-                    <p className="text-xs font-medium text-gray-600">Collecter 3 avis clients</p>
-                  </button>
-                  <button onClick={() => { const scheduled = articles.find(a => a.status === 'scheduled'); if (scheduled) navigateToArticle(scheduled) }} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
-                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
-                    <p className="text-xs font-medium text-gray-600">Vérifier vos articles</p>
-                  </button>
-                  <button onClick={() => { setActiveTab('parrainage'); setShowSettings(false) }} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
-                    <div className="w-4 h-4 rounded border-2 border-gray-200 flex-shrink-0" />
-                    <p className="text-xs font-medium text-gray-600">Parrainer un confrère</p>
-                  </button>
+                <div className="flex-1 flex flex-col gap-1 pt-0.5">
+                  <p className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider px-1 pt-0.5 pb-0.5">Prochaines étapes</p>
+                  {[
+                    { label: 'Collecter 3 avis clients', action: () => onGoToSetup('avis') },
+                    { label: 'Vérifier vos articles', action: () => { const scheduled = articles.find(a => a.status === 'scheduled'); if (scheduled) navigateToArticle(scheduled) } },
+                    { label: 'Parrainer un confrère', action: () => { setActiveTab('parrainage'); setShowSettings(false) } },
+                  ].map((item, i) => (
+                    <div key={i} className="relative rounded-lg p-[1.5px] overflow-hidden" style={{ boxShadow: i === 0 ? '0 0 6px rgba(255,69,0,0.2)' : 'none' }}>
+                      {i === 0 && (
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            width: '200%',
+                            background: 'linear-gradient(90deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF4500)',
+                            animation: 'border-slide 3s linear infinite',
+                          }}
+                        />
+                      )}
+                      <button onClick={() => item.action()} className={`relative flex items-center gap-2 bg-white rounded-[7px] px-2.5 py-2 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors ${i > 0 ? 'border border-gray-100' : ''}`}>
+                        <div className={`w-4 h-4 rounded border-2 flex-shrink-0 ${i === 0 ? 'border-color-2' : 'border-gray-200'}`} />
+                        <p className={`text-xs min-w-0 flex-1 ${i === 0 ? 'font-semibold text-color-1' : 'font-medium text-gray-500'}`}>{item.label}</p>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ) : (
               <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-0.5 pr-0.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#e5e5e5 transparent' }}>
@@ -1689,12 +1689,11 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         {isNext ? (
                           <div className="relative rounded-lg p-[1.5px] overflow-hidden" style={{ boxShadow: '0 0 6px rgba(255,69,0,0.2)' }}>
                             <div
-                              className="absolute top-1/2 left-1/2"
+                              className="absolute inset-0"
                               style={{
                                 width: '200%',
-                                height: '800%',
-                                background: 'conic-gradient(from 0deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF6347, #FF4500)',
-                                animation: 'border-spin 3s linear infinite',
+                                background: 'linear-gradient(90deg, #FF4500, #FFD700, #FF1493, #FF4500, #FFD700, #FF4500)',
+                                animation: 'border-slide 3s linear infinite',
                               }}
                             />
                             <button onClick={() => action.action()} className="relative flex items-center gap-2 bg-white rounded-[7px] px-2.5 py-1.5 w-full text-left cursor-pointer hover:bg-gray-50 transition-colors">
@@ -1785,14 +1784,15 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                   <button
                     onClick={() => { setActiveBlockInfo('articles'); setBlockInfoDetail(0) }}
-                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                    className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                   >
                     <span className="text-sm">📝</span>
                     <div className="text-left">
                       <h3 className="text-xs font-bold text-color-1">Articles SEO</h3>
                       <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
                         En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                       </p>
                     </div>
                   </button>
@@ -1807,14 +1807,15 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                   <button
                     onClick={() => { setActiveBlockInfo('news'); setBlockInfoDetail(0) }}
-                    className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                    className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                   >
                     <span className="text-sm">✨</span>
                     <div className="text-left">
                       <h3 className="text-xs font-bold text-color-1">Nouveautés</h3>
                       <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
                         En savoir plus
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                       </p>
                     </div>
                   </button>
@@ -1903,13 +1904,13 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="flex-1 flex flex-col min-w-0">
                 <div
                   className="flex-1 relative min-h-0"
-                  onMouseMove={dashboardState === 1 ? (e) => {
+                  onMouseMove={dashboardState >= 1 ? (e) => {
                     const rect = e.currentTarget.getBoundingClientRect()
                     const x = (e.clientX - rect.left) / rect.width
                     const idx = Math.round(x * (slicedRanking.length - 1))
                     setHoveredRank(Math.max(0, Math.min(idx, slicedRanking.length - 1)))
                   } : undefined}
-                  onMouseLeave={dashboardState === 1 ? () => setHoveredRank(null) : undefined}
+                  onMouseLeave={dashboardState >= 1 ? () => setHoveredRank(null) : undefined}
                 >
                   {/* Grid lines */}
                   {[0, 20, 40, 60, 80, 100].map((pct) => (
@@ -1955,14 +1956,15 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl overflow-hidden" style={{ backdropFilter: 'blur(4px) brightness(0.7)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
                 <button
                   onClick={() => { setActiveBlockInfo('ranking'); setBlockInfoDetail(0) }}
-                  className="bg-white rounded-xl px-3 py-2 shadow-sm flex items-center gap-2 cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all duration-200 group"
+                  className="bg-white rounded-xl px-3 py-2 shadow-lg flex items-center gap-2 cursor-pointer hover:scale-[1.05] transition-transform duration-200 group border border-color-2/20"
+                    style={{ animation: 'locked-float 2.5s ease-in-out infinite, locked-glow 2.5s ease-in-out infinite' }}
                 >
                   <span className="text-sm">🏆</span>
                   <div className="text-left">
                     <h3 className="text-xs font-bold text-color-1">Classement Google</h3>
                     <p className="text-[10px] text-color-2 font-medium flex items-center gap-0.5">
                       En savoir plus
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'locked-chevron 1.5s ease-in-out infinite' }}><path d="M9 18l6-6-6-6"/></svg>
                     </p>
                   </div>
                 </button>
@@ -1976,7 +1978,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
       {/* Settings panel — rendered on top when active */}
       {showSettings && (
       <div className="absolute inset-0 top-[52px] px-6 py-4 w-full max-w-[1200px] mx-auto">
-        <div key="settings" className="flex gap-6 h-full" style={{ animation: 'settings-slide-in 0.35s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div key="settings" className="flex gap-6 h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* Left column — single unified card */}
           <div className="w-[260px] shrink-0 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
             {/* Settings nav */}
@@ -2310,12 +2312,19 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
               cardStyle.right = window.innerWidth - blockSpotlightRect.left + gap
               break
           }
+          // Clamp to viewport
+          if (cardStyle.top !== undefined && cardStyle.top > window.innerHeight - 280) {
+            cardStyle.top = Math.max(16, window.innerHeight - 280)
+          }
+          if (cardStyle.left !== undefined && cardStyle.left > window.innerWidth - 320) {
+            cardStyle.left = Math.max(16, window.innerWidth - 320)
+          }
         }
 
         return (
           <>
             {/* Click capture background */}
-            <div className={`fixed inset-0 z-40 ${hasSpotlight ? '' : 'bg-black/60'}`} onClick={() => setActiveBlockInfo(null)} />
+            <div className={`fixed inset-0 z-40 ${hasSpotlight ? '' : 'bg-black/60'}`} onClick={() => { setActiveBlockInfo(null); setSeoHighlight(null) }} />
             {/* Spotlight hole — only if ref exists */}
             {hasSpotlight && (
               <div
@@ -2363,6 +2372,7 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
                         if (isLast) {
                           setActiveBlockInfo(null);
                           setBlockInfoDetail(0);
+                          setSeoHighlight(null);
                         } else {
                           const next = blockInfoDetail + 1;
                           setBlockInfoDetail(next);

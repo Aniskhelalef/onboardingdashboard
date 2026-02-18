@@ -170,15 +170,6 @@ const EditorToolbar = ({
                 <Paintbrush className="w-4 h-4" />
               </button>
 
-              {/* Settings */}
-              <button
-                onClick={onSettingsClick}
-                title="Paramètres"
-                className={cn(BTN, "text-gray-400 hover:bg-gray-50 hover:text-color-1")}
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-
               <div className="w-px h-5 bg-gray-200 mx-1" />
 
               {/* Undo */}

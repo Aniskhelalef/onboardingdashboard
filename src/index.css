@@ -158,9 +158,9 @@ body {
   }
 }
 
-@keyframes border-spin {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+@keyframes border-slide {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
 }
 
 @keyframes tour-fade-in {
@@ -191,4 +191,19 @@ body {
 @keyframes domain-progress {
   from { width: 0%; }
   to { width: 100%; }
+}
+
+@keyframes locked-float {
+  0%, 100% { transform: translateY(0); box-shadow: 0 2px 8px rgba(252,109,65,0.15); }
+  50% { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(252,109,65,0.25); }
+}
+
+@keyframes locked-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252,109,65,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(252,109,65,0); }
+}
+
+@keyframes locked-chevron {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
 }

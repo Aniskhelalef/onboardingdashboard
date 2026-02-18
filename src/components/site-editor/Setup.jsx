@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { User, MapPin, Building2, ChevronDown, Plus, Trash2, Users, Star, Code, Image, ArrowLeft, ArrowRight, Check, Globe, Search, Loader2, MessageSquare, MessageCircle, Phone, Mail, ExternalLink } from "lucide-react";
+import { User, MapPin, Building2, ChevronDown, Plus, Trash2, Users, Star, Code, Image, ArrowLeft, ArrowRight, Check, Globe, Search, Loader2, MessageSquare, MessageCircle, Phone, Mail, ExternalLink, Sparkles } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ const MAIN_STEPS = [
   { id: "specialties", label: "Spécialités", icon: Star, description: "Vos domaines d'expertise" },
   { id: "google", label: "Google", icon: Building2, description: "Fiche Google Business" },
   { id: "avis", label: "Avis", icon: MessageSquare, description: "Collecter des avis clients" },
+  { id: "redaction", label: "Rédaction IA", icon: Sparkles, description: "Style et ton de vos contenus" },
 ];
 
 const ADVANCED_STEPS = [
@@ -26,7 +27,7 @@ const ADVANCED_STEPS = [
 const ALL_STEPS = [...MAIN_STEPS, ...ADVANCED_STEPS];
 
 
-const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
+const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
   const stepParam = initialStep || "0";
   const resolvedInitialStep = isNaN(Number(stepParam))
     ? Math.max(ALL_STEPS.findIndex(s => s.id === stepParam), 0)
@@ -190,6 +191,12 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
             sms: { message: "Bonjour, merci pour votre visite ! Votre avis compte beaucoup pour nous : {link}. Merci !" },
             email: { subject: "Votre avis compte pour nous", message: "Bonjour,\n\nMerci pour votre visite au cabinet. Si vous avez apprécié votre consultation, un avis Google nous aiderait beaucoup à aider d'autres patients à nous trouver.\n\nVoici le lien : {link}\n\nMerci beaucoup et à bientôt !" },
           },
+          redaction: saved.redaction || {
+            tone: 'professionnel',
+            style: 'informatif',
+            pronoun: 'nous',
+            systemPrompt: '',
+          },
         };
       } catch (e) {
         console.error("Failed to parse setupData:", e);
@@ -217,6 +224,12 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
         whatsapp: { message: "Bonjour ! \u{1F60A} Merci pour votre visite. Si vous avez apprécié votre consultation, un petit avis Google nous aiderait beaucoup :\n{link}\nMerci et à bientôt !" },
         sms: { message: "Bonjour, merci pour votre visite ! Votre avis compte beaucoup pour nous : {link}. Merci !" },
         email: { subject: "Votre avis compte pour nous", message: "Bonjour,\n\nMerci pour votre visite au cabinet. Si vous avez apprécié votre consultation, un avis Google nous aiderait beaucoup à aider d'autres patients à nous trouver.\n\nVoici le lien : {link}\n\nMerci beaucoup et à bientôt !" },
+      },
+      redaction: {
+        tone: 'professionnel',
+        style: 'informatif',
+        pronoun: 'nous',
+        systemPrompt: '',
       },
     };
   });
@@ -255,6 +268,9 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
     if (JSON.stringify(data.reviewTemplates) !== JSON.stringify(initialData.reviewTemplates)) {
       changed.add("reviewTemplates");
     }
+    if (JSON.stringify(data.redaction) !== JSON.stringify(initialData.redaction)) {
+      changed.add("redaction");
+    }
 
     setChangedSections(changed);
   }, [data, initialData]);
@@ -271,7 +287,7 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
     setInitialData(JSON.parse(JSON.stringify(data)));
 
     // Mark the corresponding action as completed
-    const stepMapping = { contact: 'contact', locations: 'cabinet', therapists: 'therapists', specialties: 'specialties', google: 'google', reviewTemplates: 'avis', domain: 'domain', customCode: 'code' }
+    const stepMapping = { contact: 'contact', locations: 'cabinet', therapists: 'therapists', specialties: 'specialties', google: 'google', reviewTemplates: 'avis', redaction: 'redaction', domain: 'domain', customCode: 'code' }
     const actionId = stepMapping[sectionName]
     if (actionId) {
       const existing = JSON.parse(localStorage.getItem("completedActions") || "[]")
@@ -1120,7 +1136,158 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
         );
       }
 
-      case 7:
+      case 6:
+        return (
+          <div className="space-y-4" style={{ animation: 'tab-fade-in 0.3s ease' }}>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground mb-1">Rédaction IA</h2>
+              <p className="text-sm text-muted-foreground">Configurez le style et le ton de vos contenus générés par l'IA.</p>
+            </div>
+
+            {/* Tone */}
+            <div className="space-y-2">
+              <Label className="text-xs">Ton de communication</Label>
+              <div className="flex gap-2">
+                {[
+                  { id: 'professionnel', label: 'Professionnel' },
+                  { id: 'chaleureux', label: 'Chaleureux' },
+                  { id: 'expert', label: 'Expert' },
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setData(prev => ({ ...prev, redaction: { ...prev.redaction, tone: t.id } }))}
+                    className={cn(
+                      "flex-1 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer",
+                      data.redaction.tone === t.id
+                        ? "bg-color-1 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-150"
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Style */}
+            <div className="space-y-2">
+              <Label className="text-xs">Style de rédaction</Label>
+              <div className="flex gap-2">
+                {[
+                  { id: 'informatif', label: 'Informatif' },
+                  { id: 'conversationnel', label: 'Conversationnel' },
+                  { id: 'pedagogique', label: 'Pédagogique' },
+                ].map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setData(prev => ({ ...prev, redaction: { ...prev.redaction, style: s.id } }))}
+                    className={cn(
+                      "flex-1 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer",
+                      data.redaction.style === s.id
+                        ? "bg-color-1 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-150"
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Pronoun */}
+            <div className="space-y-2">
+              <Label className="text-xs">Pronom utilisé</Label>
+              <div className="flex gap-2">
+                {[
+                  { id: 'nous', label: 'Nous', desc: '"Nous vous accueillons..."' },
+                  { id: 'je', label: 'Je', desc: '"Je vous accueille..."' },
+                  { id: 'on', label: 'On', desc: '"On vous accueille..."' },
+                ].map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setData(prev => ({ ...prev, redaction: { ...prev.redaction, pronoun: p.id } }))}
+                    className={cn(
+                      "flex-1 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer flex flex-col items-center gap-0.5",
+                      data.redaction.pronoun === p.id
+                        ? "bg-color-1 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-150"
+                    )}
+                  >
+                    <span>{p.label}</span>
+                    <span className={cn("text-[9px]", data.redaction.pronoun === p.id ? "text-white/60" : "text-gray-400")}>{p.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* System prompt */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Instructions supplémentaires</Label>
+              <Textarea
+                value={data.redaction.systemPrompt}
+                onChange={(e) => setData(prev => ({ ...prev, redaction: { ...prev.redaction, systemPrompt: e.target.value } }))}
+                placeholder="Ex: Toujours mentionner que le cabinet est accessible PMR. Éviter le jargon médical trop technique. Mettre en avant l'approche douce..."
+                className="text-sm min-h-[80px] resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground">Ces instructions seront appliquées à tous les contenus générés par l'IA (articles, descriptions, etc.)</p>
+            </div>
+
+            {/* Live preview */}
+            {(() => {
+              const { tone, style, pronoun } = data.redaction;
+              const pronoms = {
+                nous: { subject: 'Nous', verb: 'proposons', accueil: 'accueillons', invite: 'invitons', souhait: 'souhaitons', possessif: 'notre', possessifPl: 'nos' },
+                je: { subject: 'Je', verb: 'propose', accueil: 'accueille', invite: 'invite', souhait: 'souhaite', possessif: 'mon', possessifPl: 'mes' },
+                on: { subject: 'On', verb: 'propose', accueil: 'accueille', invite: 'invite', souhait: 'souhaite', possessif: 'notre', possessifPl: 'nos' },
+              };
+              const p = pronoms[pronoun] || pronoms.nous;
+
+              const previews = {
+                professionnel: {
+                  informatif: `${p.subject} ${p.verb} des séances de kinésithérapie adaptées à chaque patient. ${p.possessifPl.charAt(0).toUpperCase() + p.possessifPl.slice(1)} protocoles sont élaborés selon les dernières recommandations de la HAS afin d'assurer une prise en charge optimale.`,
+                  conversationnel: `${p.subject} ${p.accueil} chaque patient avec attention. Vous avez des douleurs lombaires ? ${p.possessifPl.charAt(0).toUpperCase() + p.possessifPl.slice(1)} séances de rééducation sont conçues pour répondre précisément à ${p.possessif} problématique.`,
+                  pedagogique: `La kinésithérapie vise à restaurer la mobilité et réduire la douleur. ${p.subject} ${p.verb} un bilan initial complet, puis ${pronoun === 'nous' ? 'nous mettons' : pronoun === 'je' ? 'je mets' : 'on met'} en place un plan de traitement personnalisé, étape par étape.`,
+                },
+                chaleureux: {
+                  informatif: `${p.subject} ${p.accueil} dans un cadre bienveillant pour prendre soin de votre bien-être. ${p.possessifPl.charAt(0).toUpperCase() + p.possessifPl.slice(1)} séances de kinésithérapie sont pensées pour que vous vous sentiez écouté et accompagné à chaque instant.`,
+                  conversationnel: `Bienvenue ! ${p.subject} ${p.souhait} avant tout que vous vous sentiez à l'aise. ${p.subject} ${p.invite} à découvrir ${p.possessif} approche douce et personnalisée — parce que votre confort est ${p.possessif} priorité.`,
+                  pedagogique: `Prendre soin de soi, c'est d'abord comprendre son corps. ${p.subject} ${p.verb} de vous guider avec bienveillance : ensemble, ${pronoun === 'je' ? 'nous' : p.subject.toLowerCase()} ${pronoun === 'je' ? 'verrons' : 'verrons'} comment soulager vos tensions, pas à pas.`,
+                },
+                expert: {
+                  informatif: `${p.subject} ${p.verb} une prise en charge en kinésithérapie basée sur les données probantes. Évaluation posturale, thérapie manuelle et exercices fonctionnels : ${p.possessifPl} protocoles ciblent les mécanismes physiopathologiques sous-jacents.`,
+                  conversationnel: `Vous ressentez une raideur cervicale après de longues heures de travail ? ${p.subject} ${p.verb} une analyse biomécanique approfondie pour identifier les causes et adapter le traitement en conséquence.`,
+                  pedagogique: `Le rachis lombaire supporte l'essentiel des contraintes mécaniques du quotidien. ${p.subject} ${p.verb} de vous expliquer les mécanismes en jeu puis de mettre en œuvre un programme de renforcement ciblé et progressif.`,
+                },
+              };
+
+              const text = previews[tone]?.[style] || previews.professionnel.informatif;
+
+              return (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Sparkles size={12} className="text-color-2" />
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Aperçu du style</span>
+                  </div>
+                  <p className="text-xs text-gray-600 leading-relaxed">{text}</p>
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={() => handleValidateSection("redaction")}
+              className={cn(
+                "px-5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer",
+                changedSections.has("redaction")
+                  ? "bg-[#FC6D41] text-white hover:bg-[#e55e35]"
+                  : "bg-gray-100 text-gray-400"
+              )}
+            >
+              {validatedSection === "redaction" ? "Enregistré !" : "Enregistrer"}
+            </button>
+          </div>
+        );
+
+      case 8:
         return (
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
@@ -1267,7 +1434,7 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
           </div>
         );
 
-      case 6:
+      case 7:
         return (
           <div className="space-y-4" style={{ animation: 'tab-fade-in 0.3s ease' }}>
             <div className="flex items-start justify-between gap-4">
@@ -1427,27 +1594,47 @@ const Setup = ({ onBackToEditor, onBackToDashboard, initialStep }) => {
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
-      {/* Header */}
-      <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70] flex items-center justify-between">
-        <img src={theralysLogo} alt="Theralys" className="h-6 cursor-pointer" onClick={onBackToDashboard} />
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBackToEditor}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-color-1 transition-colors cursor-pointer"
-          >
-            <ArrowLeft size={14} />
-            Retour à l'éditeur
-          </button>
-          <span className="text-gray-200">|</span>
-          <button
-            onClick={onBackToDashboard}
-            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-color-1 transition-colors cursor-pointer"
-          >
-            Retour au dashboard
-            <ArrowRight size={14} />
-          </button>
+      {/* Top nav */}
+      <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
+        <div className="flex items-center justify-between relative h-10">
+          <img src={theralysLogo} alt="Theralys" className="h-6 cursor-pointer" onClick={() => onBackToDashboard('accueil')} />
+
+          {/* Center nav — floating pill */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
+            <button onClick={() => onBackToDashboard('accueil')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+              Accueil
+            </button>
+            <button onClick={() => onBackToDashboard('referencement')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Référencement
+            </button>
+            <button onClick={onGoToSiteEditor} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Site
+            </button>
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-color-1 text-white text-[13px] whitespace-nowrap font-medium cursor-pointer transition-colors">
+              Options du site
+            </button>
+            <div className="w-px h-5 bg-gray-200 mx-0.5" />
+            <button onClick={() => onBackToDashboard('parrainage')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              Parrainage
+            </button>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.open('https://theralys-web.fr/', '_blank')}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              Voir le site
+            </button>
+          </div>
         </div>
-      </div>
+      </nav>
 
       {/* Main Content */}
       <div className="flex-1 flex gap-6 overflow-hidden w-full max-w-[1200px] px-6 py-4 min-h-0" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
