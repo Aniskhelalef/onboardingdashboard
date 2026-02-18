@@ -980,110 +980,132 @@ const HomeDashboard = ({ userData, initialTab, onGoToOnboarding, onGoToSiteEdito
           })()}
         </div>
         ) : activeTab === 'parrainage' ? (
-        <div key="parrainage" className="flex flex-col gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
-          {/* Row 1 — Stats */}
-          <div className="flex gap-3 shrink-0">
-            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        <div key="parrainage" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+
+          {/* Top-left — Referral hero */}
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-bold text-color-1">Parrainage</h2>
+                <span className="text-sm text-gray-300">·</span>
+                <span className="text-sm text-gray-400">3 filleuls · 4 mois offerts</span>
               </div>
-              <div>
-                <p className="text-sm text-gray-400 font-medium">Filleuls inscrits</p>
-                <p className="text-2xl font-bold text-color-1">3</p>
+              <button
+                onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
+                className="py-1.5 px-3.5 rounded-lg bg-color-1 text-white text-sm font-medium hover:bg-color-1/90 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Copier le lien
+              </button>
+            </div>
+
+            {/* Link display */}
+            <div className="flex items-center gap-2 mt-3 shrink-0">
+              <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 font-mono truncate">
+                theralys.com/ref/theo-osteo
               </div>
             </div>
-            <div className="bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4 min-w-[200px]">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              </div>
-              <div>
-                <p className="text-sm text-gray-400 font-medium">Mois offerts gagnés</p>
-                <p className="text-2xl font-bold text-color-1">4</p>
-              </div>
+
+            {/* Offer description */}
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+              <p className="text-2xl font-bold text-color-1">Offrez <span className="text-color-2">1 mois d'essai</span></p>
+              <p className="text-2xl font-bold text-color-1">Gagnez <span className="text-color-2">2 mois gratuits</span></p>
+              <p className="text-sm text-gray-400 mt-3 max-w-[400px]">Pour chaque confrère qui s'inscrit via votre lien, vous recevez 2 mois d'abonnement offerts.</p>
             </div>
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-5 py-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-color-1">Invitez un confrère, gagnez 2 mois</p>
-                <p className="text-sm text-gray-400 mt-0.5">Pour chaque inscription via votre lien, vous recevez 2 mois d'abonnement gratuit.</p>
-              </div>
+
+            {/* How it works — compact horizontal row */}
+            <div className="flex items-start gap-4 shrink-0 pt-3 border-t border-gray-100">
+              {[
+                { step: '1', title: 'Partagez', desc: 'Envoyez votre lien à un confrère' },
+                { step: '2', title: 'Il s\'inscrit', desc: 'Votre filleul crée son compte' },
+                { step: '3', title: 'Vous gagnez', desc: '2 mois offerts pour vous' },
+              ].map((s, i) => (
+                <div key={i} className="flex-1 flex items-start gap-2.5">
+                  <div className="w-6 h-6 rounded-full bg-color-2 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
+                    {s.step}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-color-1">{s.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Row 2 — Main content */}
-          <div className="flex gap-3 flex-1 min-h-0">
-            {/* Referral link card */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
-              <h3 className="text-base font-bold text-color-1 mb-4">Votre lien de parrainage</h3>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-color-1 font-mono truncate">
-                  theralys.com/ref/theo-osteo
-                </div>
-                <button
-                  onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
-                  className="px-4 py-2.5 rounded-xl bg-color-1 text-white text-sm font-medium hover:bg-color-1/90 transition-colors cursor-pointer shrink-0"
-                >
-                  Copier
-                </button>
-              </div>
-              <p className="text-sm text-gray-400 mb-4">Partagez ce lien par email, SMS ou sur les réseaux sociaux.</p>
+          {/* Right column — spans both rows */}
+          <div className="row-span-2 flex flex-col gap-2.5">
 
-              {/* Referral history */}
-              <h4 className="text-base font-semibold text-color-1 mb-2">Historique</h4>
-              <div className="flex-1 overflow-auto min-h-0">
-                <div className="space-y-2">
-                  {[
-                    { name: 'Dr. Marie Dupont', date: '12 jan. 2026', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500', bg: 'bg-green-50' },
-                    { name: 'Thomas Bernard', date: '28 déc. 2025', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500', bg: 'bg-green-50' },
-                    { name: 'Sophie Martin', date: '15 nov. 2025', status: 'En attente', reward: 'En attente', color: 'text-amber-500', bg: 'bg-amber-50' },
-                  ].map((ref, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-color-2/10 flex items-center justify-center text-sm font-bold text-color-2">
-                          {ref.name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-color-1">{ref.name}</p>
-                          <p className="text-sm text-gray-400">{ref.date}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-semibold ${ref.color}`}>{ref.reward}</p>
-                        <p className="text-sm text-gray-400">{ref.status}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* How it works */}
-            <div className="w-[300px] shrink-0 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
-              <h3 className="text-base font-bold text-color-1 mb-4">Comment ça marche ?</h3>
-              <div className="space-y-4 flex-1">
+            {/* Historique */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col min-h-0">
+              <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Historique</h2>
+              <div className="flex flex-col gap-2 flex-1 min-h-0">
                 {[
-                  { step: '1', title: 'Partagez votre lien', desc: 'Envoyez votre lien de parrainage à un confrère.' },
-                  { step: '2', title: 'Il s\'inscrit', desc: 'Votre filleul crée son compte Theralys.' },
-                  { step: '3', title: 'Vous gagnez', desc: 'Recevez 2 mois offerts dès son inscription.' },
-                ].map((s, i) => (
-                  <div key={i} className="flex gap-3">
-                    <div className="w-7 h-7 rounded-full bg-color-2 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                      {s.step}
+                  { name: 'Dr. Marie Dupont', date: '12 jan. 2026', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500' },
+                  { name: 'Thomas Bernard', date: '28 déc. 2025', status: 'Inscrit', reward: '+2 mois', color: 'text-green-500' },
+                  { name: 'Sophie Martin', date: '15 nov. 2025', status: 'En attente', reward: 'En attente', color: 'text-amber-500' },
+                ].map((ref, i) => (
+                  <div key={i} className="flex items-center justify-between py-2.5 px-3 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-color-2/10 flex items-center justify-center text-sm font-bold text-color-2">
+                        {ref.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-color-1">{ref.name}</p>
+                        <p className="text-xs text-gray-400">{ref.date}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-color-1">{s.title}</p>
-                      <p className="text-sm text-gray-400 mt-0.5">{s.desc}</p>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${ref.color}`}>{ref.reward}</p>
+                      <p className="text-xs text-gray-400">{ref.status}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <button className="mt-4 w-full py-2.5 rounded-xl bg-color-2 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
-                Partager mon lien
+            </div>
+
+            {/* Partager — image card like Articles carousel on Accueil */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+              <h2 className="text-base font-bold text-color-1 mb-2 shrink-0">Partager</h2>
+              <button
+                onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
+                className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left"
+              >
+                <img src={articleImg1} alt="" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                <div className="absolute bottom-3 left-3.5 right-3.5">
+                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm mb-2">Partagez votre lien à un confrère thérapeute</p>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/90 backdrop-blur-sm text-color-1 text-sm font-medium">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+                    Copier le lien
+                  </div>
+                </div>
               </button>
             </div>
+
           </div>
+
+          {/* Bottom-left — KPI stats */}
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+            <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Statistiques</h2>
+            <div className="flex gap-3 flex-1">
+              {[
+                { label: 'Clics sur le lien', value: '11', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M15 3h6v6M14 10l6.1-6.1M10 14L3.9 20.1M9 21H3v-6"/></svg>, bg: 'bg-orange-50' },
+                { label: 'Filleuls inscrits', value: '3', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>, bg: 'bg-green-50' },
+                { label: 'Mois offerts', value: '4', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"><path d="M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 00-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>, bg: 'bg-purple-50' },
+                { label: 'Commission gagnée', value: '165 €', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>, bg: 'bg-amber-50' },
+              ].map((kpi) => (
+                <div key={kpi.label} className={`flex-1 ${kpi.bg} rounded-xl px-4 py-3`}>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {kpi.icon}
+                    <span className="text-sm font-medium text-color-1">{kpi.label}</span>
+                  </div>
+                  <span className="text-2xl font-bold text-color-1">{kpi.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
         ) : (
         <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
