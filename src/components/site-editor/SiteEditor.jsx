@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Link2, Rocket } from "lucide-react";
-import theralysLogo from '../../assets/theralys-logo.svg';
+const theralysLogo = '/images/theralys-logo.svg';
 import { cn } from "@/lib/utils";
 import EditorCanvas from "./EditorCanvas";
 import FloatingEditToolbar from "./FloatingEditToolbar";
 import { ProofreadingProvider, useProofreading } from "./ProofreadingContext";
 import EditorToolbar from "./EditorToolbar";
+import Setup from "./Setup";
 import ImageCropModal from "./modals/ImageCropModal";
 import ImagePositionModal from "./modals/ImagePositionModal";
 import BadgeItemModal from "./modals/BadgeItemModal";
@@ -28,7 +30,8 @@ import {
 } from "./defaults";
 import { loadSaved, saveTo } from "./storage";
 
-const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, initialPage }) => {
+const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMode }) => {
+  const router = useRouter();
   const proofreading = useProofreading();
   const [activeEditId, setActiveEditIdRaw] = useState(null);
   const canvasRef = useRef(null);
@@ -53,12 +56,13 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
 
   // Onboarding state — stays active until publish
   const [isOnboardingMode, setIsOnboardingMode] = useState(() => {
+    if (typeof window === 'undefined') return true;
     return localStorage.getItem("onboardingComplete") !== "true";
   });
   const [setupCompleted, setSetupCompleted] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
-  const [isSitePublished, setIsSitePublished] = useState(() => localStorage.getItem("sitePublished") === "true");
-  const [hasChanges, setHasChanges] = useState(() => localStorage.getItem("editorHasChanges") === "true");
+  const [isSitePublished, setIsSitePublished] = useState(() => typeof window !== 'undefined' && localStorage.getItem("sitePublished") === "true");
+  const [hasChanges, setHasChanges] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState(null);
@@ -66,8 +70,19 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
   const [showSpecialtyConfirm, setShowSpecialtyConfirm] = useState(false);
   const [showTherapistConfirm, setShowTherapistConfirm] = useState(false);
   const [completedActions, setCompletedActions] = useState(() => {
+    if (typeof window === 'undefined') return [];
     try { return JSON.parse(localStorage.getItem("completedActions") || "[]"); } catch { return []; }
   });
+
+  // Validation mode state
+  const [isValidationMode, setIsValidationMode] = useState(!!initialValidationMode);
+  const [showDomainModal, setShowDomainModal] = useState(false);
+  const [showCongratsModal, setShowCongratsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [chosenDomain, setChosenDomain] = useState("");
+  const [domainSearched, setDomainSearched] = useState(false);
+  const [selectedDomainExt, setSelectedDomainExt] = useState(".fr");
+
   const [showCropModal, setShowCropModal] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);
   const [showPositionModal, setShowPositionModal] = useState(false);
@@ -103,8 +118,9 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
     }, 200);
   }, [viewMode]);
 
-  // Page navigation
-  const [currentPage, setCurrentPage] = useState(initialPage || "accueil");
+  // Page navigation — derived from URL
+  const currentPage = initialPage || "accueil";
+  const goToEditorPage = (page) => router.push(`/editor/${page}${isValidationMode ? '?mode=validate' : ''}`);
 
   // Data states
   const [content, setContent] = useState(() => loadSaved("content", defaultContent));
@@ -151,17 +167,25 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
     lastUpdated: new Date().toLocaleDateString("fr-FR"),
   }));
 
+  // Validation sequence (no blog) — must be after painTypes state
+  const VALIDATION_SEQUENCE = ['accueil', ...painTypes.map(p => `specialite-${p.id}`), 'mentions'];
+  const validationStepIndex = VALIDATION_SEQUENCE.indexOf(currentPage);
+  const isLastValidationStep = validationStepIndex === VALIDATION_SEQUENCE.length - 1;
+
   // Auto-save editor data to localStorage
   const isFirstRender = useRef(true);
+  const mountedAt = useRef(Date.now());
   useEffect(() => {
     const data = { content, features, painTypes, sessionSteps, faqItems, globalSettings, sessionInfo, identitySettings, styleSettings, legalContent, locations, heroImage, aboutImage, heroImageOriginal, aboutImageOriginal, ratingBadge, patientsBadge, heroImagePosition, aboutImagePosition };
     for (const [key, value] of Object.entries(data)) {
       saveTo(key, value);
     }
-    // Mark changes after initial load
+    // Mark changes after initial load — skip hydration renders (first 1s)
     if (isFirstRender.current) {
       isFirstRender.current = false;
-    } else if (isSitePublished) {
+    } else if (Date.now() - mountedAt.current < 1000) {
+      // Skip — still hydrating from localStorage
+    } else {
       setHasChanges(true);
     }
   }, [content, features, painTypes, sessionSteps, faqItems, globalSettings, sessionInfo, identitySettings, styleSettings, legalContent, locations, heroImage, aboutImage, heroImageOriginal, aboutImageOriginal, ratingBadge, patientsBadge]);
@@ -290,6 +314,22 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
     window.addEventListener("actionsUpdated", handler);
     return () => window.removeEventListener("actionsUpdated", handler);
   }, []);
+
+  // Validation mode: auto-advance to first unvalidated page on mount
+  useEffect(() => {
+    if (!isValidationMode) return;
+    const saved = JSON.parse(localStorage.getItem("completedActions") || "[]");
+    const firstUnvalidated = VALIDATION_SEQUENCE.find(page => {
+      const rid = page === 'accueil' ? 'review-home' : page === 'mentions' ? 'review-mentions' : `review-spec-${page.replace('specialite-', '')}`;
+      return !saved.includes(rid);
+    });
+    if (!firstUnvalidated) {
+      // All pages already validated — show domain modal
+      setShowDomainModal(true);
+    } else if (firstUnvalidated !== currentPage) {
+      router.replace(`/editor/${firstUnvalidated}?mode=validate`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close style panel on click outside
   useEffect(() => {
@@ -437,6 +477,72 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
   const currentReviewId = getReviewActionId(currentPage);
   const isCurrentPageValidated = currentReviewId && completedActions.includes(currentReviewId);
 
+  // Check if all pages are validated and mark 'validate' action
+  const checkAllPagesValidated = (actions) => {
+    const requiredReviews = ['review-home', 'review-blog', 'review-mentions', ...painTypes.map(p => `review-spec-${p.id}`)]
+    if (requiredReviews.every(id => actions.includes(id)) && !actions.includes('validate')) {
+      actions.push('validate')
+      localStorage.setItem('completedActions', JSON.stringify(actions))
+      window.dispatchEvent(new Event('actionsUpdated'))
+    }
+  }
+
+  const handleValidatePage = () => {
+    if (currentReviewId && !completedActions.includes(currentReviewId)) {
+      const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
+      if (!existing.includes(currentReviewId)) {
+        existing.push(currentReviewId);
+        localStorage.setItem("completedActions", JSON.stringify(existing));
+        setCompletedActions([...existing]);
+        window.dispatchEvent(new Event("actionsUpdated"));
+        checkAllPagesValidated([...existing]);
+      }
+    }
+  }
+
+  // Validation flow: validate current page then advance or show domain modal
+  const handleValidationFlowValidate = () => {
+    // Mark current page as validated
+    const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
+    if (currentReviewId && !existing.includes(currentReviewId)) {
+      existing.push(currentReviewId);
+      localStorage.setItem("completedActions", JSON.stringify(existing));
+      setCompletedActions([...existing]);
+      window.dispatchEvent(new Event("actionsUpdated"));
+    }
+    // If last step → show domain modal
+    if (isLastValidationStep) {
+      // Mark 'validate' as done
+      if (!existing.includes('validate')) {
+        existing.push('validate');
+        localStorage.setItem("completedActions", JSON.stringify(existing));
+        window.dispatchEvent(new Event("actionsUpdated"));
+      }
+      setShowDomainModal(true);
+    } else {
+      // Advance to next page
+      const nextPage = VALIDATION_SEQUENCE[validationStepIndex + 1];
+      router.push(`/editor/${nextPage}?mode=validate`);
+    }
+  };
+
+  // Domain confirmed → publish
+  const handleDomainConfirm = () => {
+    if (!chosenDomain.trim() || !selectedDomainExt) return;
+    const fullDomain = `${chosenDomain.trim()}${selectedDomainExt}`;
+    const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
+    if (!existing.includes('domain')) existing.push('domain');
+    if (!existing.includes('publish')) existing.push('publish');
+    localStorage.setItem("completedActions", JSON.stringify(existing));
+    localStorage.setItem("chosenDomain", fullDomain);
+    localStorage.setItem("sitePublished", "true");
+    setCompletedActions([...existing]);
+    setIsSitePublished(true);
+    window.dispatchEvent(new Event("actionsUpdated"));
+    setShowDomainModal(false);
+    setShowCongratsModal(true);
+  };
+
   const handlePublishClick = () => {
     if (isDomainConnected) {
       // Domain connected → real publish/save flow
@@ -446,17 +552,17 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
         handlePublishComplete();
       }
     } else {
-      // No domain → validate current page's review action then go back to dashboard
+      // No domain → validate current page's review action and stay on page
       if (currentReviewId && !completedActions.includes(currentReviewId)) {
         const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
         if (!existing.includes(currentReviewId)) {
           existing.push(currentReviewId);
           localStorage.setItem("completedActions", JSON.stringify(existing));
-          setCompletedActions(existing);
+          setCompletedActions([...existing]);
           window.dispatchEvent(new Event("actionsUpdated"));
+          checkAllPagesValidated([...existing]);
         }
       }
-      onBackToDashboard();
     }
   };
 
@@ -659,62 +765,72 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       {/* Top nav bar */}
-      <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
-        <div className="flex items-center justify-between relative h-10">
-          {/* Logo */}
-          <img src={theralysLogo} alt="Theralys" className="h-6 cursor-pointer" onClick={() => tryNavigate(() => onBackToDashboard())} />
-
-          {/* Center nav — floating pill */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
-            <button onClick={() => tryNavigate(() => onBackToDashboard('accueil'))} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-              Accueil
-            </button>
-            <button onClick={() => tryNavigate(() => onBackToDashboard('referencement'))} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Référencement
-            </button>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-color-1 text-white text-[13px] whitespace-nowrap font-medium cursor-pointer transition-colors">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Site
-            </button>
-            <button onClick={() => tryNavigate(() => onGoToSetup('contact'))} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              Options du site
-            </button>
-            <div className="w-px h-5 bg-gray-200 mx-0.5" />
-            <button onClick={() => tryNavigate(() => onBackToDashboard('parrainage'))} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-              Parrainage
-            </button>
+      {isValidationMode && (
+        <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70] flex items-center justify-center">
+          <div className="flex items-center bg-white border border-gray-200 rounded-2xl px-4 py-2 gap-2.5" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <div className="flex items-center gap-1">
+              {VALIDATION_SEQUENCE.map((page, i) => {
+                const rid = page === 'accueil' ? 'review-home' : page === 'mentions' ? 'review-mentions' : `review-spec-${page.replace('specialite-', '')}`;
+                const done = completedActions.includes(rid);
+                const isCurrent = i === validationStepIndex;
+                return (
+                  <div
+                    key={page}
+                    className={cn(
+                      "w-2.5 h-2.5 rounded-full transition-colors",
+                      done ? "bg-green-500" : isCurrent ? "bg-color-2" : "bg-gray-200"
+                    )}
+                  />
+                );
+              })}
+            </div>
+            <span className="text-sm text-gray-400 font-medium">{VALIDATION_SEQUENCE.filter(p => { const rid = p === 'accueil' ? 'review-home' : p === 'mentions' ? 'review-mentions' : `review-spec-${p.replace('specialite-', '')}`; return completedActions.includes(rid); }).length}/{VALIDATION_SEQUENCE.length}</span>
+            <div className="w-px h-4 bg-gray-200" />
+            <span className="text-sm font-semibold text-color-1">
+              {currentPage === 'accueil' ? 'Accueil' : currentPage === 'mentions' ? 'Mentions légales' : painTypes.find(p => currentPage === `specialite-${p.id}`)?.title || 'Page'}
+            </span>
           </div>
-
-          {/* Right actions */}
+        </div>
+      )}
+      {!isValidationMode && <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => tryNavigate(() => router.push('/dashboard'))}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-500 hover:text-color-1 hover:bg-white/80 transition-colors cursor-pointer"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span className="font-medium">Retour au tableau de bord</span>
+          </button>
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.open('https://theralys-web.fr/', '_blank')}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-full shadow-sm border border-gray-200 text-sm font-medium text-gray-600 hover:shadow-md transition-all cursor-pointer"
+              title="Voir ma page"
+              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-color-1 hover:border-gray-300 transition-all cursor-pointer"
             >
-              <Link2 size={14} />
-              Voir le site
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             <button
-              onClick={handlePublishClick}
-              disabled={isDomainConnected ? (isSitePublished && !hasChanges) : isCurrentPageValidated}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full shadow-sm text-sm font-semibold transition-all ${
-                (isDomainConnected ? (isSitePublished && !hasChanges) : isCurrentPageValidated)
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-color-2 text-white hover:opacity-90 cursor-pointer'
-              }`}
+              onClick={() => setShowSettingsModal(true)}
+              title="Options du site"
+              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-color-1 hover:border-gray-300 transition-all cursor-pointer"
             >
-              <Rocket size={15} />
-              {isDomainConnected
-                ? (isSitePublished && hasChanges ? 'Sauvegarder' : isSitePublished ? 'Publié' : 'Publier')
-                : (isCurrentPageValidated ? 'Validé' : 'Valider la page')
-              }
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <button
+              onClick={handleDirectSave}
+              disabled={!hasChanges}
+              className={cn(
+                "flex items-center gap-1.5 px-4 h-9 rounded-xl text-[13px] font-semibold transition-all",
+                hasChanges
+                  ? "bg-color-2 text-white hover:opacity-90 cursor-pointer"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              )}
+            >
+              Publish
             </button>
           </div>
         </div>
-      </nav>
+      </div>}
 
       {/* Canvas with site preview */}
       <div
@@ -1500,6 +1616,204 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
         );
       })()}
 
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowSettingsModal(false)} />
+          <div className="relative bg-white rounded-2xl overflow-hidden w-[900px] max-w-[90vw] h-[80vh] max-h-[80vh]" style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <Setup isModal={true} onClose={() => setShowSettingsModal(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* Domain Modal (validation flow) — OVH style */}
+      {showDomainModal && (() => {
+        const extensions = [
+          { ext: '.fr', label: '.fr', badge: 'Recommandé', badgeColor: 'bg-color-2 text-white' },
+          { ext: '.com', label: '.com', badge: null },
+          { ext: '.cabinet', label: '.cabinet', badge: 'Nouveau', badgeColor: 'bg-blue-500 text-white' },
+          { ext: '.sante', label: '.santé', badge: null },
+        ];
+        const getAvailability = (ext) => {
+          if (!chosenDomain.trim() || !domainSearched) return null;
+          // Simulated: all available except .com for very common names
+          if (ext === '.com' && ['cabinet', 'osteo', 'kine', 'docteur', 'medecin'].includes(chosenDomain.trim())) return false;
+          return true;
+        };
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 animate-in zoom-in-95 duration-200 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 rounded-xl bg-color-2/10 flex items-center justify-center shrink-0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-color-1">Choisir votre nom de domaine</h3>
+                    <p className="text-xs text-gray-400">Ce sera l'adresse de votre site web</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search bar */}
+              <div className="px-6 pb-4">
+                <div className="flex items-center bg-gray-50 rounded-xl border-2 border-gray-200 focus-within:border-color-2 transition-colors overflow-hidden">
+                  <span className="pl-4 pr-0.5 text-sm text-gray-400 shrink-0">www.</span>
+                  <input
+                    type="text"
+                    value={chosenDomain}
+                    onChange={(e) => { setChosenDomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setDomainSearched(false); setSelectedDomainExt('.fr'); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && chosenDomain.trim()) setDomainSearched(true); }}
+                    placeholder="mon-cabinet"
+                    className="flex-1 py-3 text-sm bg-transparent outline-none text-color-1 placeholder:text-gray-300 font-medium"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => { if (chosenDomain.trim()) setDomainSearched(true); }}
+                    disabled={!chosenDomain.trim()}
+                    className={cn(
+                      "mr-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0",
+                      chosenDomain.trim()
+                        ? "bg-color-1 text-white hover:opacity-90 cursor-pointer"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    )}
+                  >
+                    Rechercher
+                  </button>
+                </div>
+              </div>
+
+              {/* Results */}
+              <div className="px-6 pb-2">
+                {!domainSearched ? (
+                  <div className="text-center py-6">
+                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-2">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </div>
+                    <p className="text-sm text-gray-400">Entrez un nom et recherchez sa disponibilité</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {extensions.map(({ ext, label, badge, badgeColor }) => {
+                      const available = getAvailability(ext);
+                      const isSelected = selectedDomainExt === ext;
+                      return (
+                        <button
+                          key={ext}
+                          onClick={() => { if (available) setSelectedDomainExt(ext); }}
+                          disabled={!available}
+                          className={cn(
+                            "flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 transition-all text-left",
+                            !available
+                              ? "border-gray-100 bg-gray-50/50 opacity-50 cursor-not-allowed"
+                              : isSelected
+                              ? "border-color-2 bg-color-2/5 cursor-pointer"
+                              : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
+                          )}
+                        >
+                          {/* Radio dot */}
+                          <div className={cn(
+                            "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center",
+                            !available ? "border-gray-200" : isSelected ? "border-color-2" : "border-gray-300"
+                          )}>
+                            {isSelected && available && <div className="w-2 h-2 rounded-full bg-color-2" />}
+                          </div>
+
+                          {/* Domain name */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-color-1">{chosenDomain}<span className="text-gray-400">{label}</span></span>
+                              {badge && <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", badgeColor)}>{badge}</span>}
+                            </div>
+                          </div>
+
+                          {/* Availability */}
+                          {available ? (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                              <span className="text-xs text-green-600 font-medium">Disponible</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                              <span className="text-xs text-red-400 font-medium">Indisponible</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pt-3 pb-5">
+                <button
+                  onClick={handleDomainConfirm}
+                  disabled={!chosenDomain.trim() || !domainSearched || !selectedDomainExt}
+                  className={cn(
+                    "w-full py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2",
+                    chosenDomain.trim() && domainSearched && selectedDomainExt
+                      ? "bg-color-2 text-white hover:opacity-90 cursor-pointer"
+                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  Confirmer et publier
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Congratulations Modal (validation flow) */}
+      {showCongratsModal && (() => {
+        const fullDomain = localStorage.getItem("chosenDomain") || `${chosenDomain}.fr`;
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-200">
+              {/* Green banner */}
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-6 pt-8 pb-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">Félicitations !</h3>
+                <p className="text-sm text-white/80">Votre site est maintenant en ligne</p>
+              </div>
+              {/* Domain display */}
+              <div className="px-6 py-5 text-center">
+                <div className="inline-flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200 mb-5">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-semibold text-color-1">www.{fullDomain}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <a
+                    href={`https://www.${fullDomain}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 rounded-xl text-sm font-semibold bg-color-1 text-white hover:opacity-90 transition-colors text-center block"
+                  >
+                    Voir mon site
+                  </a>
+                  <button
+                    onClick={() => {
+                      setShowCongratsModal(false);
+                      setIsValidationMode(false);
+                      router.push('/dashboard');
+                    }}
+                    className="w-full py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    Retour au tableau de bord
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Publish Confirmation Modal */}
       {showPublishConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1585,7 +1899,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
             </p>
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => { setShowSpecialtyConfirm(false); onGoToSetup(); }}
+                onClick={() => { setShowSpecialtyConfirm(false); router.push('/setup/contact'); }}
                 className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
               >
                 Modifier mes spécialités
@@ -1616,7 +1930,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
             </p>
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => { setShowTherapistConfirm(false); onGoToSetup(); }}
+                onClick={() => { setShowTherapistConfirm(false); router.push('/setup/contact'); }}
                 className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
               >
                 Modifier mon profil
@@ -1698,7 +2012,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
 
       {/* Style Panel - floating above toolbar */}
       {showStyleModal && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100]" data-style-panel>
+        <div className="fixed z-[100]" style={{ bottom: '72px', right: 'calc(50% - 250px)' }} data-style-panel>
           <StylePanel
             onClose={() => setShowStyleModal(false)}
             settings={styleSettings}
@@ -1713,7 +2027,7 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
                 window.dispatchEvent(new Event("actionsUpdated"))
               }
               setShowStyleModal(false)
-              onBackToDashboard()
+              router.push('/dashboard')
             } : undefined}
           />
         </div>
@@ -1722,22 +2036,27 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
       {/* Editor Toolbar - floating on top of content */}
       <EditorToolbar
         currentPage={currentPage}
-        onPageChange={setCurrentPage}
+        onPageChange={goToEditorPage}
         isHomePublished={setupCompleted}
         specialties={painTypes.map(p => ({ id: p.id, icon: p.icon, title: p.title }))}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
         onStyleClick={() => setShowStyleModal(true)}
-        onSettingsClick={() => tryNavigate(() => onGoToSetup())}
+        onSettingsClick={() => tryNavigate(() => router.push('/setup/contact'))}
         isMobileDevice={typeof window !== "undefined" && window.innerWidth < 768}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
         onboardingLock={isOnboardingMode && !setupCompleted}
-        onAccueilClick={() => tryNavigate(() => onBackToDashboard())}
+        onAccueilClick={() => tryNavigate(() => router.push('/dashboard'))}
         onPreviewClick={() => {}}
+        onValidatePage={isValidationMode ? handleValidationFlowValidate : handleValidatePage}
         onPublishClick={handlePublishClick}
+        completedActions={completedActions}
+        isValidationMode={isValidationMode}
+        validationSequence={VALIDATION_SEQUENCE}
+        validationStepIndex={validationStepIndex}
       />
 
       {/* Hidden file input for image changes */}
@@ -1764,10 +2083,10 @@ const SiteEditorContent = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, i
 };
 
 // Wrap with ProofreadingProvider
-const SiteEditor = ({ onGoToSetup, onBackToDashboard, initialOpenStyle, initialPage }) => {
+const SiteEditor = ({ initialOpenStyle, initialPage, initialValidationMode }) => {
   return (
     <ProofreadingProvider>
-      <SiteEditorContent onGoToSetup={onGoToSetup} onBackToDashboard={onBackToDashboard} initialOpenStyle={initialOpenStyle} initialPage={initialPage} />
+      <SiteEditorContent initialOpenStyle={initialOpenStyle} initialPage={initialPage} initialValidationMode={initialValidationMode} />
     </ProofreadingProvider>
   );
 };

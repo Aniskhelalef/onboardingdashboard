@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { User, MapPin, Building2, ChevronDown, Plus, Trash2, Users, Star, Code, Image, ArrowLeft, ArrowRight, Check, Globe, Search, Loader2, MessageSquare, MessageCircle, Phone, Mail, ExternalLink, Sparkles } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import theralysLogo from '../../assets/theralys-logo.svg';
+const theralysLogo = '/images/theralys-logo.svg';
 import ImageCropModal from "./modals/ImageCropModal";
 
 const MAIN_STEPS = [
@@ -27,14 +28,17 @@ const ADVANCED_STEPS = [
 const ALL_STEPS = [...MAIN_STEPS, ...ADVANCED_STEPS];
 
 
-const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
-  const stepParam = initialStep || "0";
-  const resolvedInitialStep = isNaN(Number(stepParam))
+const Setup = ({ initialStep, isModal = false, onClose }) => {
+  const router = useRouter();
+  const stepParam = initialStep || "contact";
+  const resolvedStep = isNaN(Number(stepParam))
     ? Math.max(ALL_STEPS.findIndex(s => s.id === stepParam), 0)
     : parseInt(stepParam, 10);
-  const [currentStep, setCurrentStep] = useState(Math.min(Math.max(resolvedInitialStep, 0), ALL_STEPS.length - 1));
+  const [modalStep, setModalStep] = useState(resolvedStep);
+  const currentStep = isModal ? modalStep : Math.min(Math.max(resolvedStep, 0), ALL_STEPS.length - 1);
+  const goToStep = (index) => isModal ? setModalStep(index) : router.push(`/setup/${ALL_STEPS[index]?.id || 'contact'}`);
   const [expandedCodes, setExpandedCodes] = useState(new Set());
-  const [completedActionIds, setCompletedActionIds] = useState(() => { try { return JSON.parse(localStorage.getItem("completedActions") || "[]") } catch { return [] } })
+  const [completedActionIds, setCompletedActionIds] = useState(() => { if (typeof window === 'undefined') return []; try { return JSON.parse(localStorage.getItem("completedActions") || "[]") } catch { return [] } })
   const allMainDone = MAIN_STEPS.every(s => completedActionIds.includes(s.id))
   const [googleQuery, setGoogleQuery] = useState("");
   const [googleResults, setGoogleResults] = useState([]);
@@ -63,6 +67,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
 
   // Specialty from-scratch flow
   const [specSubStep, setSpecSubStep] = useState(() => {
+    if (typeof window === 'undefined') return 'intro';
     try {
       const saved = JSON.parse(localStorage.getItem("setupData") || "{}");
       return (saved.specialties && saved.specialties.length > 0) ? 'build' : 'intro';
@@ -93,7 +98,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
   };
 
   // Get profession from localStorage
-  const userProfession = localStorage.getItem("userProfession") || "Ostéopathe D.O";
+  const userProfession = (typeof window !== 'undefined' && localStorage.getItem("userProfession")) || "";
 
   // Icon ID to emoji mapping
   const iconMapping = {
@@ -175,7 +180,24 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
   };
 
   // Initialize data from localStorage if available
+  const defaultData = {
+    contact: { firstName: "", lastName: "", profession: userProfession, city: "", phoneNumber: "", appointmentLink: "" },
+    locations: [],
+    therapists: [],
+    specialties: [],
+    google: { connected: false, profile: null },
+    customCode: [],
+    reviewTemplates: {
+      googleLink: "",
+      whatsapp: { message: "Bonjour ! \u{1F60A} Merci pour votre visite. Si vous avez apprécié votre consultation, un petit avis Google nous aiderait beaucoup :\n{link}\nMerci et à bientôt !" },
+      sms: { message: "Bonjour, merci pour votre visite ! Votre avis compte beaucoup pour nous : {link}. Merci !" },
+      email: { subject: "Votre avis compte pour nous", message: "Bonjour,\n\nMerci pour votre visite au cabinet. Si vous avez apprécié votre consultation, un avis Google nous aiderait beaucoup à aider d'autres patients à nous trouver.\n\nVoici le lien : {link}\n\nMerci beaucoup et à bientôt !" },
+    },
+    redaction: { tone: 'professionnel', style: 'informatif', pronoun: 'nous', systemPrompt: '' },
+  };
+
   const [data, setData] = useState(() => {
+    if (typeof window === 'undefined') return defaultData;
     const setupDataJson = localStorage.getItem("setupData");
     if (setupDataJson) {
       try {
@@ -214,36 +236,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
         console.error("Failed to parse setupData:", e);
       }
     }
-    return {
-      contact: {
-        firstName: "",
-        lastName: "",
-        profession: userProfession,
-        city: "",
-        phoneNumber: "",
-        appointmentLink: "",
-      },
-      locations: [],
-      therapists: [],
-      specialties: [],
-      google: {
-        connected: false,
-        profile: null,
-      },
-      customCode: [],
-      reviewTemplates: {
-        googleLink: "",
-        whatsapp: { message: "Bonjour ! \u{1F60A} Merci pour votre visite. Si vous avez apprécié votre consultation, un petit avis Google nous aiderait beaucoup :\n{link}\nMerci et à bientôt !" },
-        sms: { message: "Bonjour, merci pour votre visite ! Votre avis compte beaucoup pour nous : {link}. Merci !" },
-        email: { subject: "Votre avis compte pour nous", message: "Bonjour,\n\nMerci pour votre visite au cabinet. Si vous avez apprécié votre consultation, un avis Google nous aiderait beaucoup à aider d'autres patients à nous trouver.\n\nVoici le lien : {link}\n\nMerci beaucoup et à bientôt !" },
-      },
-      redaction: {
-        tone: 'professionnel',
-        style: 'informatif',
-        pronoun: 'nous',
-        systemPrompt: '',
-      },
-    };
+    return defaultData;
   });
 
   // Track initial data on mount for change detection
@@ -1795,47 +1788,119 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
     }
   };
 
-  return (
+  const sidebarContent = (
+    <>
+      <div className={cn(isModal ? "p-4" : "bg-white border-2 border-gray-200 rounded-2xl p-5")}>
+        {!isModal && <h2 className="text-base font-bold text-[#2D2D2D] mb-3">Configuration</h2>}
+        <div className="flex flex-col gap-0.5">
+          {MAIN_STEPS.map((step, index) => {
+            const isActive = index === currentStep;
+            const isDone = completedActionIds.includes(step.id);
+            const Icon = step.icon;
+            return (
+              <button
+                key={step.id}
+                onClick={() => goToStep(index)}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer text-left",
+                  isActive
+                    ? isModal ? "bg-color-1 text-white font-medium" : "text-[#FC6D41] font-semibold"
+                    : isModal ? "text-gray-500 hover:bg-gray-50 hover:text-color-1" : "text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {isModal ? (
+                  <Icon className="w-4 h-4 shrink-0" />
+                ) : isActive ? (
+                  <div className="w-2 h-2 rounded-full bg-[#FC6D41] shrink-0" />
+                ) : !allMainDone && isDone ? (
+                  <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                ) : (
+                  <div className="w-2 h-2 shrink-0" />
+                )}
+                {step.label}
+              </button>
+            );
+          })}
+        </div>
+        {!isModal && !allMainDone && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+              <span>{completedActionIds.filter(id => MAIN_STEPS.some(s => s.id === id)).length}/{MAIN_STEPS.length}</span>
+            </div>
+            <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-[#FC6D41] rounded-full transition-all duration-300" style={{ width: `${(completedActionIds.filter(id => MAIN_STEPS.some(s => s.id === id)).length / MAIN_STEPS.length) * 100}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
+      {isModal && <div className="h-px bg-gray-100 mx-4" />}
+      <div className={cn(isModal ? "p-4" : "bg-white border-2 border-gray-200 rounded-2xl p-5")}>
+        {!isModal && <h2 className="text-sm font-bold text-[#2D2D2D] mb-3">Paramètres avancés</h2>}
+        {isModal && <p className="px-3 pb-1.5 text-[10px] font-medium text-gray-300 uppercase tracking-wider">Avancés</p>}
+        <div className="flex flex-col gap-0.5">
+          {ADVANCED_STEPS.map((step, advIdx) => {
+            const globalIdx = MAIN_STEPS.length + advIdx;
+            const isActive = globalIdx === currentStep;
+            const Icon = step.icon;
+            return (
+              <button
+                key={step.id}
+                onClick={() => goToStep(globalIdx)}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer text-left",
+                  isActive
+                    ? isModal ? "bg-color-1 text-white font-medium" : "text-[#FC6D41] font-semibold"
+                    : isModal ? "text-gray-500 hover:bg-gray-50 hover:text-color-1" : "text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {isModal ? (
+                  <Icon className="w-4 h-4 shrink-0" />
+                ) : isActive ? (
+                  <div className="w-2 h-2 rounded-full bg-[#FC6D41] shrink-0" />
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-gray-200 shrink-0" />
+                )}
+                {step.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
+  const mainContent = isModal ? (
+    <div className="flex h-full">
+      <div className="w-[220px] shrink-0 border-r border-gray-100 flex flex-col overflow-y-auto">
+        <div className="px-5 pt-5 pb-3">
+          <h2 className="text-base font-bold text-[#2D2D2D]">Options du site</h2>
+        </div>
+        {sidebarContent}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 pt-4 pb-2">
+          <h3 className="text-sm font-semibold text-color-1">{ALL_STEPS[currentStep]?.label}</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-color-1 hover:bg-gray-100 transition-colors cursor-pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          {renderStepContent()}
+        </div>
+      </div>
+    </div>
+  ) : (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       {/* Top nav */}
       <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
         <div className="flex items-center justify-between relative h-10">
-          <img src={theralysLogo} alt="Theralys" className="h-6 cursor-pointer" onClick={() => onBackToDashboard('accueil')} />
-
-          {/* Center nav — floating pill */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-200 rounded-2xl p-1 gap-0.5">
-            <button onClick={() => onBackToDashboard('accueil')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-              Accueil
-            </button>
-            <button onClick={() => onBackToDashboard('referencement')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Référencement
-            </button>
-            <button onClick={onGoToSiteEditor} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Site
-            </button>
-            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-color-1 text-white text-[13px] whitespace-nowrap font-medium cursor-pointer transition-colors">
-              Options du site
-            </button>
-            <div className="w-px h-5 bg-gray-200 mx-0.5" />
-            <button onClick={() => onBackToDashboard('parrainage')} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] whitespace-nowrap text-gray-400 hover:text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-              Parrainage
-            </button>
-          </div>
-
-          {/* Right actions */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => window.open('https://theralys-web.fr/', '_blank')}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-              Voir le site
-            </button>
-          </div>
+          <button
+            onClick={() => router.push('/editor/accueil')}
+            className="flex items-center gap-2 text-gray-500 hover:text-color-1 transition-colors cursor-pointer"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span className="font-medium text-sm">Retourner sur l'éditeur</span>
+          </button>
         </div>
       </nav>
 
@@ -1843,71 +1908,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
       <div className="flex-1 flex gap-6 overflow-hidden w-full max-w-[1200px] px-6 py-4 min-h-0" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
         {/* Left Sidebar */}
         <div className="w-[240px] shrink-0 flex flex-col gap-3">
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
-            <h2 className="text-base font-bold text-[#2D2D2D] mb-3">Configuration</h2>
-            <div className="flex flex-col gap-0.5">
-              {MAIN_STEPS.map((step, index) => {
-                const isActive = index === currentStep;
-                const isDone = completedActionIds.includes(step.id);
-                return (
-                  <button
-                    key={step.id}
-                    onClick={() => setCurrentStep(index)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer text-left",
-                      isActive ? "text-[#FC6D41] font-semibold" : "text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {isActive ? (
-                      <div className="w-2 h-2 rounded-full bg-[#FC6D41] shrink-0" />
-                    ) : !allMainDone && isDone ? (
-                      <Check className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                    ) : (
-                      <div className="w-2 h-2 shrink-0" />
-                    )}
-                    {step.label}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Progress — hide when all done */}
-            {!allMainDone && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
-                  <span>{completedActionIds.filter(id => MAIN_STEPS.some(s => s.id === id)).length}/{MAIN_STEPS.length}</span>
-                </div>
-                <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#FC6D41] rounded-full transition-all duration-300" style={{ width: `${(completedActionIds.filter(id => MAIN_STEPS.some(s => s.id === id)).length / MAIN_STEPS.length) * 100}%` }} />
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5">
-            <h2 className="text-sm font-bold text-[#2D2D2D] mb-3">Paramètres avancés</h2>
-            <div className="flex flex-col gap-0.5">
-              {ADVANCED_STEPS.map((step, advIdx) => {
-                const globalIdx = MAIN_STEPS.length + advIdx;
-                const isActive = globalIdx === currentStep;
-                return (
-                  <button
-                    key={step.id}
-                    onClick={() => setCurrentStep(globalIdx)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer text-left",
-                      isActive ? "text-[#FC6D41] font-semibold" : "text-gray-600 hover:bg-gray-50"
-                    )}
-                  >
-                    {isActive ? (
-                      <div className="w-2 h-2 rounded-full bg-[#FC6D41] shrink-0" />
-                    ) : (
-                      <div className="w-2 h-2 rounded-full bg-gray-200 shrink-0" />
-                    )}
-                    {step.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {sidebarContent}
           {/* Hidden reset button */}
           <button
             onClick={handleResetAll}
@@ -1925,7 +1926,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
             {currentStep < MAIN_STEPS.length && !allMainDone && (
               <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
                 <button
-                  onClick={() => currentStep > 0 && setCurrentStep(currentStep - 1)}
+                  onClick={() => currentStep > 0 && goToStep(currentStep - 1)}
                   className={cn(
                     "flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer",
                     currentStep > 0 ? "text-gray-600 hover:bg-gray-100" : "text-gray-300 cursor-not-allowed"
@@ -1938,7 +1939,7 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
                 <span className="text-xs text-gray-400">{currentStep + 1} sur {MAIN_STEPS.length}</span>
                 {currentStep < MAIN_STEPS.length - 1 ? (
                   <button
-                    onClick={() => setCurrentStep(currentStep + 1)}
+                    onClick={() => goToStep(currentStep + 1)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FC6D41] text-white text-sm font-medium hover:bg-[#e55e35] transition-colors cursor-pointer"
                   >
                     Suivant
@@ -1949,11 +1950,11 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
                     onClick={() => {
                       // Mark all main steps as completed
                       const existing = JSON.parse(localStorage.getItem("completedActions") || "[]")
-                      const allIds = [...new Set([...existing, ...MAIN_STEPS.map(s => s.id)])]
+                      const allIds = [...new Set([...existing, ...MAIN_STEPS.map(s => s.id), 'setup'])]
                       localStorage.setItem("completedActions", JSON.stringify(allIds))
                       setCompletedActionIds(allIds)
                       window.dispatchEvent(new Event("actionsUpdated"))
-                      onBackToDashboard()
+                      router.push('/dashboard')
                     }}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors cursor-pointer"
                   >
@@ -1967,21 +1968,22 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
         </div>
       </div>
 
+    </div>
+  );
+
+  const sharedModals = (
+    <>
       {/* Delete Specialty Modal */}
       {deleteModalOpen && specialtyToDelete && (
         <>
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 z-[200]"
             onClick={handleCancelDelete}
           />
-
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
               {!showReplaceInput && !createdSpecialty && (
                 <>
-                  {/* Warning state */}
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
                       <span className="text-3xl">{"⚠️"}</span>
@@ -1996,112 +1998,49 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
                       Les articles associés seront redirigés vers votre page d'accueil.
                     </p>
                   </div>
-
                   <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleCancelDelete}
-                    >
-                      Non
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      onClick={handleConfirmDelete}
-                    >
-                      Oui
-                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={handleCancelDelete}>Non</Button>
+                    <Button variant="destructive" className="flex-1" onClick={handleConfirmDelete}>Oui</Button>
                   </div>
                 </>
               )}
-
               {showReplaceInput && !isCreatingSpecialty && !createdSpecialty && (
                 <>
-                  {/* Replace input state */}
                   <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Nouvelle spécialité
-                    </h3>
-                    <p className="text-muted-foreground text-sm mb-4">
-                      Choisissez une icône et un nom pour votre nouvelle spécialité.
-                    </p>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Nouvelle spécialité</h3>
+                    <p className="text-muted-foreground text-sm mb-4">Choisissez une icône et un nom pour votre nouvelle spécialité.</p>
                     <div className="grid grid-cols-10 gap-1 mb-4 p-2 bg-gray-50 rounded-xl">
                       {SPECIALTY_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => setNewSpecialtyIcon(emoji)}
-                          className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-white transition-colors cursor-pointer", newSpecialtyIcon === emoji && "bg-white ring-1 ring-primary/30 shadow-sm")}
-                        >
-                          {emoji}
-                        </button>
+                        <button key={emoji} onClick={() => setNewSpecialtyIcon(emoji)} className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-lg hover:bg-white transition-colors cursor-pointer", newSpecialtyIcon === emoji && "bg-white ring-1 ring-primary/30 shadow-sm")}>{emoji}</button>
                       ))}
                     </div>
-                    <Input
-                      value={newSpecialtyName}
-                      onChange={(e) => setNewSpecialtyName(e.target.value)}
-                      placeholder="Ex: Mal de dos, Migraines, Stress..."
-                      autoFocus
-                    />
+                    <Input value={newSpecialtyName} onChange={(e) => setNewSpecialtyName(e.target.value)} placeholder="Ex: Mal de dos, Migraines, Stress..." autoFocus />
                   </div>
-
                   <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleCancelDelete}
-                    >
-                      Annuler
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={handleCreateReplacement}
-                      disabled={!newSpecialtyName.trim()}
-                    >
-                      Valider
-                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={handleCancelDelete}>Annuler</Button>
+                    <Button className="flex-1" onClick={handleCreateReplacement} disabled={!newSpecialtyName.trim()}>Valider</Button>
                   </div>
                 </>
               )}
-
               {isCreatingSpecialty && (
-                <>
-                  {/* Loading state */}
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-                      <span className="text-3xl">{"⏳"}</span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Création en cours...
-                    </h3>
-                    <p className="text-muted-foreground text-sm">
-                      Veuillez patienter le temps que l'on crée la page "{newSpecialtyName}".
-                    </p>
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
+                    <span className="text-3xl">{"⏳"}</span>
                   </div>
-                </>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">Création en cours...</h3>
+                  <p className="text-muted-foreground text-sm">Veuillez patienter le temps que l'on crée la page "{newSpecialtyName}".</p>
+                </div>
               )}
-
               {createdSpecialty && (
                 <>
-                  {/* Success state */}
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
                       <span className="text-3xl">{"\ud83c\udf89"}</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Félicitations !
-                    </h3>
-                    <p className="text-muted-foreground text-sm">
-                      La page <strong>"{createdSpecialty}"</strong> a été créée avec succès.
-                    </p>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Félicitations !</h3>
+                    <p className="text-muted-foreground text-sm">La page <strong>"{createdSpecialty}"</strong> a été créée avec succès.</p>
                   </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={handleFinishReplacement}
-                  >
-                    Valider la page pour la publier
-                  </Button>
+                  <Button className="w-full" onClick={handleFinishReplacement}>Valider la page pour la publier</Button>
                 </>
               )}
             </div>
@@ -2123,7 +2062,14 @@ const Setup = ({ onBackToDashboard, onGoToSiteEditor, initialStep }) => {
           }}
         />
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {mainContent}
+      {sharedModals}
+    </>
   );
 };
 

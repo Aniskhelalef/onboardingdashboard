@@ -2,6 +2,7 @@
 // Replaces inline loadSaved pattern used in Index.tsx
 
 export function loadSaved(key, fallback) {
+  if (typeof window === 'undefined') return fallback;
   try {
     const saved = localStorage.getItem(`editor_${key}`);
     if (!saved) return fallback;
@@ -40,6 +41,7 @@ export function loadSaved(key, fallback) {
 }
 
 export function saveTo(key, value) {
+  if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(`editor_${key}`, JSON.stringify(value));
     // Mark that editor has unsaved changes (for publish button state)

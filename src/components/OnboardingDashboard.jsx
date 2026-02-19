@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import theralysLogo from '../assets/theralys-logo.svg'
-import mountainClimber from '../assets/mountain-climber.png'
-import metierVille from '../assets/metier-ville.png'
-import onboardingImage from '../assets/onboardingimage.png'
-import iphoneFrame from '../assets/apple-iphone-17-pro-2025-medium.png'
-import surveyImage from '../assets/survey.png'
+import { useRouter } from 'next/navigation'
+const theralysLogo = '/images/theralys-logo.svg'
+const mountainClimber = '/images/mountain-climber.png'
+const metierVille = '/images/metier-ville.png'
+const onboardingImage = '/images/onboardingimage.png'
+const iphoneFrame = '/images/apple-iphone-17-pro-2025-medium.png'
+const surveyImage = '/images/survey.png'
 
 // Composant pour le lien "Renvoyer l'e-mail"
 const ResendEmailLink = () => {
@@ -34,9 +35,9 @@ const ResendEmailLink = () => {
   )
 }
 
-const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
+const OnboardingDashboard = () => {
+  const router = useRouter()
   const [currentView, setCurrentView] = useState('index') // 'index', 'signup', 'signin', 'email-verification', 'objectives', 'site-step1', 'site-step2', 'site-step3', 'site-step4', ou 'site-step5'
-  const [devNavVisible, setDevNavVisible] = useState(true)
   const [userEmail, setUserEmail] = useState('')
   const [userPrenom, setUserPrenom] = useState('')
   const [userNom, setUserNom] = useState('')
@@ -245,59 +246,8 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
   const previewTypo = typographyPairs.find(t => t.id === selectedTypography) || typographyPairs[0]
   const previewRadius = radiusOptions.find(r => r.id === selectedRadius) || radiusOptions[2]
 
-  const pages = [
-    { id: 'index', label: 'Acc' },
-    { id: 'signup', label: 'Ins' },
-    { id: 'signin', label: 'Con' },
-    { id: 'email-verification', label: 'Em' },
-    { id: 'objectives', label: 'Obj' },
-    { id: 'site-step1', label: '1' },
-    { id: 'site-step2', label: '2' },
-    { id: 'site-step3', label: '3' },
-    { id: 'site-step4', label: '4' },
-    { id: 'site-step5', label: 'Pr' },
-    { id: 'checkout', label: 'Ch' },
-    { id: 'survey', label: 'Su' },
-    { id: 'dashboard', label: 'DB' },
-  ]
-
   return (
     <div className={`h-screen overflow-hidden bg-white grid grid-cols-1 ${currentView === 'site-step5' || currentView === 'checkout' ? '' : 'lg:grid-cols-2'}`}>
-      {/* Dev nav — tiny bottom-left */}
-      <div className="fixed bottom-1 left-1 z-50">
-        {devNavVisible ? (
-          <div className="flex items-center gap-px bg-gray-900/80 backdrop-blur rounded px-1 py-px" style={{ fontSize: '9px' }}>
-            {pages.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => p.id === 'dashboard' ? onGoToDashboard?.() : setCurrentView(p.id)}
-                className={`px-1 py-px rounded font-medium transition-colors cursor-pointer ${
-                  currentView === p.id ? 'bg-white text-gray-900' : 'text-gray-500 hover:text-white'
-                }`}
-                style={{ fontSize: '9px' }}
-              >
-                {p.label}
-              </button>
-            ))}
-            <span className="text-gray-600 mx-px">|</span>
-            <button
-              onClick={() => setDevNavVisible(false)}
-              className="text-gray-500 hover:text-white cursor-pointer"
-              style={{ fontSize: '9px' }}
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setDevNavVisible(true)}
-            className="bg-gray-900/80 backdrop-blur rounded px-1 py-px text-gray-500 hover:text-white transition-colors cursor-pointer"
-            style={{ fontSize: '8px' }}
-          >
-            DEV
-          </button>
-        )}
-      </div>
       {/* Left side - Form content */}
       <div className="flex flex-col px-8 sm:px-12 lg:px-16 py-6 relative overflow-hidden">
         <div className={`flex flex-col h-full w-full mx-auto ${currentView === 'site-step5' || currentView === 'checkout' ? 'max-w-4xl' : 'max-w-md'}`}>
@@ -1527,7 +1477,7 @@ const OnboardingDashboard = ({ onComplete, onGoToDashboard }) => {
 
             <button
               disabled={!selectedReferral}
-              onClick={() => onComplete && onComplete({ prenom: userPrenom, profession, ville })}
+              onClick={() => { localStorage.setItem('userData', JSON.stringify({ prenom: userPrenom, profession, ville })); localStorage.setItem('onboardingComplete', 'true'); router.push('/dashboard') }}
               className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 !selectedReferral
                   ? 'bg-gray-300 cursor-not-allowed'
