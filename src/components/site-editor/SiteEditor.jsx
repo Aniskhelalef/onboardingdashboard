@@ -7,7 +7,7 @@ import EditorCanvas from "./EditorCanvas";
 import FloatingEditToolbar from "./FloatingEditToolbar";
 import { ProofreadingProvider, useProofreading } from "./ProofreadingContext";
 import EditorToolbar from "./EditorToolbar";
-import Setup from "./Setup";
+import Setup from "./setup";
 import ImageCropModal from "./modals/ImageCropModal";
 import ImagePositionModal from "./modals/ImagePositionModal";
 import BadgeItemModal from "./modals/BadgeItemModal";
@@ -796,10 +796,10 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         <div className="flex items-center justify-between">
           <button
             onClick={() => tryNavigate(() => router.push('/dashboard'))}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-500 hover:text-color-1 hover:bg-white/80 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-color-1 transition-colors cursor-pointer"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            <span className="font-medium">Retour au tableau de bord</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Retourner à l'accueil
           </button>
           <div className="flex items-center gap-2">
             <button
