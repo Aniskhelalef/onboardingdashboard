@@ -752,69 +752,58 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                   )
                 }
 
-                // Default — 3 cards (Hier / Aujourd'hui / Demain)
+                // Default — 4×7 calendar board
+                const gridDays = viewData.days.slice(0, 28)
+                const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+                const rangeStart = `${gridDays[0].dayNum} ${gridDays[0].monthShort}`
+                const rangeEnd = `${gridDays[27].dayNum} ${gridDays[27].monthShort}`
+
                 return (
-                  <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
-                    {displayItems.map(({ item, label }) => {
-                      const isSelected = selectedDay === item.index
-                      const displayImage = customArticleImages[item.index] || item.articleImage
-                      const displayTitle = customArticleTitles[item.index] || item.articleTitle
-                      const isPublished = item.published
-                      const isProgrammed = item.programmed
-                      const isPreProg = item.preProgrammed
-                      return (
-                        <div
-                          key={item.index}
-                          onClick={() => setSelectedDay(item.index)}
-                          className={`relative rounded-2xl overflow-hidden cursor-pointer transition-all flex flex-col ${isSelected ? 'shadow-lg' : 'brightness-[0.6] hover:brightness-[0.8]'} ${isPreProg ? 'bg-gray-50' : ''}`}
-                        >
-                          {(isPublished || isProgrammed) && displayImage && (
-                            <>
-                              <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-                            </>
-                          )}
-                          <div className="relative z-10 p-4 shrink-0">
-                            <div className="flex items-center justify-between">
-                              <span className={`text-sm font-bold uppercase tracking-wide ${(isPublished || isProgrammed) ? 'text-white/70' : 'text-gray-400'}`}>{label}</span>
-                              {isPublished && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-xs font-semibold backdrop-blur-sm">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />Publié
-                                </span>
-                              )}
-                              {isProgrammed && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-xs font-semibold backdrop-blur-sm">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-color-2 shrink-0" />Programmé
-                                </span>
-                              )}
-                              {isPreProg && (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-semibold text-gray-400">
-                                  <span className="inline-block animate-spin" style={{ animationDuration: '3s', fontSize: 10 }}>&#9203;</span>
-                                  {item.daysFromToday > 0 ? `Dans ${item.daysFromToday}j` : 'En cours'}
-                                </span>
-                              )}
-                            </div>
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    {/* Week navigation */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={() => viewData.hasPrev && setWeekOffset(weekOffset - 1)}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${viewData.hasPrev ? 'text-gray-400 hover:bg-gray-100 hover:text-color-1' : 'text-gray-200 cursor-not-allowed'}`}
+                        disabled={!viewData.hasPrev}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                      </button>
+                      <span className="text-xs font-medium text-gray-400">{rangeStart} — {rangeEnd}</span>
+                      <button
+                        onClick={() => viewData.hasNext && setWeekOffset(weekOffset + 1)}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${viewData.hasNext ? 'text-gray-400 hover:bg-gray-100 hover:text-color-1' : 'text-gray-200 cursor-not-allowed'}`}
+                        disabled={!viewData.hasNext}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                      </button>
+                    </div>
+                    {/* Day-of-week headers */}
+                    <div className="grid grid-cols-7 gap-1.5 mb-1">
+                      {dayLabels.map(d => (
+                        <div key={d} className="text-center text-[10px] font-medium text-gray-300 uppercase">{d}</div>
+                      ))}
+                    </div>
+                    {/* 4×7 grid */}
+                    <div className="grid grid-cols-7 gap-1.5 flex-1 min-h-0">
+                      {gridDays.map((item) => {
+                        const isSelected = selectedDay === item.index
+                        return (
+                          <div
+                            key={item.index}
+                            onClick={() => setSelectedDay(item.index)}
+                            className={`rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all ${
+                              item.published ? 'bg-[#FC6D41] text-white' :
+                              item.programmed ? 'bg-[#FC6D41]/15 text-[#FC6D41]' :
+                              'bg-gray-50 text-gray-300'
+                            } ${isSelected ? 'ring-2 ring-[#FC6D41] ring-offset-1' : ''} ${item.isToday && !isSelected ? 'ring-2 ring-[#2D2D2D]' : ''}`}
+                          >
+                            <span className="text-xs font-bold">{item.dayNum}</span>
+                            {item.icon && <span className="text-[10px] mt-0.5 leading-none">{item.icon}</span>}
                           </div>
-                          <div className="relative z-10 flex-1 flex flex-col justify-end p-4 pt-0">
-                            {isPreProg ? (
-                              <div className="flex-1 flex flex-col items-center justify-center text-center">
-                                <span className="text-4xl opacity-30">{item.icon}</span>
-                                <p className="text-sm font-semibold text-gray-400 mt-2">{item.dayNum} {item.monthShort}</p>
-                                <p className="text-sm text-gray-300 mt-1">{item.title}</p>
-                              </div>
-                            ) : (
-                              <>
-                                <p className="text-white/60 text-sm font-medium mb-1">{item.dayNum} {item.monthShort}</p>
-                                <p className="text-white text-base font-bold leading-tight line-clamp-3">{displayTitle}</p>
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  <span className="text-white/50 text-sm">{item.icon} {item.title}</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
                 )
               })()}
