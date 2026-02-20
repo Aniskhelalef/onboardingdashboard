@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { SetupProvider } from '@/components/site-editor/setup/SetupContext'
+import SetupShell from '@/components/site-editor/setup/SetupShell'
 const theralysLogo = '/images/theralys-logo.svg'
 const articleImg1 = '/images/pexels-yankrukov-5794010-min.webp'
 const articleImg2 = '/images/pexels-yankrukov-5794024-min.webp'
@@ -63,16 +65,50 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   const [checkedSpecs, setCheckedSpecs] = useState(['1', '2', '3', '4', '5', '6'])
   const [rebalanceMode, setRebalanceMode] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null) // set by useEffect after batch computed
-  const [showRepartition, setShowRepartition] = useState(false)
   const [seoSearchQuery, setSeoSearchQuery] = useState('')
-  const [seoFilterStatus, setSeoFilterStatus] = useState(null) // null | 'published' | 'unpublished'
-  const [seoFilterSpec, setSeoFilterSpec] = useState(null) // null = all, or specialty id
-  const [showFilterMenu, setShowFilterMenu] = useState(false)
-  const filterMenuRef = useRef(null)
+  const [stackedStatuses, setStackedStatuses] = useState(new Set()) // 'published' | 'programmed' | 'preProgrammed'
+  const [viewOffset, setViewOffset] = useState(null) // null = auto (today first)
+  const toggleStack = (key) => {
+    setViewOffset(null)
+    setStackedStatuses(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
+  const [searchExpanded, setSearchExpanded] = useState(false)
   const [showPexels, setShowPexels] = useState(false)
   // Article modal states removed — Voir/Modifier/Créer navigate to SiteEditor
   const [showParrainageVideo, setShowParrainageVideo] = useState(false)
   const [showNewsModal, setShowNewsModal] = useState(null) // index of news item or null
+  const [showRedactorSettings, setShowRedactorSettings] = useState(false)
+  const [seoSetupMode, setSeoSetupMode] = useState(false) // true when opened from SEO action
+  const [settingsSection, setSettingsSection] = useState('redaction') // 'redaction' | 'repartition'
+  const [redTone, setRedTone] = useState('professionnel')
+  const [redStyle, setRedStyle] = useState('informatif')
+  const [redPronoun, setRedPronoun] = useState('nous')
+  const [redPrompt, setRedPrompt] = useState('')
+  const [showArticleCard, setShowArticleCard] = useState(false)
+  const [editingTitle, setEditingTitle] = useState('')
+  const [editingMeta, setEditingMeta] = useState('')
+  const [cardDirty, setCardDirty] = useState(false)
+  const [showArticleEditor, setShowArticleEditor] = useState(false)
+  const [articleContent, setArticleContent] = useState('')
+  const [editorImage, setEditorImage] = useState('')
+  const editorRef = useRef(null)
+  const [regenStep, setRegenStep] = useState(null) // null | 'theme' | 'title'
+  const [regenTheme, setRegenTheme] = useState(null)
+  const [regenTitle, setRegenTitle] = useState(null)
+  const [regenManual, setRegenManual] = useState('')
+  const [regenCount, setRegenCount] = useState(0) // max 3/month
+  const [settingsInitial, setSettingsInitial] = useState(null) // snapshot when settings modal opens
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletedArticles, setDeletedArticles] = useState(new Set())
+  const [showSetupModal, setShowSetupModal] = useState(false)
+  const [showChangeSubject, setShowChangeSubject] = useState(false)
+  const [changeSubjectTitle, setChangeSubjectTitle] = useState('')
+  const [changeSubjectInstruction, setChangeSubjectInstruction] = useState('')
+  const [pendingDeleteDay, setPendingDeleteDay] = useState(null)
 
 
 
@@ -106,7 +142,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   const [pexelsSearch, setPexelsSearch] = useState('')
   const [customArticleImages, setCustomArticleImages] = useState({}) // dayIndex → image
   const [customArticleTitles, setCustomArticleTitles] = useState({}) // dayIndex → title
-  const [weekOffset, setWeekOffset] = useState(0) // 0 = this week + next, -1 = prev, +1 = forward
+  const [customArticleCategories, setCustomArticleCategories] = useState({}) // dayIndex → specId
   const [seoFilter, setSeoFilter] = useState(null)
   const activeSpecCount = checkedSpecs.length
   const [seoBadgeIdx, setSeoBadgeIdx] = useState(0)
@@ -119,7 +155,11 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
     { score: 88, label: 'Mots-clés', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
   ]
 
-  const articleImgs = [articleImg1, articleImg2, articleImg3, articleImg4]
+  const articleImgs = [
+    articleImg1, pexGrab1, pexRyu1, articleImg2, pexGrab2, pexYank5, pexRyu2,
+    articleImg3, pexGrab3, pexYank6, pexRyu3, pexGrab4, articleImg4, pexYank7,
+    pexGrab5, pexRyu4, pexYank8, pexGrab6, pexPolina, pexGrab7, pexYank9, pexGrab8,
+  ]
 
   const articleTitlesMap = {
     'Douleurs dorsales': ['5 exercices pour soulager une lombalgie chronique', 'Hernie discale\u00a0: comprendre et pr\u00e9venir', 'Cervicalgie\u00a0: les causes les plus fr\u00e9quentes'],
@@ -212,33 +252,33 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   // Rolling 2-week view — continuous, no batch boundaries
   // Published & programmed have fixed specialties (from epoch, never change).
   // Only préprogrammé articles are distributed by current répartition settings.
-  const viewData = useMemo(() => {
+  // Fixed pool of 40 articles: published (past+today), programmed (next 4 days), à venir (rest up to 40)
+  const articlePool = useMemo(() => {
     const activeSpecs = allSpecialties.filter(s => checkedSpecs.includes(s.id))
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const currentMonday = new Date(today)
-    const dow = currentMonday.getDay()
-    currentMonday.setDate(currentMonday.getDate() + (dow === 0 ? -6 : 1 - dow))
-    const viewStart = new Date(currentMonday)
-    viewStart.setDate(viewStart.getDate() + weekOffset * 7)
-    // Fixed epoch for deterministic specialty assignment (used for published/programmed)
-    const epoch = new Date(2026, 0, 5) // Monday Jan 5 2026
-    // Fixed specs snapshot for published/programmed — all 6 specialties always
+    const accountCreated = new Date(2026, 0, 12); accountCreated.setHours(0, 0, 0, 0)
+    const epoch = new Date(2026, 0, 5)
     const fixedSpecs = allSpecialties
-    const days = []
-    // First pass: determine status and assign fixed specs to published/programmed
+    // Count published days (account creation to today inclusive)
+    const publishedCount = Math.max(0, Math.round((today - accountCreated) / 86400000) + 1)
+    // Programmed = next 4 days after today
+    const programmedCount = 4
+    // À venir: always 12 future articles beyond programmed
+    const avenirCount = 12
+    const totalDays = publishedCount + programmedCount + avenirCount
+    const pool = new Map() // key: dateString, value: article data
     let preProgIndex = 0
-    for (let i = 0; i < 30; i++) {
-      const date = new Date(viewStart)
-      date.setDate(viewStart.getDate() + i)
+    for (let i = 0; i < totalDays; i++) {
+      const date = new Date(accountCreated)
+      date.setDate(accountCreated.getDate() + i)
+      date.setHours(0, 0, 0, 0)
       const isPast = date < today
       const isToday = date.toDateString() === today.toDateString()
-      const daysSinceEpoch = Math.round((date - epoch) / (1000 * 60 * 60 * 24))
-      const daysFromToday = Math.round((date - today) / (1000 * 60 * 60 * 24))
+      const daysSinceEpoch = Math.round((date - epoch) / 86400000)
+      const daysFromToday = Math.round((date - today) / 86400000)
       const published = isPast || isToday
       const programmed = !published && daysFromToday <= 4
       const preProgrammed = !published && daysFromToday > 4
-      // Published & programmed use fixed specs (don't change with répartition)
-      // Préprogrammé uses current active specs (répartition)
       let spec = null
       if (published || programmed) {
         spec = fixedSpecs[((daysSinceEpoch % fixedSpecs.length) + fixedSpecs.length) % fixedSpecs.length]
@@ -246,40 +286,55 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         spec = activeSpecs[preProgIndex % activeSpecs.length]
         preProgIndex++
       }
-      let articleTitle = null, articleImage = null
+      const articleImage = articleImgs[((daysSinceEpoch % articleImgs.length) + articleImgs.length) % articleImgs.length]
+      let articleTitle = null
       if (spec) {
-        const titles = articleTitlesMap[spec.title] || ['Article SEO optimis\u00e9']
+        const titles = articleTitlesMap[spec.title] || ['Article SEO optimisé']
         articleTitle = titles[((daysSinceEpoch % titles.length) + titles.length) % titles.length]
-        articleImage = articleImgs[((daysSinceEpoch % articleImgs.length) + articleImgs.length) % articleImgs.length]
       }
-      // Deterministic SEO scores per article (min 93)
       const seed = Math.abs(daysSinceEpoch * 7 + 13)
-      const seoRegularite = 93 + (seed % 8)
-      const seoBalises = 93 + ((seed * 3 + 5) % 8)
-      const seoMeta = 93 + ((seed * 7 + 11) % 8)
-      const seoMotsCles = 93 + ((seed * 11 + 3) % 8)
-      const seoGlobal = Math.round((seoRegularite + seoBalises + seoMeta + seoMotsCles) / 4)
-      days.push({
-        index: i, date, dayNum: date.getDate(),
-        monthShort: date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', ''),
-        published, programmed, preProgrammed,
+      const seoGlobal = Math.round((93 + (seed % 8) + 93 + ((seed * 3 + 5) % 8) + 93 + ((seed * 7 + 11) % 8) + 93 + ((seed * 11 + 3) % 8)) / 4)
+      pool.set(date.toDateString(), {
+        date, published, programmed, preProgrammed, isToday, daysFromToday,
         specId: spec?.id || null, icon: spec?.icon || null, title: spec?.title || null,
-        isToday, daysFromToday, articleTitle, articleImage,
-        seo: { global: seoGlobal, regularite: seoRegularite, balises: seoBalises, meta: seoMeta, motsCles: seoMotsCles },
+        articleTitle, articleImage,
+        seo: { global: seoGlobal, regularite: 93 + (seed % 8), balises: 93 + ((seed * 3 + 5) % 8), meta: 93 + ((seed * 7 + 11) % 8), motsCles: 93 + ((seed * 11 + 3) % 8) },
       })
     }
-    const readyDays = days.filter(d => d.published || d.programmed).length
-    const preProgDays = days.filter(d => d.preProgrammed)
-    // Count préprogrammé articles per specialty
+    // Compute boundaries
+    const firstDate = new Date(accountCreated)
+    const lastDate = new Date(accountCreated); lastDate.setDate(accountCreated.getDate() + totalDays - 1)
+    return { pool, firstDate, lastDate, publishedCount, programmedCount, avenirCount }
+  }, [checkedSpecs])
+
+  // All 40 articles as a flat sorted array
+  const viewData = useMemo(() => {
+    const articles = []
+    let i = 0
+    for (const [, article] of articlePool.pool) {
+      const dayNum = article.date.getDate()
+      const monthShort = article.date.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')
+      articles.push({ ...article, index: i, dayNum, monthShort, hasArticle: true })
+      i++
+    }
+    const readyDays = articles.filter(d => d.published || d.programmed).length
+    const preProgDays = articles.filter(d => d.preProgrammed)
     const preProgCounts = {}
     allSpecialties.forEach(s => { preProgCounts[s.id] = 0 })
     preProgDays.forEach(d => { if (d.specId) preProgCounts[d.specId] = (preProgCounts[d.specId] || 0) + 1 })
-    const week1Start = `${days[0].dayNum} ${days[0].monthShort}`
-    const week2End = `${days[29].dayNum} ${days[29].monthShort}`
-    const hasPrev = weekOffset > -4
-    const hasNext = weekOffset < 4
-    return { days, readyDays, preProgDays: preProgDays.length, preProgCounts, week1Start, week2End, hasPrev, hasNext }
-  }, [checkedSpecs, weekOffset])
+    const publishedArticles = articles.filter(d => d.published)
+    const programmedArticles = articles.filter(d => d.programmed)
+    const avenirArticles = articles.filter(d => d.preProgrammed)
+    return { articles, readyDays, preProgDays: preProgDays.length, preProgCounts, publishedArticles, programmedArticles, avenirArticles }
+  }, [articlePool])
+
+  // Streak count from account creation
+  const streakInfo = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const accountCreated = new Date(2026, 0, 12); accountCreated.setHours(0, 0, 0, 0)
+    const currentStreak = Math.max(0, Math.round((today - accountCreated) / 86400000) + 1)
+    return { currentStreak, cells: viewData.articles }
+  }, [viewData])
 
   // Total published articles (all-time from epoch to today) — fixed, uses all 6 specs
   const totalStats = useMemo(() => {
@@ -295,7 +350,18 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
     return { total: totalDays, counts }
   }, [])
 
-  // No auto-select — default to "Sélectionnez un article" empty state
+  // Auto-select today's cell when entering referencement tab
+  useEffect(() => {
+    if (activeTab !== 'referencement') return
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const todayIndex = streakInfo.cells.findIndex(c => {
+      const d = new Date(c.date); d.setHours(0, 0, 0, 0)
+      return d.getTime() === today.getTime()
+    })
+    if (todayIndex !== -1 && !deletedArticles.has(todayIndex)) {
+      setSelectedDay(todayIndex)
+    }
+  }, [activeTab])
 
   const news = [
     { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
@@ -305,31 +371,17 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
     { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
   ]
   const articles = [
-    { title: '5 étirements essentiels après une séance de kinésithérapie', date: '12 fév.', realDate: new Date(2026, 1, 12), status: 'published', img: articleImg1 },
-    { title: 'Comment soulager les douleurs lombaires au quotidien', date: '19 fév.', realDate: new Date(2026, 1, 19), status: 'scheduled', img: articleImg2 },
-    { title: 'Les bienfaits du massage sportif pour la récupération', date: '26 fév.', realDate: new Date(2026, 1, 26), status: 'scheduled', img: articleImg3 },
-    { title: 'Prévenir les blessures : conseils pour les coureurs', date: '5 mar.', realDate: new Date(2026, 2, 5), status: 'scheduled', img: articleImg4 },
+    { title: 'Ostéopathe paris solution mal de dos', date: '12 fév.', realDate: new Date(2026, 1, 12), status: 'published', img: articleImg1, category: 'Spécialités', seoScore: 91 },
+    { title: 'Comment soulager les douleurs lombaires au quotidien', date: '19 fév.', realDate: new Date(2026, 1, 19), status: 'published', img: articleImg2, category: 'Blog santé', seoScore: 87 },
+    { title: 'Les bienfaits du massage sportif pour la récupération', date: '26 fév.', realDate: new Date(2026, 1, 26), status: 'scheduled', img: articleImg3, category: 'Bien-être', seoScore: 94 },
+    { title: 'Prévenir les blessures : conseils pour les coureurs', date: '5 mar.', realDate: new Date(2026, 2, 5), status: 'scheduled', img: articleImg4, category: 'Spécialités', seoScore: 78 },
   ]
 
   const navigateToArticle = (article) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const currentMonday = new Date(today)
-    const dow = currentMonday.getDay()
-    currentMonday.setDate(currentMonday.getDate() + (dow === 0 ? -6 : 1 - dow))
     const targetDate = new Date(article.realDate); targetDate.setHours(0, 0, 0, 0)
-    // Find which weekOffset puts targetDate in view (30-day window from viewStart)
-    const diffDays = Math.round((targetDate - currentMonday) / (1000 * 60 * 60 * 24))
-    const neededOffset = Math.floor(diffDays / 7)
-    // Clamp offset to valid range
-    const clampedOffset = Math.max(-4, Math.min(4, neededOffset))
-    setWeekOffset(clampedOffset)
-    // Calculate dayIndex within the 30-day window
-    const viewStart = new Date(currentMonday)
-    viewStart.setDate(viewStart.getDate() + clampedOffset * 7)
-    const dayIndex = Math.round((targetDate - viewStart) / (1000 * 60 * 60 * 24))
-    if (dayIndex >= 0 && dayIndex < 30) {
-      setSelectedDay(dayIndex)
-    }
+    // Find matching article in pool by date
+    const match = viewData.articles.find(a => a.date.toDateString() === targetDate.toDateString())
+    if (match) setSelectedDay(match.index)
     router.push('/referencement')
   }
 
@@ -507,15 +559,6 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
 
-  // Close filter menu on outside click
-  useEffect(() => {
-    if (!showFilterMenu) return
-    const handler = (e) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target)) setShowFilterMenu(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showFilterMenu])
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
@@ -571,243 +614,401 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         {activeTab === 'account' ? (
         null
         ) : activeTab === 'referencement' ? (
-        <div key="referencement" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div key="referencement" className="w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
-          {/* Top-left — Article calendar */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden col-start-1 row-start-1">
-            {/* Header — z-30 so toggle stays above pause overlay, but under tour overlay in state 0 */}
-            <div className="flex items-center gap-2.5 shrink-0 relative z-30">
-              <h2 className={`text-base font-bold shrink-0 transition-colors ${autoPublish ? 'text-color-1' : 'text-white'}`}>Articles</h2>
-
-              {/* On/Off toggle pill */}
-              <button
-                onClick={() => setAutoPublish(!autoPublish)}
-                className={`relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${autoPublish ? 'bg-green-400' : 'bg-red-400'}`}
-              >
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoPublish ? 'left-[18px]' : 'left-0.5'}`} />
-              </button>
-
-              {autoPublish && <>
-              {/* Active filter tags */}
-              {seoFilterStatus && (
-                <span className="inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded-md bg-gray-100 text-[11px] font-medium text-color-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${seoFilterStatus === 'published' ? 'bg-green-400' : 'bg-orange-400'}`} />
-                  {seoFilterStatus === 'published' ? 'Publiés' : 'Programmés'}
-                  <button onClick={() => setSeoFilterStatus(null)} className="w-4 h-4 rounded hover:bg-gray-300 flex items-center justify-center cursor-pointer transition-colors">
-                    <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </span>
-              )}
-              {seoFilterSpec && (() => {
-                const spec = allSpecialties.find(s => s.id === seoFilterSpec)
-                return spec ? (
-                  <span className="inline-flex items-center gap-1 pl-2 pr-0.5 py-0.5 rounded-md bg-gray-100 text-[11px] font-medium text-color-1">
-                    {spec.icon} {spec.title}
-                    <button onClick={() => setSeoFilterSpec(null)} className="w-4 h-4 rounded hover:bg-gray-300 flex items-center justify-center cursor-pointer transition-colors">
-                      <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                    </button>
-                  </span>
-                ) : null
-              })()}
-
-              {/* Spacer */}
-              <div className="flex-1" />
-
-              {/* Search — flexible width */}
-              <div className="relative flex-1 min-w-[140px] max-w-[320px]">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" value={seoSearchQuery} onChange={e => setSeoSearchQuery(e.target.value)} placeholder="Rechercher..." className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-gray-100 text-xs text-color-1 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-color-2/30 transition-all" />
-                {seoSearchQuery && (
-                  <button onClick={() => setSeoSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors">
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                )}
-              </div>
-
-              {/* Filter button — right side */}
-              <div ref={filterMenuRef} className="relative">
-                <button
-                  onClick={() => setShowFilterMenu(!showFilterMenu)}
-                  className={`h-8 px-2.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-sm ${
-                    showFilterMenu || seoFilterStatus || seoFilterSpec ? 'bg-gray-200 text-color-1 font-medium' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                  }`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-                  <span>Filtrer</span>
-                </button>
-                {showFilterMenu && (
-                  <div className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-20 min-w-[180px]">
-                    <p className="px-3 py-1 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Statut</p>
-                    {[
-                      { key: 'published', label: 'Publiés', dot: 'bg-green-400' },
-                      { key: 'unpublished', label: 'Programmés', dot: 'bg-orange-400' },
-                    ].map(f => (
-                      <button
-                        key={f.key}
-                        onClick={() => { setSeoFilterStatus(seoFilterStatus === f.key ? null : f.key); setShowFilterMenu(false) }}
-                        className={`flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left transition-colors cursor-pointer ${
-                          seoFilterStatus === f.key ? 'text-color-1 font-semibold bg-gray-50' : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${f.dot}`} />
-                        {f.label}
-                        {seoFilterStatus === f.key && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="ml-auto"><path d="M20 6L9 17l-5-5"/></svg>}
-                      </button>
-                    ))}
-                    <div className="h-px bg-gray-100 my-1" />
-                    <p className="px-3 py-1 text-[10px] font-semibold text-gray-300 uppercase tracking-wider">Spécialité</p>
-                    {allSpecialties.filter(s => checkedSpecs.includes(s.id)).map(spec => (
-                      <button
-                        key={spec.id}
-                        onClick={() => { setSeoFilterSpec(seoFilterSpec === spec.id ? null : spec.id); setShowFilterMenu(false) }}
-                        className={`flex items-center gap-2 w-full px-3 py-1.5 text-sm text-left transition-colors cursor-pointer ${
-                          seoFilterSpec === spec.id ? 'text-color-1 font-semibold bg-gray-50' : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <span className="text-xs">{spec.icon}</span>
-                        {spec.title}
-                        {seoFilterSpec === spec.id && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="ml-auto"><path d="M20 6L9 17l-5-5"/></svg>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              </>}
-            </div>
-
-            {/* Cards — search results or Hier/Aujourd'hui/Demain */}
-            <div className="flex flex-col mt-2 flex-1 min-h-0 transition-all rounded-xl">
+          {/* Article calendar */}
+          <div className="h-full bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
+            {/* Calendar board */}
+            <div className="flex flex-col flex-1 min-h-0 transition-all rounded-xl">
               {(() => {
-                const q = seoSearchQuery.toLowerCase().trim()
-                const todayIdx = viewData.days.findIndex(d => d.isToday)
-                const hasFilters = q || seoFilterStatus !== null || seoFilterSpec !== null
-
-                const matchesFilters = (d) => {
-                  if (seoFilterStatus === 'published' && !d.published) return false
-                  if (seoFilterStatus === 'unpublished' && !(d.programmed || d.preProgrammed)) return false
-                  if (seoFilterSpec && d.specId !== seoFilterSpec) return false
-                  if (q) {
-                    const title = (customArticleTitles[d.index] || d.articleTitle || '').toLowerCase()
-                    const spec = (d.title || '').toLowerCase()
-                    if (!title.includes(q) && !spec.includes(q)) return false
+                const stackConfigs = [
+                  { key: 'published', label: 'Publiés', count: viewData.publishedArticles.length, dot: 'bg-green-500', bg: 'bg-green-50', borderActive: 'border-green-300', text: 'text-green-600' },
+                  { key: 'programmed', label: 'Programmés', count: viewData.programmedArticles.length, dot: 'bg-amber-400', bg: 'bg-amber-50', borderActive: 'border-amber-300', text: 'text-amber-600' },
+                  { key: 'preProgrammed', label: 'À venir', count: viewData.avenirArticles.length, dot: 'bg-gray-400', bg: 'bg-gray-50', borderActive: 'border-gray-300', text: 'text-gray-500' },
+                ]
+                // Grid only shows unstacked articles, max 28, with navigation
+                // Stacked statuses are hidden from the grid (toolbar buttons show counts)
+                const unstackedArticles = []
+                const statusGroups = [
+                  { key: 'published', articles: viewData.publishedArticles },
+                  { key: 'programmed', articles: viewData.programmedArticles },
+                  { key: 'preProgrammed', articles: viewData.avenirArticles },
+                ]
+                statusGroups.forEach(({ key, articles: arts }) => {
+                  if (!stackedStatuses.has(key)) {
+                    arts.forEach(a => unstackedArticles.push({ type: 'article', ...a }))
                   }
-                  return true
-                }
+                })
 
-                // If searching or filtering, show filtered list; otherwise show trio
-                let displayItems
-                if (hasFilters) {
-                  displayItems = viewData.days
-                    .filter(matchesFilters)
-                    .map(item => {
-                      const diff = item.index - todayIdx
-                      const label = diff === -1 ? 'Hier' : diff === 0 ? "Aujourd'hui" : diff === 1 ? 'Demain' : `${item.dayNum} ${item.monthShort}`
-                      return { item, label }
-                    })
-                } else {
-                  displayItems = [
-                    { item: viewData.days[todayIdx - 1], label: 'Hier' },
-                    { item: viewData.days[todayIdx], label: "Aujourd'hui" },
-                    { item: viewData.days[todayIdx + 1], label: 'Demain' },
-                  ].filter(d => d.item)
-                }
-
-                if (hasFilters && displayItems.length === 0) {
-                  return (
-                    <div className="flex-1 flex items-center justify-center text-gray-300">
-                      <p className="text-sm">{q ? `Aucun article trouvé pour « ${seoSearchQuery} »` : 'Aucun article trouvé'}</p>
-                    </div>
-                  )
-                }
-
-                // Filtered/search results — scrollable list
-                if (hasFilters) {
-                  return (
-                    <div className="flex-1 overflow-y-auto flex flex-col gap-1.5 min-h-0">
-                      {displayItems.map(({ item, label }) => {
-                        const isSelected = selectedDay === item.index
-                        const displayImage = customArticleImages[item.index] || item.articleImage
-                        const displayTitle = customArticleTitles[item.index] || item.articleTitle
-                        return (
-                          <div
-                            key={item.index}
-                            onClick={() => setSelectedDay(item.index)}
-                            className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all shrink-0 ${isSelected ? 'bg-gray-100 border-l-2 border-color-2' : 'hover:bg-gray-50'}`}
-                          >
-                            {displayImage && <img src={displayImage} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-color-1 truncate">{displayTitle}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs text-gray-400">{item.icon} {item.title}</span>
-                                <span className="text-xs text-gray-300">·</span>
-                                <span className="text-xs text-gray-400">{label}</span>
-                                {item.published && <span className="w-1.5 h-1.5 rounded-full bg-green-400" />}
-                                {item.programmed && <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                }
-
-                // Default — 4×7 calendar board
-                const gridDays = viewData.days.slice(0, 28)
-                const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-                const rangeStart = `${gridDays[0].dayNum} ${gridDays[0].monthShort}`
-                const rangeEnd = `${gridDays[27].dayNum} ${gridDays[27].monthShort}`
+                // Find today in unstacked list for default offset
+                const todayIdx = unstackedArticles.findIndex(a => a.isToday)
+                const defaultStart = todayIdx >= 0 ? Math.max(0, Math.min(todayIdx, unstackedArticles.length - 28)) : 0
+                const start = viewOffset !== null ? Math.min(viewOffset, Math.max(0, unstackedArticles.length - 1)) : defaultStart
+                const end = Math.min(start + 28, unstackedArticles.length)
+                const visibleItems = unstackedArticles.slice(start, end)
+                const hasPrev = start > 0
+                const hasNext = end < unstackedArticles.length
 
                 return (
                   <div className="flex-1 min-h-0 flex flex-col">
-                    {/* Week navigation */}
-                    <div className="flex items-center justify-between mb-2">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-2 mb-3 shrink-0">
+                      {/* Navigation buttons — always visible to prevent toolbar shift */}
                       <button
-                        onClick={() => viewData.hasPrev && setWeekOffset(weekOffset - 1)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${viewData.hasPrev ? 'text-gray-400 hover:bg-gray-100 hover:text-color-1' : 'text-gray-200 cursor-not-allowed'}`}
-                        disabled={!viewData.hasPrev}
+                        onClick={() => hasPrev && setViewOffset(Math.max(0, start - 7))}
+                        className={`text-xs font-medium transition-colors ${hasPrev ? 'text-gray-400 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                        ← Semaine précédente
                       </button>
-                      <span className="text-xs font-medium text-gray-400">{rangeStart} — {rangeEnd}</span>
                       <button
-                        onClick={() => viewData.hasNext && setWeekOffset(weekOffset + 1)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${viewData.hasNext ? 'text-gray-400 hover:bg-gray-100 hover:text-color-1' : 'text-gray-200 cursor-not-allowed'}`}
-                        disabled={!viewData.hasNext}
+                        onClick={() => hasNext && setViewOffset(Math.min(unstackedArticles.length - 1, start + 7))}
+                        className={`text-xs font-medium transition-colors ${hasNext ? 'text-gray-400 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        Semaine suivante →
                       </button>
-                    </div>
-                    {/* Day-of-week headers */}
-                    <div className="grid grid-cols-7 gap-1.5 mb-1">
-                      {dayLabels.map(d => (
-                        <div key={d} className="text-center text-[10px] font-medium text-gray-300 uppercase">{d}</div>
+                      <div className="w-px h-4 bg-gray-200" />
+                      {/* Stack buttons */}
+                      {stackConfigs.map(cfg => (
+                        <button
+                          key={cfg.key}
+                          onClick={() => toggleStack(cfg.key)}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border-2 ${
+                            !stackedStatuses.has(cfg.key)
+                              ? `${cfg.bg} ${cfg.borderActive} ${cfg.text}`
+                              : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                          <span className={`ml-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold ${!stackedStatuses.has(cfg.key) ? 'bg-white/60' : 'bg-gray-100'}`}>{cfg.count}</span>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`transition-transform ${stackedStatuses.has(cfg.key) ? 'rotate-180' : ''}`}><polyline points="18 15 12 9 6 15"/></svg>
+                        </button>
                       ))}
+
+                      {/* Aujourd'hui reset button */}
+                      {viewOffset !== null && (
+                        <button onClick={() => setViewOffset(null)} className="text-xs font-medium text-[#FC6D41] hover:text-[#e55e35] transition-colors cursor-pointer ml-1">
+                          Aujourd'hui
+                        </button>
+                      )}
+
+                      <div className="ml-auto flex items-center gap-1">
+                        {/* Collapsible search */}
+                        <div className="flex items-center">
+                          {searchExpanded ? (
+                            <div className="relative w-[160px]">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                              <input
+                                autoFocus
+                                type="text"
+                                value={seoSearchQuery}
+                                onChange={e => setSeoSearchQuery(e.target.value)}
+                                onBlur={() => { if (!seoSearchQuery) setSearchExpanded(false) }}
+                                placeholder="Rechercher..."
+                                className="w-full pl-7 pr-6 py-1 rounded-lg bg-gray-100 text-xs text-color-1 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-color-2/30 transition-all"
+                              />
+                              {seoSearchQuery && (
+                                <button onClick={() => { setSeoSearchQuery(''); setSearchExpanded(false) }} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors">
+                                  <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setSearchExpanded(true)}
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Settings button */}
+                        <button
+                          onClick={() => { setSettingsInitial({ tone: redTone, style: redStyle, pronoun: redPronoun, prompt: redPrompt, checkedSpecs: [...checkedSpecs] }); setShowRedactorSettings(true) }}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+                          title="Paramètres du rédacteur IA"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        </button>
+
+                        {/* Streak badge */}
+                        <div className="flex items-center gap-1 pl-2 border-l border-gray-200">
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1C8 1 3 5 3 9.5C3 12 5.2 14 8 14C10.8 14 13 12 13 9.5C13 7 11 5.5 11 5.5C11 5.5 10.5 8 9 8.5C9 8.5 10 4 8 1Z" fill="#FC6D41"/></svg>
+                          <span className="text-sm font-bold text-color-1 tabular-nums">{streakInfo.currentStreak}</span>
+                        </div>
+                      </div>
                     </div>
-                    {/* 4×7 grid */}
-                    <div className="grid grid-cols-7 gap-1.5 flex-1 min-h-0">
-                      {gridDays.map((item) => {
-                        const isSelected = selectedDay === item.index
+                    {seoSearchQuery.trim() ? (
+                      /* Search results list */
+                      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pt-1">
+                        {(() => {
+                          const q = seoSearchQuery.toLowerCase().trim()
+                          const results = viewData.articles.filter(item => {
+                            if (deletedArticles.has(item.index)) return false
+                            const titleMatch = (customArticleTitles[item.index] || item.articleTitle || '').toLowerCase().includes(q)
+                            const topicMatch = (item.title || '').toLowerCase().includes(q)
+                            return titleMatch || topicMatch
+                          })
+                          if (!results.length) return (
+                            <div className="flex-1 flex items-center justify-center">
+                              <p className="text-sm text-gray-300">Aucun résultat pour « {seoSearchQuery} »</p>
+                            </div>
+                          )
+                          return results.map(item => {
+                            const displayTitle = customArticleTitles[item.index] || item.articleTitle
+                            const dotColor = item.published ? 'bg-green-400' : item.programmed ? 'bg-amber-400' : 'bg-gray-400'
+                            const statusLabel = item.published ? 'Publié' : item.programmed ? 'Programmé' : 'À venir'
+                            return (
+                              <button
+                                key={item.index}
+                                onClick={() => { setSelectedDay(item.index); setSeoSearchQuery(''); setSearchExpanded(false) }}
+                                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-left"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-color-1 truncate">{displayTitle}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                                    <span className="text-xs text-gray-400">{statusLabel} · {item.dayNum} {item.monthShort}</span>
+                                  </div>
+                                </div>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                              </button>
+                            )
+                          })
+                        })()}
+                      </div>
+                    ) : (
+                    <div className="flex-1 min-h-0">
+                    <div className="grid grid-cols-7 gap-1.5 h-full" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
+                      {visibleItems.map((item, idx) => {
+                        // Deleted article
+                        const isDeleted = deletedArticles.has(item.index)
+                        if (isDeleted) return (
+                          <div
+                            key={`art-${item.index}`}
+                            className="relative rounded-[10px] border-2 border-dashed border-gray-200 flex items-center justify-center cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                          >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                          </div>
+                        )
+
+                        // Normal article card
+                        const spec = allSpecialties.find(s => s.id === (customArticleCategories[item.index] || item.specId))
+                        const seoScore = item.seo?.global || 0
+                        const seoLabel = seoScore >= 90 ? 'Excellent' : seoScore >= 75 ? 'Bon' : 'À améliorer'
+                        const seoColor = seoScore >= 90 ? 'text-green-500' : seoScore >= 75 ? 'text-amber-500' : 'text-gray-400'
+
                         return (
                           <div
-                            key={item.index}
-                            onClick={() => setSelectedDay(item.index)}
-                            className={`rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all ${
-                              item.published ? 'bg-[#FC6D41] text-white' :
-                              item.programmed ? 'bg-[#FC6D41]/15 text-[#FC6D41]' :
-                              'bg-gray-50 text-gray-300'
-                            } ${isSelected ? 'ring-2 ring-[#FC6D41] ring-offset-1' : ''} ${item.isToday && !isSelected ? 'ring-2 ring-[#2D2D2D]' : ''}`}
+                            key={`art-${item.index}`}
+                            onClick={() => {
+                              setSelectedDay(item.index)
+                              const title = customArticleTitles[item.index] || item.articleTitle || ''
+                              setEditingTitle(title)
+                              setEditingMeta(item.metaDescription || 'Découvrez nos conseils professionnels en kinésithérapie pour améliorer votre bien-être au quotidien.')
+                              setCardDirty(false)
+                              setShowArticleCard(true)
+                            }}
+                            className={`group relative rounded-[10px] overflow-hidden cursor-pointer transition-all duration-200 border-2 ${
+                              item.isToday ? 'border-[#FC6D41]' : (item.published || item.programmed) ? 'border-gray-200' : 'border-gray-100'
+                            } ${item.published ? 'bg-green-50' : item.programmed ? 'bg-amber-50' : 'bg-gray-50'} flex flex-col p-2`}
                           >
-                            <span className="text-xs font-bold">{item.dayNum}</span>
-                            {item.icon && <span className="text-[10px] mt-0.5 leading-none">{item.icon}</span>}
+                            <span className={`text-sm font-bold leading-none ${item.isToday ? 'text-[#FC6D41]' : 'text-color-1'}`}>{item.dayNum} {item.monthShort}</span>
+                            {spec && <span className="mt-1 px-1.5 py-0.5 rounded-full bg-white text-color-1 text-xs font-semibold leading-none truncate self-start max-w-full">{spec.title}</span>}
+                            <p className="text-xs font-semibold text-color-1 leading-tight line-clamp-2 mt-auto">{customArticleTitles[item.index] || item.articleTitle || ''}</p>
+                            {(item.published || item.programmed) && seoScore > 0 && (
+                              <div className="border-t border-gray-100 mt-1 pt-1">
+                                <p className={`text-xs font-bold ${seoColor} leading-none`}>{seoLabel} : {seoScore}/100</p>
+                              </div>
+                            )}
+                            {/* Hover overlay — published/programmed: delete + edit */}
+                            {(item.published || item.programmed) && (
+                              <div className={`absolute inset-0 rounded-[10px] flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 ${item.published ? 'bg-green-50' : 'bg-amber-50'}`}>
+                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-[8px] ${item.published ? 'bg-green-100/50' : 'bg-amber-100/50'}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${item.published ? 'bg-green-500' : 'bg-amber-400'}`} />
+                                  <span className={`text-xs font-semibold ${item.published ? 'text-green-600' : 'text-amber-600'}`}>{item.published ? 'Publié' : 'Programmé'}</span>
+                                </div>
+                                <div className="flex-1 flex items-center justify-center gap-4">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setPendingDeleteDay(item.index) }}
+                                    className="flex flex-col items-center gap-1 group/btn cursor-pointer"
+                                  >
+                                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 group-hover/btn:bg-red-50 group-hover/btn:text-red-500 transition-colors">
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </span>
+                                    <span className="text-xs text-gray-400">Supprimer</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedDay(item.index)
+                                      setEditingTitle(customArticleTitles[item.index] || item.articleTitle || '')
+                                      setEditorImage(customArticleImages[item.index] || item.articleImage)
+                                      setArticleContent(
+                                        `<h1>${customArticleTitles[item.index] || item.articleTitle || ''}</h1>` +
+                                        `<p>Les troubles musculo-squelettiques représentent un enjeu majeur de santé publique. Cet article explore les approches thérapeutiques modernes pour accompagner les patients dans leur parcours de soins.</p>` +
+                                        `<h2>Introduction</h2>` +
+                                        `<p>La kinésithérapie joue un rôle essentiel dans la prise en charge des douleurs chroniques. Grâce à des techniques éprouvées et une approche personnalisée, il est possible d'améliorer significativement la qualité de vie des patients.</p>` +
+                                        `<h2>Les techniques recommandées</h2>` +
+                                        `<p>Parmi les méthodes les plus efficaces, on retrouve :</p>` +
+                                        `<ul><li>La thérapie manuelle et les mobilisations articulaires</li><li>Les exercices de renforcement musculaire ciblés</li><li>Les étirements et la proprioception</li><li>L'éducation thérapeutique du patient</li></ul>` +
+                                        `<h2>Conclusion</h2>` +
+                                        `<p>Un suivi régulier et adapté permet d'obtenir des résultats durables. N'hésitez pas à consulter votre kinésithérapeute pour un bilan personnalisé.</p>`
+                                      )
+                                      setShowArticleEditor(true)
+                                    }}
+                                    className="flex flex-col items-center gap-1 group/btn cursor-pointer"
+                                  >
+                                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 group-hover/btn:bg-color-2/10 group-hover/btn:text-color-2 transition-colors">
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </span>
+                                    <span className="text-xs text-gray-400">Modifier</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {/* Hover overlay — à venir: change subject */}
+                            {item.preProgrammed && (
+                              <div className="absolute inset-0 bg-gray-50 rounded-[10px] flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-[8px] bg-gray-100/50">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                  <span className="text-xs font-semibold text-gray-500">À venir</span>
+                                </div>
+                                <div className="flex-1 flex items-center justify-center">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedDay(item.index)
+                                      setChangeSubjectTitle(customArticleTitles[item.index] || item.articleTitle || '')
+                                      setChangeSubjectInstruction('')
+                                      setShowChangeSubject(true)
+                                    }}
+                                    className="flex flex-col items-center gap-1 group/btn cursor-pointer"
+                                  >
+                                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-400 group-hover/btn:bg-color-2/10 group-hover/btn:text-color-2 transition-colors">
+                                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 5h18"/><polyline points="7 23 3 19 7 15"/><path d="M21 19H3"/></svg>
+                                    </span>
+                                    <span className="text-xs text-gray-400">Changer</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )
                       })}
                     </div>
+                    </div>
+                    )}
                   </div>
                 )
               })()}
             </div>
+
+            {/* Change subject modal */}
+            {showChangeSubject && selectedDay !== null && (() => {
+              const item = streakInfo.cells.find(c => c.index === selectedDay)
+              if (!item) return null
+              const displayImage = customArticleImages[item.index] || item.articleImage
+              return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowChangeSubject(false)}>
+                  <div className="absolute inset-0 bg-black/40" />
+                  <div className="relative bg-white rounded-2xl shadow-2xl w-[420px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                      <h3 className="text-sm font-bold text-color-1">Changer le sujet</h3>
+                      <button onClick={() => setShowChangeSubject(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-color-1 hover:bg-gray-100 transition-colors cursor-pointer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+
+                    <div className="px-5 pb-5 flex flex-col gap-4">
+                      {/* Titre */}
+                      <div>
+                        <label className="text-xs font-semibold text-color-1 mb-1.5 block">Titre</label>
+                        <input
+                          type="text"
+                          value={changeSubjectTitle}
+                          onChange={e => { if (e.target.value.length <= 55) setChangeSubjectTitle(e.target.value) }}
+                          maxLength={55}
+                          className="w-full text-[13px] text-color-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-gray-200 focus:border-color-2 transition-colors"
+                          placeholder="Titre de l'article..."
+                        />
+                      </div>
+
+                      {/* Image */}
+                      <div>
+                        <label className="text-xs font-semibold text-color-1 mb-1.5 block">Image</label>
+                        <button
+                          onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
+                          className="w-full h-[100px] rounded-xl overflow-hidden relative cursor-pointer group/img border-2 border-gray-100 hover:border-gray-200 transition-colors"
+                        >
+                          <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors" />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                            <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                              <span className="text-white text-[11px] font-medium">Changer</span>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+
+                      {/* Instruction IA */}
+                      <div>
+                        <label className="text-xs font-semibold text-color-1 mb-1.5 block">Instruction IA</label>
+                        <textarea
+                          value={changeSubjectInstruction}
+                          onChange={e => setChangeSubjectInstruction(e.target.value)}
+                          rows={3}
+                          className="w-full text-[13px] text-color-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-gray-200 focus:border-color-2 transition-colors resize-none"
+                          placeholder="Ex: Parler des techniques de massage pour sportifs..."
+                        />
+                      </div>
+
+                      {/* Valider */}
+                      <button
+                        onClick={() => {
+                          setCustomArticleTitles(prev => ({ ...prev, [item.index]: changeSubjectTitle }))
+                          setShowChangeSubject(false)
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-[#FC6D41] text-white text-[13px] font-semibold hover:bg-[#e55e35] transition-colors cursor-pointer"
+                      >
+                        Valider
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Delete confirmation modal */}
+            {pendingDeleteDay !== null && (() => {
+              const item = streakInfo.cells.find(c => c.index === pendingDeleteDay)
+              if (!item) return null
+              return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setPendingDeleteDay(null)}>
+                  <div className="absolute inset-0 bg-black/40" />
+                  <div className="relative bg-white rounded-2xl shadow-2xl w-[360px] p-6 flex flex-col items-center" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                    <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center mb-3">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
+                    <h4 className="text-[14px] font-bold text-color-1 mb-1">Attention</h4>
+                    <p className="text-[12px] text-gray-500 text-center mb-1">Cet article sera définitivement supprimé et ne sera pas récupérable.</p>
+                    <p className="text-[11px] text-gray-400 text-center mb-5">Vous pourrez réécrire un nouvel article à cette date, mais il sera considéré comme en retard.</p>
+                    <div className="flex gap-2 w-full">
+                      <button onClick={() => setPendingDeleteDay(null)} className="flex-1 py-2.5 rounded-xl text-[12px] font-medium bg-gray-100 text-color-1 hover:bg-gray-200 transition-colors cursor-pointer">
+                        Annuler
+                      </button>
+                      <button onClick={() => { setDeletedArticles(prev => new Set([...prev, pendingDeleteDay])); setPendingDeleteDay(null) }} className="flex-1 py-2.5 rounded-xl text-[12px] font-medium bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer">
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Paused overlay — autoPublish off */}
             {!autoPublish && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl overflow-hidden pointer-events-none" style={{ backdropFilter: 'brightness(0.4)', backgroundColor: 'rgba(0,0,0,0.35)' }}>
@@ -820,333 +1021,8 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
             )}
           </div>
 
-          {/* Bottom-left — Cumulative Views Chart (rank-chart style) */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden col-start-1 row-start-2">
-            {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-color-1">Vues cumulées</h2>
-                <p className="text-sm text-gray-400 mt-0.5">Évolution du trafic sur vos articles SEO</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-gray-50 rounded-xl px-4 py-2.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    <span className="text-sm text-gray-500">Articles publiés</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-color-1">{totalStats.total}</span>
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-xl px-4 py-2.5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <span className="text-sm text-gray-500">Total actuel</span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-color-1">{(slicedArticleVisits[slicedArticleVisits.length - 1] || 0).toLocaleString('fr-FR')}</span>
-                    {(() => {
-                      const current = slicedArticleVisits[slicedArticleVisits.length - 1] || 0
-                      const first = slicedArticleVisits[0] || 0
-                      const pctChange = first > 0 ? Math.round(((current - first) / first) * 100) : 0
-                      return pctChange !== 0 && (
-                        <span className={`text-sm font-semibold px-1.5 py-0.5 rounded-full ${pctChange > 0 ? 'text-green-500 bg-green-50' : 'text-red-500 bg-red-50'}`}>{pctChange > 0 ? '↑' : '↓'} {Math.abs(pctChange)}%</span>
-                      )
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Chart */}
-            <div className="flex-1 mt-3 min-h-0 flex">
-              {/* Y-axis labels */}
-              <div className="flex flex-col justify-between pr-2 text-sm text-gray-400 shrink-0 text-right">
-                {(() => {
-                  const max = Math.ceil(articleVisitsMax)
-                  const steps = [max, Math.round(max * 0.75), Math.round(max * 0.5), Math.round(max * 0.25), 0]
-                  return steps.map((v, i) => <span key={i}>{v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}</span>)
-                })()}
-              </div>
-
-              <div className="flex-1 flex flex-col min-w-0">
-                <div
-                  className="flex-1 relative min-h-0"
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    const x = (e.clientX - rect.left) / rect.width
-                    const idx = Math.round(x * (slicedArticleVisits.length - 1))
-                    setHoveredSeoVisit(Math.max(0, Math.min(idx, slicedArticleVisits.length - 1)))
-                  }}
-                  onMouseLeave={() => setHoveredSeoVisit(null)}
-                >
-                  {/* Grid lines */}
-                  {[0, 25, 50, 75, 100].map((pct) => (
-                    <div key={pct} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: `${pct}%` }} />
-                  ))}
-                  {/* SVG curve */}
-                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-                    <defs>
-                      <linearGradient id="seoVisitGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FC6D41" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="#FC6D41" stopOpacity="0.01" />
-                      </linearGradient>
-                    </defs>
-                    <path d={toPath(slicedArticleVisits, articleVisitsMax, true)} fill="url(#seoVisitGrad)" />
-                    <path d={toPath(slicedArticleVisits, articleVisitsMax, false)} fill="none" stroke="#FC6D41" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                  </svg>
-
-                  {/* Hover tooltip */}
-                  {hoveredSeoVisit !== null && (() => {
-                    const hx = (hoveredSeoVisit / (slicedArticleVisits.length - 1)) * 100
-                    const hy = 100 - (slicedArticleVisits[hoveredSeoVisit] / articleVisitsMax) * 100
-                    return <>
-                      <div className="absolute w-px pointer-events-none" style={{ left: `${hx}%`, top: 0, bottom: 0, backgroundColor: '#FC6D41', opacity: 0.2 }} />
-                      <div className="absolute pointer-events-none" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -100%)' }}>
-                        <div className="px-2 py-0.5 rounded-md border border-color-2 bg-white text-sm font-semibold text-color-2 whitespace-nowrap mb-1 mx-auto w-fit shadow-sm">
-                          {slicedArticleVisits[hoveredSeoVisit].toLocaleString('fr-FR')} <span className="text-gray-400 font-normal">{slicedMonths[hoveredSeoVisit]}</span>
-                        </div>
-                      </div>
-                      <div className="absolute w-2.5 h-2.5 rounded-full pointer-events-none border-2 border-white bg-color-2 shadow-sm" style={{ left: `${hx}%`, top: `${hy}%`, transform: 'translate(-50%, -50%)' }} />
-                    </>
-                  })()}
-                </div>
-
-                {/* X-axis labels */}
-                <div className="flex justify-between text-sm text-gray-400 pt-1.5 shrink-0">
-                  {slicedMonths.map((m) => <span key={m}>{m}</span>)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right column — Article + SEO panel */}
-          <div className="flex flex-col col-start-2 row-start-1 row-span-2 min-w-0 overflow-hidden">
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
-              {(() => {
-                const item = selectedDay !== null ? viewData.days[selectedDay] : null
-                if (!item) return (
-                  <div className="flex-1 flex items-center justify-center">
-                    <p className="text-sm text-gray-300">Sélectionnez un article</p>
-                  </div>
-                )
-                const content = articleContentMap[item.title] || articleContentMap['Douleurs dorsales']
-                if (item.published || item.programmed) {
-                  const displayImage = customArticleImages[item.index] || item.articleImage
-                  const displayTitle = customArticleTitles[item.index] || item.articleTitle
-                  return (
-                    <div className="flex-1 flex flex-col min-h-0">
-                      {/* Image — fixed */}
-                      <button
-                        className="relative h-28 shrink-0 rounded-xl overflow-hidden cursor-pointer group text-left transition-all"
-                        onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
-                      >
-                        <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                            <span className="text-white text-sm font-medium">Changer</span>
-                          </div>
-                        </div>
-                        <div className="absolute top-2 left-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
-                            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.published ? 'bg-green-500' : 'bg-color-2'}`} />
-                            {item.published ? `Publié le ${item.dayNum} ${item.monthShort}` : `Programmé le ${item.dayNum} ${item.monthShort}`}
-                          </span>
-                        </div>
-                      </button>
-                      {/* Content area */}
-                      <div className="flex-1 min-h-0 overflow-y-auto mt-1.5 flex flex-col justify-between">
-                        {/* Title + meta */}
-                        <div>
-                          <input
-                            type="text"
-                            value={displayTitle}
-                            onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
-                            className="w-full text-sm font-bold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors"
-                          />
-                          <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
-                            <span>{item.icon} {item.title}</span>
-                            <span>·</span>
-                            <span>{item.dayNum} {item.monthShort}</span>
-                            <span>·</span>
-                            <span>{content.wordCount} mots</span>
-                          </div>
-                        </div>
-                        {/* SEO score ring + individual scores */}
-                        <div className="flex items-center gap-3 px-2.5 py-1.5 rounded-xl bg-gray-50 transition-all">
-                          <div className="relative w-10 h-10 shrink-0">
-                            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#E5E7EB" strokeWidth="3" />
-                              <circle cx="18" cy="18" r="15.5" fill="none" stroke="#22C55E" strokeWidth="3" strokeDasharray={`${item.seo.global * 0.975} 100`} strokeLinecap="round" />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-sm font-bold text-green-600">{item.seo.global}</span>
-                            </div>
-                          </div>
-                          <div className="flex-1 flex flex-col gap-1 min-w-0">
-                            {[
-                              { label: 'Régularité', score: item.seo.regularite },
-                              { label: 'Balises', score: item.seo.balises },
-                              { label: 'Meta', score: item.seo.meta },
-                              { label: 'Mots-clés', score: item.seo.motsCles },
-                            ].map(s => (
-                              <div key={s.label} className="flex items-center gap-2">
-                                <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">{s.label}</span>
-                                <div className="flex-1 h-1.5 rounded-full bg-gray-200"><div className="h-full rounded-full bg-green-400" style={{ width: `${s.score}%` }} /></div>
-                                <span className="text-xs font-semibold text-green-600 shrink-0">{s.score}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        {/* Keywords */}
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Mots-clés ciblés</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {content.keywords.map((kw, ki) => (
-                              <span key={ki} className="px-2 py-0.5 rounded bg-color-2/10 text-sm font-medium text-color-2">{kw}</span>
-                            ))}
-                          </div>
-                        </div>
-                        {/* SEO checklist */}
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Optimisations</p>
-                          <div className="flex flex-col gap-1">
-                            {[
-                              { ok: true, text: 'Mot-clé dans le titre' },
-                              { ok: true, text: 'Meta description < 160 car.' },
-                              { ok: true, text: 'Balises H2 structurées' },
-                              { ok: true, text: `${content.wordCount} mots (min. 300)` },
-                              { ok: true, text: 'Image avec alt renseigné' },
-                            ].map((c, ci) => (
-                              <div key={ci} className="flex items-center gap-1.5">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                                <span className="text-xs text-gray-500">{c.text}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        {/* Google preview */}
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">Aperçu Google</p>
-                          <div className="rounded-lg border border-gray-200 p-2.5 bg-white">
-                            <p className="text-sm text-blue-700 font-medium truncate">{displayTitle}</p>
-                            <p className="text-xs text-green-700 truncate">theralys.fr/blog/{(displayTitle || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}</p>
-                            <p className="text-xs text-gray-500 line-clamp-2 leading-tight mt-0.5">{content.metaDesc}</p>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Actions — pinned bottom */}
-                      <div className="flex gap-2 shrink-0 mt-1.5 transition-all rounded-xl">
-                        <button onClick={() => router.push(`/editor/article-${item.specId}`)} className="flex-1 py-2 rounded-xl bg-gray-50 text-sm font-medium text-color-1 hover:bg-gray-100 transition-colors cursor-pointer border border-gray-200">Modifier</button>
-                        <button onClick={() => router.push(`/editor/article-${item.specId}`)} className="flex-1 py-2 rounded-xl bg-color-1 text-sm font-medium text-white hover:bg-color-1/90 transition-colors cursor-pointer">Voir</button>
-                      </div>
-                    </div>
-                  )
-                }
-                {/* Pre-programmed article */}
-                const preDisplayImage = customArticleImages[item.index]
-                const preDisplayTitle = customArticleTitles[item.index] || item.articleTitle || ''
-                return (
-                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <button
-                      className="relative rounded-xl overflow-hidden cursor-pointer group text-left shrink-0"
-                      style={{ height: preDisplayImage ? 100 : 70 }}
-                      onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
-                    >
-                      {preDisplayImage ? (
-                        <>
-                          <img src={preDisplayImage} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300" />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 bg-gray-50 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                          <span className="text-2xl">{item.icon}</span>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                          <span className="text-white text-[11px] font-medium">Choisir une image</span>
-                        </div>
-                      </div>
-                    </button>
-                    <div className="mt-2 flex flex-col gap-1 shrink-0">
-                      <input
-                        type="text"
-                        value={preDisplayTitle}
-                        onChange={e => setCustomArticleTitles(prev => ({ ...prev, [item.index]: e.target.value }))}
-                        placeholder="Titre de l'article..."
-                        className="w-full text-sm font-bold text-color-1 bg-transparent outline-none border-b border-transparent hover:border-gray-200 focus:border-color-2 transition-colors placeholder:text-gray-300 placeholder:font-normal"
-                      />
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <span>{item.icon} {item.title}</span>
-                        <span>·</span>
-                        <span>{item.dayNum} {item.monthShort}</span>
-                      </div>
-                    </div>
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center text-gray-400">
-                        <span className="inline-block animate-spin text-lg" style={{ animationDuration: '3s' }}>&#9203;</span>
-                        <p className="text-sm font-medium mt-1">Rédaction dans {item.daysFromToday} j</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { const specId = item.specId || '1'; router.push(`/editor/article-${specId}`) }}
-                      className="w-full py-2 rounded-xl bg-color-2/10 text-sm font-medium text-color-2 hover:bg-color-2/20 transition-colors cursor-pointer shrink-0"
-                    >Pré-visualiser</button>
-                  </div>
-                )
-              })()}
-            </div>
-          </div>
-
 
           {/* Répartition modal */}
-          {showRepartition && (() => {
-            return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowRepartition(false)}>
-                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-                <div className="relative bg-white rounded-2xl shadow-xl w-[380px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
-                  <div className="px-5 pt-5 pb-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <h2 className="text-base font-bold text-color-1">De quoi parleront vos articles ?</h2>
-                      <button onClick={() => setShowRepartition(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                      </button>
-                    </div>
-                    <p className="text-[13px] text-gray-400">Activez les thématiques qui vous intéressent. Les {viewData.preProgDays} articles programmés seront répartis équitablement.</p>
-                  </div>
-                  <div className="px-5 pb-4 flex flex-col gap-1.5">
-                    {allSpecialties.map((spec) => {
-                      const isActive = checkedSpecs.includes(spec.id)
-                      const count = viewData.preProgCounts[spec.id] || 0
-                      return (
-                        <button
-                          key={spec.id}
-                          onClick={() => setCheckedSpecs(prev => prev.includes(spec.id) ? prev.filter(id => id !== spec.id) : [...prev, spec.id])}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${isActive ? 'bg-gray-50' : 'opacity-30'}`}
-                        >
-                          <span className="text-lg shrink-0">{spec.icon}</span>
-                          <span className="text-[13px] font-medium text-color-1 flex-1">{spec.title}</span>
-                          {isActive && <span className="text-[13px] font-semibold text-color-1 tabular-nums">{count} art.</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="px-5 py-3 border-t border-gray-100">
-                    <p className="text-[13px] text-gray-400 text-center">
-                      {activeSpecCount > 0
-                        ? <>{activeSpecCount} thématique{activeSpecCount > 1 ? 's' : ''} · ~{Math.round(viewData.preProgDays / activeSpecCount)} articles chacune</>
-                        : 'Sélectionnez au moins une thématique'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
 
           {/* Pexels image library modal */}
           {showPexels && (() => {
@@ -1211,6 +1087,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                             onClick={() => {
                               if (selectedDay !== null) {
                                 setCustomArticleImages(prev => ({ ...prev, [selectedDay]: img.src }))
+                                setCardDirty(true)
                               }
                               setShowPexels(false)
                             }}
@@ -1238,6 +1115,123 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               </div>
             )
           })()}
+
+          {/* Rich text article editor modal */}
+          {showArticleEditor && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={() => setShowArticleEditor(false)}>
+              <div className="absolute inset-0 bg-black/40" />
+              <div
+                className="relative bg-white rounded-2xl overflow-hidden w-[95vw] max-w-[1100px] h-[92vh] flex flex-col"
+                onClick={e => e.stopPropagation()}
+                style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'tab-fade-in 0.15s ease-out' }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+                  <h3 className="text-sm font-bold text-color-1">Modifier l'article</h3>
+                  <button onClick={() => setShowArticleEditor(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+                {/* Image field */}
+                <div className="px-5 pt-4 pb-2 shrink-0">
+                  <label className="text-xs font-semibold text-color-1 mb-1.5 block">Image</label>
+                  <div
+                    className="relative w-full h-[80px] rounded-xl overflow-hidden border-2 border-gray-200 cursor-pointer group/img hover:border-gray-300 transition-colors"
+                    onClick={() => {
+                      const url = prompt('URL de l\'image (Pexels, Unsplash...)', editorImage)
+                      if (url) setEditorImage(url)
+                    }}
+                  >
+                    {editorImage ? (
+                      <img src={editorImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gray-50 flex items-center justify-center">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors flex items-center justify-center">
+                      <span className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {/* Toolbar */}
+                <div className="flex items-center gap-0.5 px-4 py-2 border-b border-gray-100 shrink-0 flex-wrap">
+                  {[
+                    { cmd: 'bold', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>, title: 'Gras' },
+                    { cmd: 'italic', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>, title: 'Italique' },
+                    { cmd: 'underline', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>, title: 'Souligné' },
+                    { sep: true },
+                    { cmd: 'formatBlock', val: 'H1', label: 'H1', title: 'Titre 1' },
+                    { cmd: 'formatBlock', val: 'H2', label: 'H2', title: 'Titre 2' },
+                    { cmd: 'formatBlock', val: 'P', label: 'P', title: 'Paragraphe' },
+                    { sep: true },
+                    { cmd: 'insertUnorderedList', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>, title: 'Liste' },
+                    { cmd: 'insertOrderedList', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><text x="4" y="8" fontSize="8" fill="currentColor" stroke="none" fontWeight="600">1</text><text x="4" y="14" fontSize="8" fill="currentColor" stroke="none" fontWeight="600">2</text><text x="4" y="20" fontSize="8" fill="currentColor" stroke="none" fontWeight="600">3</text></svg>, title: 'Liste numérotée' },
+                  ].map((btn, i) => btn.sep ? (
+                    <div key={i} className="w-px h-5 bg-gray-200 mx-1" />
+                  ) : (
+                    <button
+                      key={i}
+                      title={btn.title}
+                      onMouseDown={e => {
+                        e.preventDefault()
+                        if (btn.val) {
+                          document.execCommand(btn.cmd, false, `<${btn.val}>`)
+                        } else {
+                          document.execCommand(btn.cmd, false, null)
+                        }
+                      }}
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-color-1 transition-colors cursor-pointer text-xs font-bold"
+                    >
+                      {btn.icon || btn.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Editor area */}
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  dangerouslySetInnerHTML={{ __html: articleContent }}
+                  onInput={() => setCardDirty(true)}
+                  className="flex-1 overflow-y-auto px-8 py-6 outline-none text-sm text-color-1 leading-relaxed prose-editor"
+                  style={{
+                    fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+                  }}
+                />
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-gray-100 shrink-0">
+                  <button
+                    onClick={() => setShowArticleEditor(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+                  >Annuler</button>
+                  <button
+                    onClick={() => {
+                      if (selectedDay !== null) {
+                        setCustomArticleImages(prev => ({ ...prev, [selectedDay]: editorImage }))
+                      }
+                      setCardDirty(true)
+                      setShowArticleEditor(false)
+                    }}
+                    className="px-5 py-2 rounded-xl text-xs font-medium bg-[#FC6D41] text-white hover:bg-[#e55e35] transition-colors cursor-pointer"
+                  >Enregistrer</button>
+                </div>
+              </div>
+              <style>{`
+                .prose-editor h1 { font-size: 1.5rem; font-weight: 700; margin: 0.75rem 0 0.5rem; line-height: 1.3; }
+                .prose-editor h2 { font-size: 1.15rem; font-weight: 700; margin: 0.75rem 0 0.4rem; line-height: 1.3; color: #2D2D2D; }
+                .prose-editor p { margin: 0.4rem 0; }
+                .prose-editor ul, .prose-editor ol { margin: 0.4rem 0; padding-left: 1.5rem; }
+                .prose-editor li { margin: 0.2rem 0; }
+                .prose-editor strong { font-weight: 700; }
+                .prose-editor em { font-style: italic; }
+                .prose-editor u { text-decoration: underline; }
+              `}</style>
+            </div>
+          )}
+
 
         </div>
         ) : activeTab === 'parrainage' ? (
@@ -1575,13 +1569,17 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
 
             {/* Actions */}
             <div className="bg-white border-2 border-gray-200 rounded-2xl p-3.5 shrink-0">
-              <h2 className="text-base font-bold text-color-1 mb-2.5">Actions</h2>
+              <h2 className="text-base font-bold text-color-1 mb-2.5" onDoubleClick={() => { localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')) }}>Actions</h2>
               <div className="flex flex-col gap-1.5">
                 {[
-                  { id: 'setup', label: 'Paramétrer les options du site', desc: 'Configurer les informations et préférences', requires: null, href: '/setup',
+                  { id: 'setup', label: 'Options du site', desc: 'Configurer les informations et préférences', requires: null,
+                    onClick: () => setShowSetupModal(true),
                     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
-                  { id: 'publish', label: 'Valider et publier votre site', desc: 'Vérifier vos pages, choisir un domaine et publier', requires: 'setup', href: '/editor/accueil?mode=validate',
+                  { id: 'publish', label: 'Publier', desc: 'Vérifier vos pages, choisir un domaine et publier', requires: 'setup', href: '/editor/accueil?mode=validate',
                     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> },
+                  { id: 'seo', label: 'Paramétrage SEO', desc: 'Optimiser le référencement de votre site', requires: 'publish',
+                    onClick: () => { const savedStep = localStorage.getItem('seoSetupStep') || 'redaction'; setSeoSetupMode(true); setSettingsSection(savedStep); setSettingsInitial({ tone: redTone, style: redStyle, pronoun: redPronoun, prompt: redPrompt, checkedSpecs: [...checkedSpecs] }); setShowRedactorSettings(true) },
+                    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> },
                 ].map((action, i) => {
                   const done = completedActions.includes(action.id)
                   const locked = action.requires && !completedActions.includes(action.requires)
@@ -1616,106 +1614,74 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               </div>
             </div>
 
-            {/* Articles carousel */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-base font-bold text-color-1">Articles</h2>
-                <div className="flex items-center gap-1.5 -mr-0.5">
-                  {articles.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setArticleIdx(i)}
-                      className={`rounded-full transition-all cursor-pointer block ${i === articleIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-gray-300 hover:bg-gray-400'}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              {/* Image area — clickable → navigates to referencement */}
-              <button onClick={() => navigateToArticle(articles[articleIdx])} className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left">
-                <img src={articles[articleIdx].img} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-300" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                {/* Badge */}
-                <div className="absolute top-1.5 left-2.5">
-                  {articles[articleIdx].status === 'published' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                      Publié le {articles[articleIdx].date}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/90 text-color-1 text-sm font-semibold backdrop-blur-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-color-2 shrink-0" />
-                      Programmé le {articles[articleIdx].date}
-                    </span>
-                  )}
-                </div>
-                {/* Nav arrows on image */}
-                <div
-                  onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx - 1 + articles.length) % articles.length) }}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                </div>
-                <div
-                  onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx + 1) % articles.length) }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center cursor-pointer transition-colors shadow-sm"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D2D2D" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-                {/* Title overlay */}
-                <div className="absolute bottom-2.5 left-3 right-3">
-                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm">{articles[articleIdx].title}</p>
-                </div>
-              </button>
-            </div>
-
-            {/* Quoi de neuf — carousel like Articles */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-2 shrink-0">
-                <h2 className="text-base font-bold text-color-1">Quoi de neuf</h2>
-                <div className="flex items-center gap-1.5 -mr-0.5">
-                  {news.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setNewsIdx(i)}
-                      className={`rounded-full transition-all cursor-pointer block ${i === newsIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-gray-300 hover:bg-gray-400'}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              {/* Card area */}
-              <button onClick={() => setShowNewsModal(newsIdx)} className="relative flex-1 min-h-0 rounded-xl overflow-hidden cursor-pointer group text-left bg-gradient-to-br from-color-1 to-gray-700">
-                {/* Background pattern */}
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute top-2 right-3 text-6xl">✨</div>
-                </div>
-                {/* Tag + Date */}
-                <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-color-2 text-white text-sm font-semibold">
-                    {news[newsIdx].tag}
+            {/* Article bento */}
+            <button onClick={() => navigateToArticle(articles[articleIdx])} className="flex-1 border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden cursor-pointer hover:border-gray-300 transition-colors text-left">
+              {/* Background image */}
+              <img src={articles[articleIdx].img} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+              {/* Content */}
+              <div className="relative z-[1] flex flex-col flex-1 min-h-0">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${articles[articleIdx].status === 'published' ? 'bg-white text-green-600' : 'bg-white text-amber-600'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${articles[articleIdx].status === 'published' ? 'bg-green-500' : 'bg-amber-400'}`} />
+                    {articles[articleIdx].status === 'published' ? 'Publié' : 'Programmé'}
                   </span>
-                  <span className="text-white/60 text-sm font-medium">{news[newsIdx].date}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-white text-[#FC6D41] text-[11px] font-semibold">{articles[articleIdx].category}</span>
+                  <span className="ml-auto text-[11px] font-medium text-white/70">{articles[articleIdx].date}</span>
                 </div>
-                {/* Nav arrows */}
-                <div
-                  onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx - 1 + news.length) % news.length) }}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                <p className="text-sm font-semibold text-white leading-snug">{articles[articleIdx].title}</p>
+                <div className="border-t border-white/20 mt-auto pt-2.5 flex items-center justify-between">
+                  {(() => {
+                    const s = articles[articleIdx].seoScore
+                    const label = s >= 90 ? 'Excellent' : s >= 75 ? 'Bon' : 'À améliorer'
+                    const color = s >= 90 ? 'text-green-400' : s >= 75 ? 'text-amber-400' : 'text-red-400'
+                    return <p className={`text-sm font-bold ${color}`}>{label} : {s}/100</p>
+                  })()}
+                  <div className="flex items-center gap-1.5">
+                    <div onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx - 1 + articles.length) % articles.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                    </div>
+                    {articles.map((_, i) => (
+                      <div key={i} onClick={(e) => { e.stopPropagation(); setArticleIdx(i) }} className={`rounded-full transition-all cursor-pointer block ${i === articleIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-white/40 hover:bg-white/60'}`} />
+                    ))}
+                    <div onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx + 1) % articles.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                  </div>
                 </div>
-                <div
-                  onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx + 1) % news.length) }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </button>
+
+            {/* Quoi de neuf bento */}
+            <button onClick={() => setShowNewsModal(newsIdx)} className="flex-1 border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden cursor-pointer text-left bg-gradient-to-br from-color-1 to-gray-700 hover:border-gray-300 transition-colors">
+              {/* Background pattern */}
+              <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <div className="absolute top-6 right-4 text-5xl">✨</div>
+              </div>
+              {/* Tag + Date */}
+              <div className="flex items-center justify-between mb-2 shrink-0 relative z-10">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-color-2 text-white text-[11px] font-semibold">
+                  {news[newsIdx].tag}
+                </span>
+                <span className="text-white/60 text-[11px] font-medium">{news[newsIdx].date}</span>
+              </div>
+              {/* Title */}
+              <p className="text-white text-sm font-bold leading-snug relative z-10">{news[newsIdx].title}</p>
+              {/* Footer nav */}
+              <div className="mt-auto pt-2.5 flex items-center justify-end relative z-10">
+                <div className="flex items-center gap-1.5">
+                  <div onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx - 1 + news.length) % news.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                  </div>
+                  {news.map((_, i) => (
+                    <div key={i} onClick={(e) => { e.stopPropagation(); setNewsIdx(i) }} className={`rounded-full transition-all cursor-pointer block ${i === newsIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-white/30 hover:bg-white/50'}`} />
+                  ))}
+                  <div onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx + 1) % news.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
                 </div>
-                {/* Title overlay */}
-                <div className="absolute bottom-2.5 left-3 right-3">
-                  <p className="text-white text-sm font-bold leading-tight drop-shadow-sm">{news[newsIdx].title}</p>
-                </div>
-              </button>
-            </div>
+              </div>
+            </button>
 
           </div>
 
@@ -1805,6 +1771,282 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         </div>
         )}
       </div>
+
+      {/* Setup modal — Options du site flow */}
+      {showSetupModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setShowSetupModal(false) }} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-[820px] h-[520px] overflow-hidden" style={{ animation: 'tab-fade-in 0.2s ease-out' }}>
+            <SetupProvider initialStep={localStorage.getItem('setupStep') || 'contact'} isModal onClose={() => { setShowSetupModal(false); try { setCompletedActions(JSON.parse(localStorage.getItem('completedActions') || '[]')) } catch {} }}>
+              <SetupShell />
+            </SetupProvider>
+          </div>
+        </div>
+      )}
+
+      {/* Settings modal — Rédaction IA + Répartition (top-level so it works from any tab) */}
+      {showRedactorSettings && (() => {
+        const tones = [
+          { id: 'professionnel', label: 'Professionnel' },
+          { id: 'chaleureux', label: 'Chaleureux' },
+          { id: 'expert', label: 'Expert' },
+        ]
+        const styles = [
+          { id: 'informatif', label: 'Informatif' },
+          { id: 'conversationnel', label: 'Conversationnel' },
+          { id: 'pedagogique', label: 'Pédagogique' },
+        ]
+        const pronouns = [
+          { id: 'nous', label: 'Nous', desc: '"Nous vous accueillons..."' },
+          { id: 'je', label: 'Je', desc: '"Je vous accueille..."' },
+          { id: 'on', label: 'On', desc: '"On vous accueille..."' },
+        ]
+        const p = { nous: { s: 'Nous', v: 'proposons', a: 'accueillons', poss: 'notre', possPl: 'nos' }, je: { s: 'Je', v: 'propose', a: 'accueille', poss: 'mon', possPl: 'mes' }, on: { s: 'On', v: 'propose', a: 'accueille', poss: 'notre', possPl: 'nos' } }[redPronoun]
+        const previews = {
+          professionnel: { informatif: `${p.s} ${p.v} des séances de kinésithérapie adaptées à chaque patient. ${p.possPl.charAt(0).toUpperCase() + p.possPl.slice(1)} protocoles sont élaborés selon les dernières recommandations de la HAS.`, conversationnel: `${p.s} ${p.a} chaque patient avec attention. Vous avez des douleurs lombaires ? ${p.possPl.charAt(0).toUpperCase() + p.possPl.slice(1)} séances sont conçues pour y répondre.`, pedagogique: `La kinésithérapie vise à restaurer la mobilité et réduire la douleur. ${p.s} ${p.v} un bilan initial complet, puis un plan de traitement personnalisé.` },
+          chaleureux: { informatif: `${p.s} ${p.a} dans un cadre bienveillant pour prendre soin de votre bien-être. ${p.possPl.charAt(0).toUpperCase() + p.possPl.slice(1)} séances sont pensées pour que vous vous sentiez accompagné.`, conversationnel: `Bienvenue ! ${p.s} souhaite avant tout que vous vous sentiez à l'aise. Découvrez ${p.poss} approche douce et personnalisée.`, pedagogique: `Prendre soin de soi, c'est d'abord comprendre son corps. ${p.s} ${p.v} de vous guider avec bienveillance, pas à pas.` },
+          expert: { informatif: `${p.s} ${p.v} une prise en charge basée sur les données probantes. Évaluation posturale, thérapie manuelle et exercices fonctionnels ciblés.`, conversationnel: `Vous ressentez une raideur cervicale ? ${p.s} ${p.v} une analyse biomécanique approfondie pour identifier les causes et adapter le traitement.`, pedagogique: `Le rachis lombaire supporte l'essentiel des contraintes mécaniques du quotidien. ${p.s} ${p.v} de vous expliquer les mécanismes en jeu.` },
+        }
+        const preview = previews[redTone]?.[redStyle] || previews.professionnel.informatif
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={() => { if (seoSetupMode) localStorage.setItem('seoSetupStep', settingsSection); setShowRedactorSettings(false); setSeoSetupMode(false) }}>
+            <div className="absolute inset-0 bg-black/40" />
+            <div
+              className="relative bg-white rounded-2xl overflow-hidden w-[720px] max-w-[90vw] h-[520px] flex"
+              onClick={e => e.stopPropagation()}
+              style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'tab-fade-in 0.15s ease-out' }}
+            >
+              {/* Left sidebar */}
+              <div className="w-[200px] shrink-0 border-r border-gray-100 py-5 px-3 flex flex-col">
+                <h2 className="text-[13px] font-semibold text-gray-400 px-2.5 mb-3">{seoSetupMode ? 'Paramétrage SEO' : 'Paramètres'}</h2>
+                {seoSetupMode ? (
+                  <div className="flex flex-col gap-0.5">
+                    {[
+                      { id: 'redaction', label: 'Rédaction IA', step: 1, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/></svg> },
+                      { id: 'repartition', label: 'Répartition', step: 2, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> },
+                    ].map(item => {
+                      const isCurrent = settingsSection === item.id
+                      const isDone = item.id === 'redaction' && settingsSection === 'repartition'
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all ${isCurrent ? 'bg-color-2/10 text-color-2' : isDone ? 'text-green-600' : 'text-gray-300'}`}
+                        >
+                          <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${isCurrent ? 'bg-color-2 text-white' : isDone ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                            {isDone ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : item.step}
+                          </span>
+                          {item.label}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    {[
+                      { id: 'redaction', label: 'Rédaction IA', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/></svg> },
+                      { id: 'repartition', label: 'Répartition', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> },
+                    ].map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSettingsSection(item.id)}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer ${settingsSection === item.id ? 'bg-color-1 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right content */}
+              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base font-bold text-color-1">{settingsSection === 'redaction' ? 'Rédaction IA' : 'Répartition'}</h3>
+                    {seoSetupMode && <span className="text-[11px] font-medium text-gray-300">Étape {settingsSection === 'redaction' ? '1' : '2'} / 2</span>}
+                  </div>
+                  <button onClick={() => { if (seoSetupMode) localStorage.setItem('seoSetupStep', settingsSection); setShowRedactorSettings(false); setSeoSetupMode(false) }} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 px-6 py-4 flex flex-col">
+                  {settingsSection === 'redaction' ? (
+                    <div className="flex flex-col gap-3 flex-1" style={{ animation: 'tab-fade-in 0.2s ease' }}>
+                      {/* Top row: Tone + Style side by side */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-[11px] font-medium text-gray-500 mb-1.5 block">Ton de communication</span>
+                          <div className="flex flex-col gap-1">
+                            {tones.map(t => (
+                              <button key={t.id} onClick={() => setRedTone(t.id)} className={`w-full py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${redTone === t.id ? 'bg-color-1 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                                {t.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-gray-500 mb-1.5 block">Style de rédaction</span>
+                          <div className="flex flex-col gap-1">
+                            {styles.map(s => (
+                              <button key={s.id} onClick={() => setRedStyle(s.id)} className={`w-full py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${redStyle === s.id ? 'bg-color-1 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                                {s.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pronoun */}
+                      <div>
+                        <span className="text-[11px] font-medium text-gray-500 mb-1.5 block">Pronom utilisé</span>
+                        <div className="flex gap-2">
+                          {pronouns.map(pr => (
+                            <button key={pr.id} onClick={() => setRedPronoun(pr.id)} className={`flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer flex flex-col items-center gap-0.5 ${redPronoun === pr.id ? 'bg-color-1 text-white shadow-sm' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                              <span>{pr.label}</span>
+                              <span className={`text-[9px] ${redPronoun === pr.id ? 'text-white/60' : 'text-gray-400'}`}>{pr.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bottom row: Instructions + Preview side by side */}
+                      <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-medium text-gray-500 mb-1.5 block">Instructions supplémentaires</span>
+                          <textarea
+                            value={redPrompt}
+                            onChange={e => setRedPrompt(e.target.value)}
+                            placeholder="Ex: Toujours mentionner que le cabinet est accessible PMR. Éviter le jargon trop technique..."
+                            className="w-full flex-1 text-[12px] text-color-1 bg-gray-50 rounded-xl px-3 py-2.5 outline-none border border-gray-200 focus:border-color-2 transition-colors resize-none leading-relaxed"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z"/></svg>
+                            <span className="text-[11px] font-medium text-gray-500">Aperçu du style</span>
+                          </div>
+                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex-1">
+                            <p className="text-[12px] text-gray-600 leading-relaxed">{preview}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Save / Next */}
+                      {(() => {
+                        const redDirty = seoSetupMode || !settingsInitial || redTone !== settingsInitial.tone || redStyle !== settingsInitial.style || redPronoun !== settingsInitial.pronoun || redPrompt !== settingsInitial.prompt
+                        return (
+                          <button
+                            onClick={() => {
+                              if (!redDirty) return
+                              if (seoSetupMode) {
+                                localStorage.setItem('seoSetupStep', 'repartition')
+                                setSettingsSection('repartition')
+                              } else {
+                                setShowRedactorSettings(false)
+                              }
+                            }}
+                            className={`w-full py-2.5 rounded-xl text-[13px] font-medium shrink-0 flex items-center justify-center gap-2 transition-all ${
+                              redDirty
+                                ? 'bg-[#FC6D41] text-white hover:bg-[#e55e35] cursor-pointer'
+                                : 'bg-gray-100 text-gray-300 cursor-default'
+                            }`}
+                          >
+                            {seoSetupMode ? <>Suivant <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg></> : 'Enregistrer'}
+                          </button>
+                        )
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col h-full" style={{ animation: 'tab-fade-in 0.2s ease' }}>
+                      <p className="text-[12px] text-gray-400 mb-3">Déplacez les thématiques entre les deux colonnes pour choisir vos sujets d'articles.</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Write articles for */}
+                        <div>
+                          <span className="text-[11px] font-semibold text-green-600 mb-1.5 block">Écrire des articles pour</span>
+                          <div className="flex flex-col gap-0.5">
+                            {allSpecialties.filter(s => checkedSpecs.includes(s.id)).map(spec => (
+                              <button
+                                key={spec.id}
+                                onClick={() => { if (checkedSpecs.length <= 1) return; setCheckedSpecs(prev => prev.filter(id => id !== spec.id)) }}
+                                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all bg-green-50 hover:bg-green-100 ${checkedSpecs.length <= 1 ? 'opacity-60 cursor-default' : 'cursor-pointer'}`}
+                              >
+                                <span className="text-sm shrink-0">{spec.icon}</span>
+                                <span className="text-[12px] font-medium text-color-1 flex-1">{spec.title}</span>
+                                {checkedSpecs.length > 1 && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Don't write articles for */}
+                        <div>
+                          <span className="text-[11px] font-semibold text-gray-400 mb-1.5 block">Ne pas écrire pour</span>
+                          <div className="flex flex-col gap-0.5">
+                            {allSpecialties.filter(s => !checkedSpecs.includes(s.id)).map(spec => (
+                              <button
+                                key={spec.id}
+                                onClick={() => setCheckedSpecs(prev => [...prev, spec.id])}
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-all cursor-pointer bg-gray-50 hover:bg-gray-100 opacity-50 hover:opacity-80"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                                <span className="text-sm shrink-0">{spec.icon}</span>
+                                <span className="text-[12px] font-medium text-color-1 flex-1">{spec.title}</span>
+                              </button>
+                            ))}
+                            {allSpecialties.filter(s => !checkedSpecs.includes(s.id)).length === 0 && (
+                              <p className="text-[11px] text-gray-300 text-center py-2">Toutes sélectionnées</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Footer pinned to bottom */}
+                      <div className="mt-auto pt-3 shrink-0">
+                        <div className="pt-3 border-t border-gray-100 flex items-center gap-2 px-1 mb-3">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                          <p className="text-[11px] text-gray-400 leading-snug">
+                            La répartition choisie sera prise en compte pour la génération des articles à partir du <span className="font-semibold text-color-1">{(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) })()}</span>.
+                          </p>
+                        </div>
+                        {(() => {
+                          const repDirty = seoSetupMode || !settingsInitial || JSON.stringify([...checkedSpecs].sort()) !== JSON.stringify([...settingsInitial.checkedSpecs].sort())
+                          return (
+                            <button
+                              onClick={() => {
+                                if (!repDirty) return
+                                if (seoSetupMode) {
+                                  localStorage.removeItem('seoSetupStep')
+                                  const prev = JSON.parse(localStorage.getItem('completedActions') || '[]')
+                                  if (!prev.includes('seo')) {
+                                    const next = [...prev, 'seo']
+                                    localStorage.setItem('completedActions', JSON.stringify(next))
+                                    window.dispatchEvent(new Event('actionsUpdated'))
+                                  }
+                                }
+                                setShowRedactorSettings(false)
+                                setSeoSetupMode(false)
+                              }}
+                              className={`w-full py-2.5 rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 transition-all ${
+                                repDirty
+                                  ? 'bg-[#FC6D41] text-white hover:bg-[#e55e35] cursor-pointer'
+                                  : 'bg-gray-100 text-gray-300 cursor-default'
+                              }`}
+                            >
+                              {seoSetupMode ? <>Terminer <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg></> : 'Enregistrer'}
+                            </button>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Settings panel — rendered when account tab active */}
       {activeTab === 'account' && (

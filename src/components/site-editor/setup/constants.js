@@ -1,4 +1,4 @@
-import { User, MapPin, Users, Star, Building2, MessageSquare, Sparkles, Globe, Code, MessageCircle, Phone, Mail } from "lucide-react";
+import { User, MapPin, Users, Star, Building2, MessageSquare, Globe, Code, MessageCircle, Phone, Mail } from "lucide-react";
 
 // ── Step definitions ──────────────────────────────────────────────────
 
@@ -9,12 +9,11 @@ export const STEP_REGISTRY = {
   specialties: { label: "Spécialités",   icon: Star,          group: "main",     dataKey: "specialties" },
   google:      { label: "Google",        icon: Building2,     group: "main",     dataKey: "google" },
   avis:        { label: "Avis",          icon: MessageSquare, group: "main",     dataKey: "reviewTemplates" },
-  redaction:   { label: "Rédaction IA",  icon: Sparkles,      group: "main",     dataKey: "redaction" },
   domain:      { label: "Domaine",       icon: Globe,         group: "advanced", dataKey: "domain" },
   code:        { label: "Code",          icon: Code,          group: "advanced", dataKey: "customCode" },
 };
 
-export const MAIN_STEP_IDS = ["contact", "cabinet", "therapists", "specialties", "google", "avis", "redaction"];
+export const MAIN_STEP_IDS = ["contact", "cabinet", "therapists", "specialties", "google", "avis"];
 export const ADVANCED_STEP_IDS = ["domain", "code"];
 export const ALL_STEP_IDS = [...MAIN_STEP_IDS, ...ADVANCED_STEP_IDS];
 
@@ -26,7 +25,6 @@ export const DATA_KEY_TO_ACTION_ID = {
   specialties: "specialties",
   google: "google",
   reviewTemplates: "avis",
-  redaction: "redaction",
   domain: "domain",
   customCode: "code",
 };
@@ -57,7 +55,6 @@ export const DEFAULT_SETUP_DATA = {
   google: { connected: false, profile: null },
   customCode: [],
   reviewTemplates: DEFAULT_REVIEW_TEMPLATES,
-  redaction: { tone: "professionnel", style: "informatif", pronoun: "nous", systemPrompt: "" },
 };
 
 // ── Emojis & icon mapping ─────────────────────────────────────────────

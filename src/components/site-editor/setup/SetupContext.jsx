@@ -185,6 +185,7 @@ export function SetupProvider({ children, initialStep, isModal, onClose }) {
   const goToStep = useCallback((stepId) => {
     if (isModal) {
       dispatch({ type: "SET_ACTIVE_STEP", payload: stepId });
+      localStorage.setItem("setupStep", stepId);
     } else {
       router.push(`/setup/${stepId}`);
     }
@@ -218,8 +219,13 @@ export function SetupProvider({ children, initialStep, isModal, onClose }) {
     localStorage.setItem("completedActions", JSON.stringify(allIds));
     dispatch({ type: "SET_COMPLETED_ACTIONS", payload: allIds });
     window.dispatchEvent(new Event("actionsUpdated"));
-    router.push("/dashboard");
-  }, [router]);
+    localStorage.removeItem("setupStep");
+    if (isModal && onClose) {
+      onClose();
+    } else {
+      router.push("/dashboard");
+    }
+  }, [router, isModal, onClose]);
 
   // Reset
   const handleResetAll = useCallback(() => {
