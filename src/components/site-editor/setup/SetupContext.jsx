@@ -146,7 +146,7 @@ function readFromStorage() {
 
 const SetupContext = createContext(null);
 
-export function SetupProvider({ children, initialStep, isModal, onClose }) {
+export function SetupProvider({ children, initialStep, isModal, onClose, hideAdvanced }) {
   const router = useRouter();
   const step = initialStep && ALL_STEP_IDS.includes(initialStep) ? initialStep : "contact";
 
@@ -223,7 +223,9 @@ export function SetupProvider({ children, initialStep, isModal, onClose }) {
     if (isModal && onClose) {
       onClose();
     } else {
-      router.push("/dashboard");
+      const path = typeof window !== 'undefined' && localStorage.getItem('preDashboardComplete') === 'true'
+        ? '/dashboard' : '/pre-dashboard';
+      router.push(path);
     }
   }, [router, isModal, onClose]);
 
@@ -244,7 +246,7 @@ export function SetupProvider({ children, initialStep, isModal, onClose }) {
   }, [initialStep, isModal, state.activeStepId]);
 
   const value = {
-    state, dispatch, changedSections, allMainDone, isModal, onClose, hydrated,
+    state, dispatch, changedSections, allMainDone, isModal, onClose, hydrated, hideAdvanced,
     goToStep, handleValidateSection, handleFinish, handleResetAll,
   };
 

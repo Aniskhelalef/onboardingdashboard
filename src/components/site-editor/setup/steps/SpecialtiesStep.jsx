@@ -7,11 +7,12 @@ import { DEFAULT_SPECIALTIES, SPECIALTY_EMOJIS, getIconEmoji } from "../constant
 import { cn } from "@/lib/utils";
 
 export default function SpecialtiesStep() {
-  const { state, dispatch, handleValidateSection, hydrated } = useSetup();
+  const { state, dispatch, handleValidateSection, hydrated, isModal } = useSetup();
   const { specialties } = state.data;
   const specCount = specialties.length;
 
-  const [subStep, setSubStep] = useState("intro");
+  // Modal: skip intro, go straight to build
+  const [subStep, setSubStep] = useState(isModal ? "build" : "intro");
   const didHydrate = useRef(false);
 
   // Update subStep once hydration loads real data
@@ -21,13 +22,14 @@ export default function SpecialtiesStep() {
       if (specialties.length > 0) setSubStep("build");
     }
   }, [hydrated, specialties.length]);
+
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newIcon, setNewIcon] = useState("✨");
   const [showIconPicker, setShowIconPicker] = useState(false);
 
-  // ── Intro ───────────────────────────────────────────────────────
-  if (subStep === "intro") {
+  // ── Intro (full-page only) ────────────────────────────────────────
+  if (subStep === "intro" && !isModal) {
     return (
       <div className="flex flex-col items-center justify-center h-full" style={{ animation: "tab-fade-in 0.3s ease" }}>
         <div className="w-full max-w-[480px]">
@@ -76,8 +78,8 @@ export default function SpecialtiesStep() {
     );
   }
 
-  // ── Validate ────────────────────────────────────────────────────
-  if (subStep === "validate") {
+  // ── Validate (full-page only) ─────────────────────────────────────
+  if (subStep === "validate" && !isModal) {
     return (
       <div className="space-y-4" style={{ animation: "tab-fade-in 0.3s ease" }}>
         <div className="text-center">
@@ -123,15 +125,124 @@ export default function SpecialtiesStep() {
     );
   }
 
-  // ── Build ───────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────
   const handleAdd = () => {
     if (!newTitle.trim()) return;
     const newSpec = { id: Date.now().toString(), icon: newIcon, title: newTitle.trim(), description: newDesc.trim() || `Spécialité : ${newTitle.trim()}` };
     dispatch({ type: "ADD_SPECIALTY", payload: newSpec });
     setNewTitle(""); setNewDesc(""); setNewIcon("✨");
-    if (specCount + 1 >= 6) setTimeout(() => setSubStep("validate"), 300);
+    if (!isModal && specCount + 1 >= 6) setTimeout(() => setSubStep("validate"), 300);
   };
 
+  // ── Modal: toggleable chips ──────────────────────────────────────
+  if (isModal) {
+    const SUGGESTIONS = [
+      { icon: "🦴", title: "Douleurs musculaires", description: "Traitement des tensions, contractures et douleurs musculaires" },
+      { icon: "🤰", title: "Femmes enceintes", description: "Accompagnement de la grossesse et du post-partum" },
+      { icon: "👶", title: "Nourrissons", description: "Prise en charge des bébés et jeunes enfants" },
+      { icon: "⚽", title: "Sportifs", description: "Optimisation des performances et récupération" },
+      { icon: "💼", title: "Troubles posturaux", description: "Correction des déséquilibres liés au travail de bureau" },
+      { icon: "🧓", title: "Seniors", description: "Maintien de la mobilité et du confort au quotidien" },
+      { icon: "🧠", title: "Stress & anxiété", description: "Gestion du stress, de l'anxiété et des troubles émotionnels" },
+      { icon: "💆", title: "Maux de tête", description: "Traitement des céphalées et migraines" },
+      { icon: "😴", title: "Troubles du sommeil", description: "Amélioration de la qualité du sommeil" },
+      { icon: "🦵", title: "Post-opératoire", description: "Rééducation et récupération après chirurgie" },
+      { icon: "🧘", title: "Bien-être", description: "Relaxation et équilibre corps-esprit" },
+      { icon: "🏃", title: "Remise en forme", description: "Accompagnement au retour à l'activité physique" },
+    ];
+
+    const selectedTitles = specialties.map(s => s.title);
+
+    const toggleSuggestion = (sug) => {
+      const existing = specialties.find(s => s.title === sug.title);
+      if (existing) {
+        dispatch({ type: "REMOVE_SPECIALTY", payload: existing.id });
+      } else if (specCount < 6) {
+        dispatch({ type: "ADD_SPECIALTY", payload: { id: Date.now().toString(), icon: sug.icon, title: sug.title, description: sug.description } });
+      }
+    };
+
+    const handleAddCustom = () => {
+      if (!newTitle.trim() || specCount >= 6) return;
+      dispatch({ type: "ADD_SPECIALTY", payload: { id: Date.now().toString(), icon: "✨", title: newTitle.trim(), description: `Spécialité : ${newTitle.trim()}` } });
+      setNewTitle("");
+    };
+
+    return (
+      <div className="space-y-3 h-full flex flex-col" style={{ animation: "tab-fade-in 0.3s ease" }}>
+        {/* Header */}
+        <div className="flex items-center justify-between shrink-0">
+          <p className="text-sm font-semibold text-color-1">Sélectionnez vos spécialités</p>
+          <span className={cn("text-xs font-bold", specCount >= 3 ? "text-green-500" : "text-color-2")}>{specCount}/6</span>
+        </div>
+
+        {/* Toggleable chips grid */}
+        <div className="flex flex-wrap gap-1.5 flex-1 content-start">
+          {SUGGESTIONS.map((sug) => {
+            const isSelected = selectedTitles.includes(sug.title);
+            const isDisabled = !isSelected && specCount >= 6;
+            return (
+              <button
+                key={sug.title}
+                onClick={() => !isDisabled && toggleSuggestion(sug)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  isSelected
+                    ? "bg-color-2/10 text-color-2 ring-1 ring-color-2/30 cursor-pointer"
+                    : isDisabled
+                    ? "bg-gray-50 text-gray-300 cursor-default"
+                    : "bg-gray-50 text-gray-500 hover:bg-gray-100 cursor-pointer"
+                )}
+              >
+                <span className="text-sm">{sug.icon}</span>
+                {sug.title}
+                {isSelected && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Custom specialties (not in suggestions) */}
+          {specialties.filter(s => !SUGGESTIONS.some(sug => sug.title === s.title)).map((spec) => (
+            <button
+              key={spec.id}
+              onClick={() => dispatch({ type: "REMOVE_SPECIALTY", payload: spec.id })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-color-2/10 text-color-2 ring-1 ring-color-2/30 cursor-pointer transition-all"
+            >
+              <span className="text-sm">{getIconEmoji(spec.icon)}</span>
+              {spec.title}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+          ))}
+        </div>
+
+        {/* Add custom */}
+        {specCount < 6 && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => { if (e.target.value.length <= 30) setNewTitle(e.target.value); }}
+              onKeyDown={(e) => e.key === "Enter" && handleAddCustom()}
+              placeholder="Autre spécialité..."
+              className="flex-1 min-w-0 text-xs text-foreground bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-color-2/30 focus:border-color-2/30 transition-all placeholder:text-gray-300 h-8"
+            />
+            <button onClick={handleAddCustom} disabled={!newTitle.trim()} className={cn("h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1 shrink-0 transition-all", newTitle.trim() ? "bg-color-1 text-white hover:bg-gray-800 cursor-pointer" : "bg-gray-100 text-gray-300 cursor-not-allowed")}>
+              <Plus className="w-3 h-3" />
+              Ajouter
+            </button>
+          </div>
+        )}
+
+        {specCount < 3 && (
+          <p className="text-[11px] text-gray-400 shrink-0">Sélectionnez au moins 3 spécialités</p>
+        )}
+      </div>
+    );
+  }
+
+  // ── Full-page build ───────────────────────────────────────────────
   return (
     <div className="space-y-3" style={{ animation: "tab-fade-in 0.3s ease" }}>
       <div>

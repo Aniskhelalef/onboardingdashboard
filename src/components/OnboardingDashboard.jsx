@@ -1477,7 +1477,7 @@ const OnboardingDashboard = () => {
 
             <button
               disabled={!selectedReferral}
-              onClick={() => { localStorage.setItem('userData', JSON.stringify({ prenom: userPrenom, profession, ville })); localStorage.setItem('onboardingComplete', 'true'); router.push('/dashboard') }}
+              onClick={() => { localStorage.setItem('userData', JSON.stringify({ prenom: userPrenom, nom: userNom, profession, ville })); localStorage.setItem('onboardingComplete', 'true'); router.push('/pre-dashboard') }}
               className={`w-full max-w-xs px-5 py-2.5 mt-6 rounded-full text-white text-sm font-medium transition-opacity ${
                 !selectedReferral
                   ? 'bg-gray-300 cursor-not-allowed'

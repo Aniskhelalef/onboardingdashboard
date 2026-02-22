@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SetupProvider } from '@/components/site-editor/setup/SetupContext'
 import SetupShell from '@/components/site-editor/setup/SetupShell'
+import SetupVisModal from '@/components/site-editor/setup/modals/SetupVisModal'
 const theralysLogo = '/images/theralys-logo.svg'
 const articleImg1 = '/images/pexels-yankrukov-5794010-min.webp'
 const articleImg2 = '/images/pexels-yankrukov-5794024-min.webp'
@@ -105,6 +106,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletedArticles, setDeletedArticles] = useState(new Set())
   const [showSetupModal, setShowSetupModal] = useState(false)
+  const [showAvisModal, setShowAvisModal] = useState(false)
   const [showChangeSubject, setShowChangeSubject] = useState(false)
   const [changeSubjectTitle, setChangeSubjectTitle] = useState('')
   const [changeSubjectInstruction, setChangeSubjectInstruction] = useState('')
@@ -811,12 +813,20 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                               setShowArticleCard(true)
                             }}
                             className={`group relative rounded-[10px] overflow-hidden cursor-pointer transition-all duration-200 border-2 ${
-                              item.isToday ? 'border-[#FC6D41]' : (item.published || item.programmed) ? 'border-gray-200' : 'border-gray-100'
-                            } ${item.published ? 'bg-green-50' : item.programmed ? 'bg-amber-50' : 'bg-gray-50'} flex flex-col p-2`}
+                              item.isToday ? 'border-[#FC6D41]' : 'border-gray-200'
+                            } bg-gray-50 flex flex-col p-2`}
                           >
-                            <span className={`text-sm font-bold leading-none ${item.isToday ? 'text-[#FC6D41]' : 'text-color-1'}`}>{item.dayNum} {item.monthShort}</span>
-                            {spec && <span className="mt-1 px-1.5 py-0.5 rounded-full bg-white text-color-1 text-xs font-semibold leading-none truncate self-start max-w-full">{spec.title}</span>}
-                            <p className="text-xs font-semibold text-color-1 leading-tight line-clamp-2 mt-auto">{customArticleTitles[item.index] || item.articleTitle || ''}</p>
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm font-bold leading-none ${item.isToday ? 'text-[#FC6D41]' : 'text-color-1'}`}>{item.dayNum} {item.monthShort}</span>
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold leading-none ${
+                                item.published ? 'bg-green-100 text-green-600' : item.programmed ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${item.published ? 'bg-green-500' : item.programmed ? 'bg-amber-400' : 'bg-blue-400'}`} />
+                                {item.published ? 'Publié' : item.programmed ? 'Programmé' : 'Avenir'}
+                              </span>
+                            </div>
+                            {spec && <span className="mt-auto mb-0.5 text-[11px] font-medium text-gray-400 truncate max-w-full">{spec.title}</span>}
+                            <p className="text-xs font-semibold text-color-1 leading-tight line-clamp-2">{customArticleTitles[item.index] || item.articleTitle || ''}</p>
                             {(item.published || item.programmed) && seoScore > 0 && (
                               <div className="border-t border-gray-100 mt-1 pt-1">
                                 <p className={`text-xs font-bold ${seoColor} leading-none`}>{seoLabel} : {seoScore}/100</p>
@@ -824,8 +834,8 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                             )}
                             {/* Hover overlay — published/programmed: delete + edit */}
                             {(item.published || item.programmed) && (
-                              <div className={`absolute inset-0 rounded-[10px] flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 ${item.published ? 'bg-green-50' : 'bg-amber-50'}`}>
-                                <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-[8px] ${item.published ? 'bg-green-100/50' : 'bg-amber-100/50'}`}>
+                              <div className="absolute inset-0 rounded-[10px] flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 bg-gray-50">
+                                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-t-[8px] bg-gray-100/50">
                                   <span className={`w-1.5 h-1.5 rounded-full ${item.published ? 'bg-green-500' : 'bg-amber-400'}`} />
                                   <span className={`text-xs font-semibold ${item.published ? 'text-green-600' : 'text-amber-600'}`}>{item.published ? 'Publié' : 'Programmé'}</span>
                                 </div>
@@ -1387,11 +1397,11 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
           <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-lg font-bold text-color-1">Bonjour {prenom}</h1>
-                <div className="relative mt-2 inline-block">
+                <h1 className="text-sm font-bold text-color-1">Bonjour {prenom}</h1>
+                <div className="relative mt-1 inline-block">
                   <button
                     onClick={() => setTimePeriodOpen(!timePeriodOpen)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 text-sm text-gray-600 hover:border-gray-400 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-gray-300 text-xs text-gray-600 hover:border-gray-400 transition-colors cursor-pointer"
                   >
                     {timePeriod === 'Personnaliser' && customDateFrom && customDateTo
                       ? `${customDateFrom.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${customDateTo.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`
@@ -1567,90 +1577,86 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
           {/* Right column — spans both rows */}
           <div className="row-span-2 flex flex-col gap-2.5">
 
-            {/* Actions */}
+            {/* Collecter des avis */}
             <div className="bg-white border-2 border-gray-200 rounded-2xl p-3.5 shrink-0">
-              <h2 className="text-base font-bold text-color-1 mb-2.5" onDoubleClick={() => { localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')) }}>Actions</h2>
-              <div className="flex flex-col gap-1.5">
-                {[
-                  { id: 'setup', label: 'Options du site', desc: 'Configurer les informations et préférences', requires: null,
-                    onClick: () => setShowSetupModal(true),
-                    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
-                  { id: 'publish', label: 'Publier', desc: 'Vérifier vos pages, choisir un domaine et publier', requires: 'setup', href: '/editor/accueil?mode=validate',
-                    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> },
-                  { id: 'seo', label: 'Paramétrage SEO', desc: 'Optimiser le référencement de votre site', requires: 'publish',
-                    onClick: () => { const savedStep = localStorage.getItem('seoSetupStep') || 'redaction'; setSeoSetupMode(true); setSettingsSection(savedStep); setSettingsInitial({ tone: redTone, style: redStyle, pronoun: redPronoun, prompt: redPrompt, checkedSpecs: [...checkedSpecs] }); setShowRedactorSettings(true) },
-                    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg> },
-                ].map((action, i) => {
-                  const done = completedActions.includes(action.id)
-                  const locked = action.requires && !completedActions.includes(action.requires)
-                  if (done) return (
-                    <div key={action.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-green-50 border border-green-200/50">
-                      <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center shrink-0 text-green-600">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <p className="text-sm font-medium text-green-700 line-through">{action.label}</p>
-                    </div>
-                  )
-                  if (locked) return (
-                    <div key={action.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-200 opacity-40">
-                      <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-gray-400">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                      </div>
-                      <p className="text-sm font-medium text-gray-400">{action.label}</p>
-                    </div>
-                  )
+              <div className="flex items-center justify-between mb-2.5">
+                <h2 className="text-base font-bold text-color-1" onDoubleClick={() => { localStorage.removeItem('preDashboardComplete'); localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')); router.push('/pre-dashboard') }}>Collecter des avis</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-gray-400">0 / 3 cette semaine</span>
+                  <button onClick={() => setShowAvisModal(true)} className="w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="flex-1 h-1.5 rounded-full bg-gray-100" />
+                ))}
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                <button onClick={() => {
+                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
+                  const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || '')
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-50 hover:bg-green-100 border border-green-200 transition-colors cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                  <span className="text-[11px] font-semibold text-green-700">WhatsApp</span>
+                </button>
+                <button onClick={() => {
+                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
+                  const msg = (tpl.sms?.message || 'Merci pour votre visite ! Votre avis compte beaucoup pour nous.').replace(/\{link\}/g, tpl.googleLink || '')
+                  window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self')
+                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span className="text-[11px] font-semibold text-blue-700">SMS</span>
+                </button>
+                <button onClick={() => {
+                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
+                  const subject = tpl.email?.subject || 'Votre avis compte pour nous'
+                  const msg = (tpl.email?.message || 'Merci pour votre visite au cabinet !').replace(/\{link\}/g, tpl.googleLink || '')
+                  window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`, '_self')
+                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  <span className="text-[11px] font-semibold text-purple-700">Email</span>
+                </button>
+                <button onClick={() => {
+                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
+                  const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || '')
+                  navigator.clipboard.writeText(msg)
+                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors cursor-pointer">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span className="text-[11px] font-semibold text-gray-500">Copier</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Prochains articles */}
+            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
+              <h2 className="text-[13px] font-bold text-color-1 mb-2">Prochains articles</h2>
+              <div className="flex flex-col gap-1.5 flex-1 min-h-0">
+                {viewData.programmedArticles.slice(0, 4).map((item, i) => {
+                  const spec = allSpecialties.find(s => s.id === item.specId)
                   return (
-                    <button key={action.id} onClick={action.onClick || (() => router.push(action.href))} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-color-2/5 hover:bg-color-2/10 border border-color-2/20 transition-colors cursor-pointer text-left">
-                      <div className="w-7 h-7 rounded-lg bg-color-2/15 flex items-center justify-center shrink-0 text-color-2">
-                        {action.icon}
+                    <div key={item.index} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-100">
+                      <span className="text-base shrink-0">{spec?.icon || '📝'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-color-1 leading-tight truncate">{customArticleTitles[item.index] || item.articleTitle}</p>
+                        <p className="text-[11px] text-gray-400 leading-tight">{item.dayNum} {item.monthShort} · {spec?.title || 'Article'}</p>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-color-1">{action.label}</p>
-                        <p className="text-[11px] text-gray-400 leading-tight">{action.desc}</p>
-                      </div>
-                    </button>
+                      <button
+                        onClick={() => {
+                          setSelectedDay(item.index)
+                          router.push('/referencement')
+                        }}
+                        className="shrink-0 px-2.5 py-1 rounded-lg bg-color-2/10 text-color-2 text-[11px] font-semibold hover:bg-color-2/20 transition-colors cursor-pointer"
+                      >
+                        Relecture
+                      </button>
+                    </div>
                   )
                 })}
               </div>
             </div>
-
-            {/* Article bento */}
-            <button onClick={() => navigateToArticle(articles[articleIdx])} className="flex-1 border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden cursor-pointer hover:border-gray-300 transition-colors text-left">
-              {/* Background image */}
-              <img src={articles[articleIdx].img} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-              {/* Content */}
-              <div className="relative z-[1] flex flex-col flex-1 min-h-0">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${articles[articleIdx].status === 'published' ? 'bg-white text-green-600' : 'bg-white text-amber-600'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${articles[articleIdx].status === 'published' ? 'bg-green-500' : 'bg-amber-400'}`} />
-                    {articles[articleIdx].status === 'published' ? 'Publié' : 'Programmé'}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-white text-[#FC6D41] text-[11px] font-semibold">{articles[articleIdx].category}</span>
-                  <span className="ml-auto text-[11px] font-medium text-white/70">{articles[articleIdx].date}</span>
-                </div>
-                <p className="text-sm font-semibold text-white leading-snug">{articles[articleIdx].title}</p>
-                <div className="border-t border-white/20 mt-auto pt-2.5 flex items-center justify-between">
-                  {(() => {
-                    const s = articles[articleIdx].seoScore
-                    const label = s >= 90 ? 'Excellent' : s >= 75 ? 'Bon' : 'À améliorer'
-                    const color = s >= 90 ? 'text-green-400' : s >= 75 ? 'text-amber-400' : 'text-red-400'
-                    return <p className={`text-sm font-bold ${color}`}>{label} : {s}/100</p>
-                  })()}
-                  <div className="flex items-center gap-1.5">
-                    <div onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx - 1 + articles.length) % articles.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                    </div>
-                    {articles.map((_, i) => (
-                      <div key={i} onClick={(e) => { e.stopPropagation(); setArticleIdx(i) }} className={`rounded-full transition-all cursor-pointer block ${i === articleIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-white/40 hover:bg-white/60'}`} />
-                    ))}
-                    <div onClick={(e) => { e.stopPropagation(); setArticleIdx((articleIdx + 1) % articles.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </button>
 
             {/* Quoi de neuf bento */}
             <button onClick={() => setShowNewsModal(newsIdx)} className="flex-1 border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden cursor-pointer text-left bg-gradient-to-br from-color-1 to-gray-700 hover:border-gray-300 transition-colors">
@@ -1771,6 +1777,13 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         </div>
         )}
       </div>
+
+      {/* Avis modal — edit review templates */}
+      {showAvisModal && (
+        <SetupProvider initialStep="google" isModal hideAdvanced onClose={() => setShowAvisModal(false)}>
+          <SetupVisModal onClose={() => setShowAvisModal(false)} />
+        </SetupProvider>
+      )}
 
       {/* Setup modal — Options du site flow */}
       {showSetupModal && (

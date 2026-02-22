@@ -24,6 +24,7 @@ const EditorToolbar = ({
   isValidationMode = false,
   validationSequence = [],
   validationStepIndex = 0,
+  hasScrolledToBottom = false,
 }) => {
   const [pagesOpen, setPagesOpen] = useState(false);
   const popoverRef = useRef(null);
@@ -89,8 +90,8 @@ const EditorToolbar = ({
       <div className={cn("fixed left-0 right-0 z-[60] px-4 pointer-events-none", isMobileDevice ? "bottom-4" : "bottom-6")}>
         <div className="flex items-end justify-center gap-2 max-w-screen-xl mx-auto pointer-events-auto">
 
-          {/* Left — Page selector (normal mode only) */}
-          {!isValidationMode && (
+          {/* Left — Page selector (normal mode) or spacer (validation mode) */}
+          {!isValidationMode ? (
             <div className="flex items-center gap-2">
               <div className="relative">
                 {/* Pages popover */}
@@ -188,6 +189,8 @@ const EditorToolbar = ({
               </div>
 
             </div>
+          ) : (
+            <div className="w-[180px] shrink-0" />
           )}
 
           {/* Center — Undo/Redo + View mode + Style */}
@@ -238,15 +241,36 @@ const EditorToolbar = ({
           </div>
 
           {/* Right — Validate (validation mode only) */}
-          {isValidationMode && !currentPageValidated && (
-            <button
-              onClick={onValidatePage}
-              className="h-[42px] px-5 rounded-2xl bg-color-2 hover:opacity-90 text-white text-sm font-semibold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
-              style={SHADOW}
-            >
-              Valider la page
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </button>
+          {isValidationMode && !currentPageValidated && (() => {
+            const isLast = validationStepIndex === validationSequence.length - 1;
+            return (
+              <button
+                onClick={() => { if (hasScrolledToBottom) onValidatePage() }}
+                className={cn(
+                  "h-[42px] px-5 rounded-2xl text-sm font-semibold transition-all flex items-center gap-1.5 shrink-0 w-[180px] justify-center",
+                  hasScrolledToBottom
+                    ? isLast ? "bg-green-500 hover:bg-green-600 text-white cursor-pointer" : "bg-color-2 hover:opacity-90 text-white cursor-pointer"
+                    : "bg-gray-200 text-gray-400 cursor-default"
+                )}
+                style={SHADOW}
+              >
+                {isLast ? (
+                  <>
+                    Terminer
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </>
+                ) : (
+                  <>
+                    Valider la page
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  </>
+                )}
+              </button>
+            );
+          })()}
+          {/* Spacer when validate button is not shown in validation mode */}
+          {isValidationMode && currentPageValidated && (
+            <div className="w-[180px] shrink-0" />
           )}
 
         </div>

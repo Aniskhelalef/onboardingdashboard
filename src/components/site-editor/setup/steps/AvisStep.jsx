@@ -9,18 +9,55 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-export default function AvisStep() {
-  const { state, dispatch, changedSections, handleValidateSection } = useSetup();
+export default function AvisStep({ channelId }) {
+  const { state, dispatch, changedSections, handleValidateSection, isModal } = useSetup();
   const { reviewTemplates } = state.data;
   const [activeChannel, setActiveChannel] = useState("whatsapp");
 
-  const ch = REVIEW_CHANNELS.find(c => c.id === activeChannel) || REVIEW_CHANNELS[0];
+  // If channelId is provided (modal per-channel mode), lock to that channel
+  const effectiveChannel = channelId || activeChannel;
+  const ch = REVIEW_CHANNELS.find(c => c.id === effectiveChannel) || REVIEW_CHANNELS[0];
   const chTemplate = reviewTemplates[ch.id];
   const chMessage = chTemplate?.message || "";
   const chSubject = chTemplate?.subject || "";
   const chResolvedMsg = chMessage.replace(/\{link\}/g, reviewTemplates.googleLink || "[lien Google]");
   const chResolvedSubject = chSubject.replace(/\{link\}/g, reviewTemplates.googleLink || "[lien Google]");
 
+  // Single-channel modal mode: just show the message template
+  if (channelId) {
+    const Icon = ch.icon;
+    return (
+      <div className="space-y-2.5 h-full flex flex-col">
+        <div className="flex items-center gap-2">
+          <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-white", ch.color)}>
+            <Icon className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-sm font-medium text-color-1">Message {ch.label}</span>
+        </div>
+        {ch.hasSubject && (
+          <div className="space-y-1">
+            <Label className="text-[11px]">Objet</Label>
+            <Input value={chSubject} onChange={(e) => dispatch({ type: "UPDATE_REVIEW_TEMPLATE", payload: { channel: ch.id, updates: { subject: e.target.value } } })} placeholder="Objet de l'email" className="h-8 text-sm" />
+          </div>
+        )}
+        <div className="space-y-1 flex-1 flex flex-col">
+          <Label className="text-[11px]">Message pré-rédigé</Label>
+          <Textarea
+            value={chMessage}
+            onChange={(e) => dispatch({ type: "UPDATE_REVIEW_TEMPLATE", payload: { channel: ch.id, updates: { message: e.target.value } } })}
+            placeholder="Votre message..."
+            className="text-sm resize-none flex-1"
+          />
+        </div>
+        <button onClick={() => window.open(ch.getUrl(chResolvedMsg, chResolvedSubject), "_blank")} className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-color-2 transition-colors cursor-pointer shrink-0">
+          <ExternalLink className="w-3 h-3" />
+          Tester l'envoi
+        </button>
+      </div>
+    );
+  }
+
+  // Full-page mode with channel tabs
   return (
     <div className="space-y-4" style={{ animation: "tab-fade-in 0.3s ease" }}>
       <div>
@@ -30,7 +67,7 @@ export default function AvisStep() {
 
       {/* Google review link */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-xl flex-1 min-w-0">
+        <div className="flex items-center gap-2 bg-gray-50 rounded-xl flex-1 min-w-0 px-3 py-2">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="shrink-0">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -47,7 +84,7 @@ export default function AvisStep() {
           const Icon = channel.icon;
           const isActive = activeChannel === channel.id;
           return (
-            <button key={channel.id} onClick={() => setActiveChannel(channel.id)} className={cn("flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer", isActive ? cn("text-white shadow-sm", channel.color) : "bg-gray-100 text-gray-500 hover:bg-gray-150")}>
+            <button key={channel.id} onClick={() => setActiveChannel(channel.id)} className={cn("flex-1 flex items-center justify-center gap-2 rounded-xl font-medium transition-all cursor-pointer py-2 text-sm", isActive ? cn("text-white shadow-sm", channel.color) : "bg-gray-100 text-gray-500 hover:bg-gray-150")}>
               <Icon className="w-3.5 h-3.5" />
               {channel.label}
             </button>
@@ -65,10 +102,10 @@ export default function AvisStep() {
         )}
         <div className="space-y-1">
           <Label className="text-xs">Message</Label>
-          <Textarea value={chMessage} onChange={(e) => dispatch({ type: "UPDATE_REVIEW_TEMPLATE", payload: { channel: ch.id, updates: { message: e.target.value } } })} placeholder="Votre message..." className="text-sm min-h-[100px] resize-none" />
+          <Textarea value={chMessage} onChange={(e) => dispatch({ type: "UPDATE_REVIEW_TEMPLATE", payload: { channel: ch.id, updates: { message: e.target.value } } })} placeholder="Votre message..." className="text-sm resize-none min-h-[100px]" />
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.open(ch.getUrl(chResolvedMsg, chResolvedSubject), "_blank")} className={cn("flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium text-white transition-colors cursor-pointer", ch.color)}>
+          <button onClick={() => window.open(ch.getUrl(chResolvedMsg, chResolvedSubject), "_blank")} className={cn("flex items-center gap-1.5 rounded-xl text-xs font-medium text-white transition-colors cursor-pointer px-4 py-2", ch.color)}>
             <ExternalLink className="w-3 h-3" />
             Envoyer via {ch.label}
           </button>

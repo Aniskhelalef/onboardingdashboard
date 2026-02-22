@@ -3,6 +3,10 @@ import { useRouter } from "next/navigation";
 import { Link2, Rocket } from "lucide-react";
 const theralysLogo = '/images/theralys-logo.svg';
 import { cn } from "@/lib/utils";
+
+const getDashboardPath = () =>
+  typeof window !== 'undefined' && localStorage.getItem('preDashboardComplete') === 'true'
+    ? '/dashboard' : '/pre-dashboard';
 import EditorCanvas from "./EditorCanvas";
 import FloatingEditToolbar from "./FloatingEditToolbar";
 import { ProofreadingProvider, useProofreading } from "./ProofreadingContext";
@@ -76,12 +80,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
 
   // Validation mode state
   const [isValidationMode, setIsValidationMode] = useState(!!initialValidationMode);
-  const [showDomainModal, setShowDomainModal] = useState(false);
-  const [showCongratsModal, setShowCongratsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [chosenDomain, setChosenDomain] = useState("");
-  const [domainSearched, setDomainSearched] = useState(false);
-  const [selectedDomainExt, setSelectedDomainExt] = useState(".fr");
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
 
   const [showCropModal, setShowCropModal] = useState(false);
   const [cropTarget, setCropTarget] = useState(null);
@@ -315,6 +315,23 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
     return () => window.removeEventListener("actionsUpdated", handler);
   }, []);
 
+  // Track scroll position for validation mode — button unlocks at bottom
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || !isValidationMode) { setHasScrolledToBottom(false); return; }
+    setHasScrolledToBottom(false);
+    const onScroll = () => {
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+      if (atBottom) setHasScrolledToBottom(true);
+    };
+    // Check immediately in case content fits without scrolling
+    requestAnimationFrame(() => {
+      if (el.scrollHeight <= el.clientHeight + 40) setHasScrolledToBottom(true);
+    });
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [isValidationMode, currentPage]);
+
   // Validation mode: auto-advance to first unvalidated page on mount
   useEffect(() => {
     if (!isValidationMode) return;
@@ -324,8 +341,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
       return !saved.includes(rid);
     });
     if (!firstUnvalidated) {
-      // All pages already validated — show domain modal
-      setShowDomainModal(true);
+      // All pages already validated — finish
+      handleFinishValidation();
     } else if (firstUnvalidated !== currentPage) {
       router.replace(`/editor/${firstUnvalidated}?mode=validate`);
     }
@@ -518,7 +535,7 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         localStorage.setItem("completedActions", JSON.stringify(existing));
         window.dispatchEvent(new Event("actionsUpdated"));
       }
-      setShowDomainModal(true);
+      handleFinishValidation();
     } else {
       // Advance to next page
       const nextPage = VALIDATION_SEQUENCE[validationStepIndex + 1];
@@ -526,21 +543,18 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
     }
   };
 
-  // Domain confirmed → publish
-  const handleDomainConfirm = () => {
-    if (!chosenDomain.trim() || !selectedDomainExt) return;
-    const fullDomain = `${chosenDomain.trim()}${selectedDomainExt}`;
+  // Finish validation flow → mark validate+publish done, go to pre-dashboard
+  const handleFinishValidation = () => {
     const existing = JSON.parse(localStorage.getItem("completedActions") || "[]");
-    if (!existing.includes('domain')) existing.push('domain');
+    if (!existing.includes('validate')) existing.push('validate');
     if (!existing.includes('publish')) existing.push('publish');
     localStorage.setItem("completedActions", JSON.stringify(existing));
-    localStorage.setItem("chosenDomain", fullDomain);
     localStorage.setItem("sitePublished", "true");
     setCompletedActions([...existing]);
     setIsSitePublished(true);
     window.dispatchEvent(new Event("actionsUpdated"));
-    setShowDomainModal(false);
-    setShowCongratsModal(true);
+    setIsValidationMode(false);
+    router.push('/pre-dashboard');
   };
 
   const handlePublishClick = () => {
@@ -795,7 +809,7 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
       {!isValidationMode && <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0 z-[70]">
         <div className="flex items-center justify-between">
           <button
-            onClick={() => tryNavigate(() => router.push('/dashboard'))}
+            onClick={() => tryNavigate(() => router.push(getDashboardPath()))}
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-color-1 transition-colors cursor-pointer"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -837,7 +851,6 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         ref={canvasRef}
         className="flex-1 overflow-auto flex justify-center items-start px-6 py-4 w-full max-w-[1200px]"
         style={{
-          animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           "--page-bg": currentPalette.background,
           "--page-hero-bg": currentPalette.heroBg,
           "--page-text": currentPalette.text,
@@ -1626,194 +1639,6 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         </div>
       )}
 
-      {/* Domain Modal (validation flow) — OVH style */}
-      {showDomainModal && (() => {
-        const extensions = [
-          { ext: '.fr', label: '.fr', badge: 'Recommandé', badgeColor: 'bg-color-2 text-white' },
-          { ext: '.com', label: '.com', badge: null },
-          { ext: '.cabinet', label: '.cabinet', badge: 'Nouveau', badgeColor: 'bg-blue-500 text-white' },
-          { ext: '.sante', label: '.santé', badge: null },
-        ];
-        const getAvailability = (ext) => {
-          if (!chosenDomain.trim() || !domainSearched) return null;
-          // Simulated: all available except .com for very common names
-          if (ext === '.com' && ['cabinet', 'osteo', 'kine', 'docteur', 'medecin'].includes(chosenDomain.trim())) return false;
-          return true;
-        };
-        return (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 animate-in zoom-in-95 duration-200 overflow-hidden">
-              {/* Header */}
-              <div className="px-6 pt-6 pb-4">
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="w-10 h-10 rounded-xl bg-color-2/10 flex items-center justify-center shrink-0">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-color-1">Choisir votre nom de domaine</h3>
-                    <p className="text-xs text-gray-400">Ce sera l'adresse de votre site web</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Search bar */}
-              <div className="px-6 pb-4">
-                <div className="flex items-center bg-gray-50 rounded-xl border-2 border-gray-200 focus-within:border-color-2 transition-colors overflow-hidden">
-                  <span className="pl-4 pr-0.5 text-sm text-gray-400 shrink-0">www.</span>
-                  <input
-                    type="text"
-                    value={chosenDomain}
-                    onChange={(e) => { setChosenDomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setDomainSearched(false); setSelectedDomainExt('.fr'); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && chosenDomain.trim()) setDomainSearched(true); }}
-                    placeholder="mon-cabinet"
-                    className="flex-1 py-3 text-sm bg-transparent outline-none text-color-1 placeholder:text-gray-300 font-medium"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => { if (chosenDomain.trim()) setDomainSearched(true); }}
-                    disabled={!chosenDomain.trim()}
-                    className={cn(
-                      "mr-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0",
-                      chosenDomain.trim()
-                        ? "bg-color-1 text-white hover:opacity-90 cursor-pointer"
-                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    )}
-                  >
-                    Rechercher
-                  </button>
-                </div>
-              </div>
-
-              {/* Results */}
-              <div className="px-6 pb-2">
-                {!domainSearched ? (
-                  <div className="text-center py-6">
-                    <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-2">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    </div>
-                    <p className="text-sm text-gray-400">Entrez un nom et recherchez sa disponibilité</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    {extensions.map(({ ext, label, badge, badgeColor }) => {
-                      const available = getAvailability(ext);
-                      const isSelected = selectedDomainExt === ext;
-                      return (
-                        <button
-                          key={ext}
-                          onClick={() => { if (available) setSelectedDomainExt(ext); }}
-                          disabled={!available}
-                          className={cn(
-                            "flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 transition-all text-left",
-                            !available
-                              ? "border-gray-100 bg-gray-50/50 opacity-50 cursor-not-allowed"
-                              : isSelected
-                              ? "border-color-2 bg-color-2/5 cursor-pointer"
-                              : "border-gray-200 bg-white hover:border-gray-300 cursor-pointer"
-                          )}
-                        >
-                          {/* Radio dot */}
-                          <div className={cn(
-                            "w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center",
-                            !available ? "border-gray-200" : isSelected ? "border-color-2" : "border-gray-300"
-                          )}>
-                            {isSelected && available && <div className="w-2 h-2 rounded-full bg-color-2" />}
-                          </div>
-
-                          {/* Domain name */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-color-1">{chosenDomain}<span className="text-gray-400">{label}</span></span>
-                              {badge && <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", badgeColor)}>{badge}</span>}
-                            </div>
-                          </div>
-
-                          {/* Availability */}
-                          {available ? (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                              <span className="text-xs text-green-600 font-medium">Disponible</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1 shrink-0">
-                              <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                              <span className="text-xs text-red-400 font-medium">Indisponible</span>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 pt-3 pb-5">
-                <button
-                  onClick={handleDomainConfirm}
-                  disabled={!chosenDomain.trim() || !domainSearched || !selectedDomainExt}
-                  className={cn(
-                    "w-full py-3 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2",
-                    chosenDomain.trim() && domainSearched && selectedDomainExt
-                      ? "bg-color-2 text-white hover:opacity-90 cursor-pointer"
-                      : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  )}
-                >
-                  Confirmer et publier
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Congratulations Modal (validation flow) */}
-      {showCongratsModal && (() => {
-        const fullDomain = localStorage.getItem("chosenDomain") || `${chosenDomain}.fr`;
-        return (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden animate-in zoom-in-95 duration-200">
-              {/* Green banner */}
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 px-6 pt-8 pb-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-1">Félicitations !</h3>
-                <p className="text-sm text-white/80">Votre site est maintenant en ligne</p>
-              </div>
-              {/* Domain display */}
-              <div className="px-6 py-5 text-center">
-                <div className="inline-flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200 mb-5">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-sm font-semibold text-color-1">www.{fullDomain}</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <a
-                    href={`https://www.${fullDomain}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 rounded-xl text-sm font-semibold bg-color-1 text-white hover:opacity-90 transition-colors text-center block"
-                  >
-                    Voir mon site
-                  </a>
-                  <button
-                    onClick={() => {
-                      setShowCongratsModal(false);
-                      setIsValidationMode(false);
-                      router.push('/dashboard');
-                    }}
-                    className="w-full py-3 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    Retour au tableau de bord
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Publish Confirmation Modal */}
       {showPublishConfirm && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -2027,7 +1852,7 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
                 window.dispatchEvent(new Event("actionsUpdated"))
               }
               setShowStyleModal(false)
-              router.push('/dashboard')
+              router.push(getDashboardPath())
             } : undefined}
           />
         </div>
@@ -2049,7 +1874,7 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         canUndo={canUndo}
         canRedo={canRedo}
         onboardingLock={isOnboardingMode && !setupCompleted}
-        onAccueilClick={() => tryNavigate(() => router.push('/dashboard'))}
+        onAccueilClick={() => tryNavigate(() => router.push(getDashboardPath()))}
         onPreviewClick={() => {}}
         onValidatePage={isValidationMode ? handleValidationFlowValidate : handleValidatePage}
         onPublishClick={handlePublishClick}
@@ -2057,6 +1882,7 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         isValidationMode={isValidationMode}
         validationSequence={VALIDATION_SEQUENCE}
         validationStepIndex={validationStepIndex}
+        hasScrolledToBottom={hasScrolledToBottom}
       />
 
       {/* Hidden file input for image changes */}

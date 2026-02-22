@@ -6,10 +6,11 @@ import { useEffect } from 'react';
 
 const RichTextEditor = ({ content, onChange, placeholder, className }) => {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
-        heading: false, // Disable headings
-        code: false, // Disable code blocks
+        heading: false,
+        code: false,
         codeBlock: false,
         blockquote: false,
         horizontalRule: false,
