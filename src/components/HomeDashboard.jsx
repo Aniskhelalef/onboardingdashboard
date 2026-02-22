@@ -82,6 +82,8 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   // Article modal states removed — Voir/Modifier/Créer navigate to SiteEditor
   const [showParrainageVideo, setShowParrainageVideo] = useState(false)
   const [showNewsModal, setShowNewsModal] = useState(null) // index of news item or null
+  const [selectedStreakDay, setSelectedStreakDay] = useState(6) // dayOffset: 6=Mon … 0=today
+  const streakCyclePaused = useRef(false)
   const [showRedactorSettings, setShowRedactorSettings] = useState(false)
   const [seoSetupMode, setSeoSetupMode] = useState(false) // true when opened from SEO action
   const [settingsSection, setSettingsSection] = useState('redaction') // 'redaction' | 'repartition'
@@ -107,6 +109,8 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   const [deletedArticles, setDeletedArticles] = useState(new Set())
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [showAvisModal, setShowAvisModal] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showPartnerModal, setShowPartnerModal] = useState(null) // 'consulteo' | 'boosttoncab' | null
   const [showChangeSubject, setShowChangeSubject] = useState(false)
   const [changeSubjectTitle, setChangeSubjectTitle] = useState('')
   const [changeSubjectInstruction, setChangeSubjectInstruction] = useState('')
@@ -130,6 +134,15 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
     }
     window.addEventListener('actionsUpdated', handler)
     return () => window.removeEventListener('actionsUpdated', handler)
+  }, [])
+
+  // Auto-cycle streak days every 4s (6→5→4→…→0→6→…)
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (streakCyclePaused.current) return
+      setSelectedStreakDay(prev => prev <= 0 ? 6 : prev - 1)
+    }, 4000)
+    return () => clearInterval(id)
   }, [])
 
   const completeAction = (id) => {
@@ -366,11 +379,8 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   }, [activeTab])
 
   const news = [
-    { title: 'Offre parrainage — Invitez un confrère, gagnez 2 mois', desc: 'Partagez votre lien de parrainage et recevez jusqu\'à 2 mois offerts pour chaque inscription.', date: '15 fév.', tag: 'Offre', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-    { title: 'Boostoncab — Boostez votre visibilité avec Google Ads', desc: 'Nouveau partenariat avec Boostoncab : lancez vos campagnes Google Ads en quelques clics et attirez plus de patients.', date: '12 fév.', tag: 'Partenaire', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-    { title: 'Génération d\'articles V2 — Plus rapide, plus pertinent', desc: 'Vos articles sont désormais générés avec un style plus naturel et adapté à votre spécialité.', date: '11 fév.', tag: 'Nouveau', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-    { title: 'Tableau de bord repensé', desc: 'Visualisez vos statistiques clés en un coup d\'œil avec le nouveau design.', date: '3 fév.', tag: 'Mise à jour', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-    { title: 'Collecte d\'avis automatisée', desc: 'Envoyez automatiquement des demandes d\'avis à vos patients après chaque séance.', date: '20 jan.', tag: 'Nouveau', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+    { title: 'Consulteo — Outils de réservation pour thérapeutes', desc: 'Simplifiez la prise de rendez-vous de vos patients avec Consulteo, notre partenaire spécialisé pour les professionnels de santé.', date: '15 fév.', tag: 'Partenaire', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ', url: 'https://consulteo.fr' },
+    { title: 'BoostTonCab — Google & Meta Ads pour thérapeutes', desc: 'Boostez votre visibilité en ligne avec des campagnes publicitaires optimisées pour les cabinets de santé.', date: '12 fév.', tag: 'Partenaire', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ', url: 'https://boosttoncab.fr' },
   ]
   const articles = [
     { title: 'Ostéopathe paris solution mal de dos', date: '12 fév.', realDate: new Date(2026, 1, 12), status: 'published', img: articleImg1, category: 'Spécialités', seoScore: 91 },
@@ -1390,6 +1400,35 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
             </div>
           )}
 
+          {/* Partner video modal */}
+          {showPartnerModal && (() => {
+            const partners = {
+              consulteo: { name: 'Consulteo', desc: 'Outils de réservation pour thérapeutes', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ', url: 'https://consulteo.fr', color: 'text-blue-600' },
+              boosttoncab: { name: 'BoostTonCab', desc: 'Google & Meta Ads pour thérapeutes', video: 'https://www.youtube.com/embed/dQw4w9WgXcQ', url: 'https://boosttoncab.fr', color: 'text-orange-600' },
+            }
+            const p = partners[showPartnerModal]
+            if (!p) return null
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowPartnerModal(null)}>
+                <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+                <div className="relative bg-white rounded-2xl shadow-xl w-[520px] overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                  <div className="w-full aspect-video bg-black">
+                    <iframe src={p.video} className="w-full h-full" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                  </div>
+                  <div className="p-5">
+                    <p className="text-xs text-gray-400 mb-1">Partenaire Theralys</p>
+                    <h3 className="text-lg font-bold text-color-1 mb-2">{p.name}</h3>
+                    <p className="text-sm text-gray-500 mb-4">{p.desc}</p>
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-color-1 text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer">
+                      Découvrir {p.name}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
         </div>
         ) : (
         <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
@@ -1492,7 +1531,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                 </div>
               </div>
               <div className="flex gap-3">
-                {kpiCards.map((kpi) => (
+                {kpiCards.filter(kpi => kpi.key !== 'avis').map((kpi) => (
                   <button
                     key={kpi.key}
                     onClick={() => setSelectedKpi(kpi.key)}
@@ -1577,117 +1616,183 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
           {/* Right column — spans both rows */}
           <div className="row-span-2 flex flex-col gap-2.5">
 
-            {/* Collecter des avis */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-3.5 shrink-0">
-              <div className="flex items-center justify-between mb-2.5">
-                <h2 className="text-base font-bold text-color-1" onDoubleClick={() => { localStorage.removeItem('preDashboardComplete'); localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')); router.push('/pre-dashboard') }}>Collecter des avis</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-gray-400">0 / 3 cette semaine</span>
-                  <button onClick={() => setShowAvisModal(true)} className="w-6 h-6 rounded-lg hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 mb-2.5">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="flex-1 h-1.5 rounded-full bg-gray-100" />
-                ))}
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                <button onClick={() => {
-                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
-                  const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || '')
-                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-50 hover:bg-green-100 border border-green-200 transition-colors cursor-pointer">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                  <span className="text-[11px] font-semibold text-green-700">WhatsApp</span>
-                </button>
-                <button onClick={() => {
-                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
-                  const msg = (tpl.sms?.message || 'Merci pour votre visite ! Votre avis compte beaucoup pour nous.').replace(/\{link\}/g, tpl.googleLink || '')
-                  window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self')
-                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span className="text-[11px] font-semibold text-blue-700">SMS</span>
-                </button>
-                <button onClick={() => {
-                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
-                  const subject = tpl.email?.subject || 'Votre avis compte pour nous'
-                  const msg = (tpl.email?.message || 'Merci pour votre visite au cabinet !').replace(/\{link\}/g, tpl.googleLink || '')
-                  window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`, '_self')
-                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-colors cursor-pointer">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  <span className="text-[11px] font-semibold text-purple-700">Email</span>
-                </button>
-                <button onClick={() => {
-                  const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}
-                  const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || '')
-                  navigator.clipboard.writeText(msg)
-                }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors cursor-pointer">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  <span className="text-[11px] font-semibold text-gray-500">Copier</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Prochains articles */}
-            <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0">
-              <h2 className="text-[13px] font-bold text-color-1 mb-2">Prochains articles</h2>
-              <div className="flex flex-col gap-1.5 flex-1 min-h-0">
-                {viewData.programmedArticles.slice(0, 4).map((item, i) => {
-                  const spec = allSpecialties.find(s => s.id === item.specId)
-                  return (
-                    <div key={item.index} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-gray-50 border border-gray-100">
-                      <span className="text-base shrink-0">{spec?.icon || '📝'}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold text-color-1 leading-tight truncate">{customArticleTitles[item.index] || item.articleTitle}</p>
-                        <p className="text-[11px] text-gray-400 leading-tight">{item.dayNum} {item.monthShort} · {spec?.title || 'Article'}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedDay(item.index)
-                          router.push('/referencement')
-                        }}
-                        className="shrink-0 px-2.5 py-1 rounded-lg bg-color-2/10 text-color-2 text-[11px] font-semibold hover:bg-color-2/20 transition-colors cursor-pointer"
-                      >
-                        Relecture
-                      </button>
+            {/* Streak + Day article */}
+            {(() => {
+              // Build 7-day array (past 6 days + today), assign one published article per slot
+              const recentArticles = viewData.publishedArticles.slice(-7)
+              const weekDays = Array.from({ length: 7 }).map((_, i) => {
+                const dayOffset = 6 - i
+                const d = new Date(); d.setDate(d.getDate() - dayOffset); d.setHours(0, 0, 0, 0)
+                const article = recentArticles[i] || null
+                return { dayOffset, date: d, label: d.toLocaleDateString('fr-FR', { weekday: 'short' }).charAt(0).toUpperCase(), dayNum: d.getDate(), isToday: dayOffset === 0, isPast: dayOffset > 0, article }
+              })
+              const selected = weekDays.find(w => w.dayOffset === selectedStreakDay) || weekDays[6]
+              const art = selected.article
+              const spec = art ? allSpecialties.find(s => s.id === art.specId) : null
+              const seoScore = art ? 90 + (art.index % 10) : 0
+              const seoLabel = seoScore >= 90 ? 'Excellent' : seoScore >= 75 ? 'Bon' : 'À améliorer'
+              return (
+                <div className="bg-gradient-to-br from-color-2 to-[#e55e35] rounded-2xl p-3.5 flex-1 min-h-0 relative overflow-hidden flex flex-col" onDoubleClick={() => { localStorage.removeItem('preDashboardComplete'); localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')); router.push('/pre-dashboard') }}>
+                  <div className="absolute top-2 right-3 text-4xl opacity-15 pointer-events-none">🔥</div>
+                  {/* Streak hero */}
+                  <div className="relative z-10">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-white leading-none">{streakInfo.currentStreak}</span>
+                      <span className="text-xs font-bold text-white/80">articles</span>
                     </div>
-                  )
-                })}
+                    <p className="text-[11px] text-white/60 mt-0.5">Publiés sans interruption</p>
+                  </div>
+                  {/* Weekly bars — clickable */}
+                  <div className="flex gap-1 my-auto relative z-10">
+                    {weekDays.map((w, i) => {
+                      const isSelected = w.dayOffset === selectedStreakDay
+                      const published = w.isPast || w.isToday
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1 cursor-pointer" onClick={() => { streakCyclePaused.current = true; setSelectedStreakDay(w.dayOffset); setTimeout(() => { streakCyclePaused.current = false }, 8000) }}>
+                          <span className={`text-[9px] font-semibold ${isSelected ? 'text-white' : 'text-white/40'}`}>{w.label}</span>
+                          <div className={`w-full h-6 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-white' : published ? 'bg-white/30 hover:bg-white/40' : 'bg-white/10'}`}>
+                            <span className={`text-[10px] font-bold ${isSelected ? 'text-color-2' : published ? 'text-white' : 'text-white/30'}`}>{w.dayNum}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Selected day's article */}
+                  {art ? (
+                    <div className="relative z-10 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm mt-auto">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-xs">{spec?.icon || '📝'}</span>
+                        <p className="text-[11px] font-semibold text-white leading-snug truncate flex-1">{customArticleTitles[art.index] || art.articleTitle}</p>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-white/50 font-medium">{art.dayNum} {art.monthShort} · {seoLabel} : {seoScore}/100</span>
+                        <button
+                          onClick={() => {
+                            setSelectedDay(art.index)
+                            setEditingTitle(customArticleTitles[art.index] || art.articleTitle || '')
+                            setEditorImage(customArticleImages[art.index] || art.articleImage)
+                            setArticleContent(
+                              `<h1>${customArticleTitles[art.index] || art.articleTitle || ''}</h1>` +
+                              `<p>Les troubles musculo-squelettiques représentent un enjeu majeur de santé publique.</p>` +
+                              `<h2>Introduction</h2>` +
+                              `<p>La kinésithérapie joue un rôle essentiel dans la prise en charge des douleurs chroniques.</p>` +
+                              `<h2>Les techniques recommandées</h2>` +
+                              `<p>Parmi les méthodes les plus efficaces, on retrouve :</p>` +
+                              `<ul><li>La thérapie manuelle</li><li>Les exercices de renforcement</li><li>Les étirements</li></ul>` +
+                              `<h2>Conclusion</h2>` +
+                              `<p>Un suivi régulier permet d'obtenir des résultats durables.</p>`
+                            )
+                            setShowArticleEditor(true)
+                          }}
+                          className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors cursor-pointer"
+                        >
+                          Lire →
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative z-10 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm mt-auto">
+                      <p className="text-[11px] text-white/50 text-center">Aucun article ce jour</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {/* Collecter des avis */}
+            {(() => {
+              const totalReviews = fullKpiData.avis.data[fullKpiData.avis.data.length - 1]
+              const monthlyCount = 7
+              const personalBest = 12
+              const remaining = Math.max(0, personalBest - monthlyCount)
+              const progressPct = Math.min((monthlyCount / personalBest) * 100, 100)
+              const monthNames = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
+
+              return (
+                <div className="rounded-2xl p-3.5 flex-1 min-h-0 bg-gradient-to-br from-amber-500 to-orange-500 relative overflow-hidden flex flex-col justify-between">
+                  {/* Top row: stats left, star right */}
+                  <div className="relative z-10 flex items-start justify-between">
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-black text-white leading-none">{totalReviews}</span>
+                        <span className="text-xs font-bold text-white/80">avis Google</span>
+                      </div>
+                      <p className="text-[11px] text-white/60 mt-0.5">{monthlyCount} ce mois · record {personalBest}</p>
+                    </div>
+                    <div className="flex items-center gap-0.5 bg-white/15 rounded-lg px-2 py-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="white" fillOpacity="0.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span className="text-[11px] font-bold text-white">4.8</span>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="relative z-10">
+                    <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+                      <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progressPct}%` }} />
+                    </div>
+                    <div className="flex justify-between mt-0.5">
+                      <span className="text-[9px] text-white/40">{monthlyCount}/{personalBest} ce mois</span>
+                      <span className="text-[9px] text-white/50 font-semibold">{remaining > 0 ? `${remaining} pour battre` : 'Nouveau record !'}</span>
+                    </div>
+                  </div>
+                  {/* Bottom row: CTAs */}
+                  <div className="relative z-10 grid grid-cols-5 gap-1.5">
+                    {[
+                      { title: 'WhatsApp', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') } },
+                      { title: 'SMS', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.sms?.message || 'Merci pour votre visite ! Votre avis compte beaucoup pour nous.').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self') } },
+                      { title: 'Email', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const subject = tpl.email?.subject || 'Votre avis compte pour nous'; const msg = (tpl.email?.message || 'Merci pour votre visite au cabinet !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`, '_self') } },
+                      { title: copied ? 'Copié' : 'Copier', icon: copied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 2000) } },
+                      { title: 'Modifier', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, fn: () => setShowAvisModal(true) },
+                    ].map((btn, i) => (
+                      <button key={i} onClick={btn.fn} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors cursor-pointer ${i === 3 && copied ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`} title={btn.title}>
+                        {btn.icon}
+                        <span className="text-[8px] font-semibold text-white/70">{btn.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Partenaires */}
+            <div className="rounded-2xl p-4 flex-1 min-h-0 bg-gradient-to-br from-sky-500 to-blue-600 relative overflow-hidden flex flex-col">
+              <div className="absolute top-3 right-4 text-4xl opacity-15 pointer-events-none">🤝</div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-wider relative z-10">Nos partenaires</p>
+              <div className="relative z-10 flex flex-col gap-2 my-auto">
+                <button onClick={() => setShowNewsModal(0)} className="flex items-center gap-3 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-3 transition-colors cursor-pointer text-left w-full">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-black text-white">C</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white">Consulteo</p>
+                    <p className="text-[11px] text-white/60">Outils de réservation</p>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <button onClick={() => setShowNewsModal(1)} className="flex items-center gap-3 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-3 transition-colors cursor-pointer text-left w-full">
+                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-black text-white">B</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white">BoostTonCab</p>
+                    <p className="text-[11px] text-white/60">Aller chercher plus de clients plus rapidement</p>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
               </div>
             </div>
 
-            {/* Quoi de neuf bento */}
-            <button onClick={() => setShowNewsModal(newsIdx)} className="flex-1 border-2 border-gray-200 rounded-2xl p-3.5 flex flex-col min-h-0 relative overflow-hidden cursor-pointer text-left bg-gradient-to-br from-color-1 to-gray-700 hover:border-gray-300 transition-colors">
-              {/* Background pattern */}
-              <div className="absolute inset-0 opacity-10 pointer-events-none">
-                <div className="absolute top-6 right-4 text-5xl">✨</div>
+            {/* Parrainage */}
+            <div className="rounded-2xl p-4 flex-1 min-h-0 relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 flex flex-col justify-between">
+              <div className="absolute top-3 right-4 text-4xl opacity-15 pointer-events-none">🎁</div>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-wider relative z-10">Parrainage</p>
+              <div className="relative z-10 my-auto">
+                <p className="text-lg font-bold text-white leading-tight">Offrez <span className="text-yellow-300">1 mois</span>,</p>
+                <p className="text-lg font-bold text-white leading-tight">recevez <span className="text-yellow-300">2 gratuits</span></p>
               </div>
-              {/* Tag + Date */}
-              <div className="flex items-center justify-between mb-2 shrink-0 relative z-10">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-color-2 text-white text-[11px] font-semibold">
-                  {news[newsIdx].tag}
-                </span>
-                <span className="text-white/60 text-[11px] font-medium">{news[newsIdx].date}</span>
-              </div>
-              {/* Title */}
-              <p className="text-white text-sm font-bold leading-snug relative z-10">{news[newsIdx].title}</p>
-              {/* Footer nav */}
-              <div className="mt-auto pt-2.5 flex items-center justify-end relative z-10">
-                <div className="flex items-center gap-1.5">
-                  <div onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx - 1 + news.length) % news.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                  </div>
-                  {news.map((_, i) => (
-                    <div key={i} onClick={(e) => { e.stopPropagation(); setNewsIdx(i) }} className={`rounded-full transition-all cursor-pointer block ${i === newsIdx ? 'w-4 h-[6px] bg-color-2' : 'w-[6px] h-[6px] bg-white/30 hover:bg-white/50'}`} />
-                  ))}
-                  <div onClick={(e) => { e.stopPropagation(); setNewsIdx((newsIdx + 1) % news.length) }} className="w-6 h-6 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center cursor-pointer transition-colors">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </div>
-                </div>
-              </div>
-            </button>
+              <button onClick={() => router.push('/parrainage')} className="relative z-10 w-full py-2.5 rounded-xl bg-white hover:bg-white/90 transition-colors cursor-pointer">
+                <span className="text-sm font-bold text-purple-600">Inviter un confrère</span>
+              </button>
+            </div>
 
           </div>
 

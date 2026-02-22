@@ -131,6 +131,7 @@ const PreDashboard = () => {
   const [showVisModal, setShowVisModal] = useState(false)
   const [showDomainModal, setShowDomainModal] = useState(false)
   const [selectedDomain, setSelectedDomain] = useState(null)
+  const [showDomainLocked, setShowDomainLocked] = useState(false)
   const [showSeoModal, setShowSeoModal] = useState(false)
   const [settingsSection, setSettingsSection] = useState('redaction')
   const [redTone, setRedTone] = useState('professionnel')
@@ -284,9 +285,16 @@ const PreDashboard = () => {
     return (
       <button
         key={action.id}
-        onClick={() => isActive && handleActionClick(action)}
+        onClick={() => {
+          if (done) {
+            if (action.id === 'domain') { setShowDomainLocked(true); return }
+            handleActionClick(action)
+          } else if (isActive) {
+            handleActionClick(action)
+          }
+        }}
         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 text-left transition-all ${
-          done ? 'bg-green-50 border-green-200'
+          done ? 'bg-green-50 border-green-200 hover:border-green-300 cursor-pointer'
           : locked ? 'bg-gray-50/50 border-gray-100 opacity-40 cursor-default'
           : 'bg-white border-gray-200 hover:border-gray-300 cursor-pointer'
         }`}
@@ -446,6 +454,27 @@ const PreDashboard = () => {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Domain locked modal */}
+      {showDomainLocked && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDomainLocked(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 text-center" style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h3 className="text-base font-bold text-color-1 mb-1">Domaine verrouillé</h3>
+            <p className="text-sm text-gray-400 mb-4">Le nom de domaine ne peut pas être modifié une fois confirmé.</p>
+            <div className="flex items-center justify-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-gray-50">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <span className="text-sm font-semibold text-color-1">{typeof window !== 'undefined' ? localStorage.getItem('chosenDomain') || '—' : '—'}</span>
+            </div>
+            <button onClick={() => setShowDomainLocked(false)} className="w-full py-2.5 rounded-xl bg-color-1 text-white text-sm font-semibold hover:opacity-90 transition-colors cursor-pointer">
+              Compris
+            </button>
           </div>
         </div>
       )}

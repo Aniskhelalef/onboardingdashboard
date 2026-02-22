@@ -173,7 +173,7 @@ export default function SpecialtiesStep() {
         {/* Header */}
         <div className="flex items-center justify-between shrink-0">
           <p className="text-sm font-semibold text-color-1">Sélectionnez vos spécialités</p>
-          <span className={cn("text-xs font-bold", specCount >= 3 ? "text-green-500" : "text-color-2")}>{specCount}/6</span>
+          <span className={cn("text-sm font-bold px-2.5 py-1 rounded-full", specCount >= 3 ? "bg-green-50 text-green-600" : "bg-color-2/10 text-color-2")}>{specCount}/6</span>
         </div>
 
         {/* Toggleable chips grid */}
@@ -248,7 +248,7 @@ export default function SpecialtiesStep() {
       <div>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">Vos spécialités</h2>
-          <span className="text-sm font-bold text-color-2">{specCount}/6</span>
+          <span className={cn("text-sm font-bold px-2.5 py-1 rounded-full", specCount >= 3 ? "bg-green-50 text-green-600" : "bg-color-2/10 text-color-2")}>{specCount}/6</span>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">Ajoutez entre 3 et 6 spécialités.</p>
       </div>
