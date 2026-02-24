@@ -11,7 +11,7 @@ export default function SetupSidebar() {
 
   return (
     <>
-      <div className={cn(isModal ? "p-4" : "bg-white border-2 border-gray-200 rounded-2xl p-5")}>
+      <div className={cn(isModal ? "p-4" : "bg-white border border-gray-200 rounded-2xl p-5")}>
         {!isModal && <h2 className="text-base font-bold text-[#2D2D2D] mb-3">Configuration</h2>}
         <div className="flex flex-col gap-0.5">
           {MAIN_STEP_IDS.map((stepId) => {
@@ -51,7 +51,7 @@ export default function SetupSidebar() {
         <>
           {isModal && <div className="h-px bg-gray-100 mx-4" />}
 
-          <div className={cn(isModal ? "p-4" : "bg-white border-2 border-gray-200 rounded-2xl p-5")}>
+          <div className={cn(isModal ? "p-4" : "bg-white border border-gray-200 rounded-2xl p-5")}>
             {!isModal && <h2 className="text-sm font-bold text-[#2D2D2D] mb-3">Paramètres avancés</h2>}
             {isModal && <p className="px-3 pb-1.5 text-[10px] font-medium text-gray-300 uppercase tracking-wider">Avancés</p>}
             <div className="flex flex-col gap-0.5">

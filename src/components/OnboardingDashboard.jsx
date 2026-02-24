@@ -271,7 +271,7 @@ const OnboardingDashboard = () => {
             <button
               onClick={() => handleGoogleSignIn(false)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
@@ -342,7 +342,7 @@ const OnboardingDashboard = () => {
             <button
               onClick={() => handleGoogleSignIn(false)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
@@ -521,7 +521,7 @@ const OnboardingDashboard = () => {
             <button
               onClick={() => handleGoogleSignIn(true)}
               disabled={isGoogleLoading}
-              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border-2 border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-3 px-5 py-2.5 border border-gray-300 rounded-full text-sm text-color-1 font-medium hover:bg-gray-50 transition-colors mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isGoogleLoading ? (
                 <>
@@ -632,7 +632,7 @@ const OnboardingDashboard = () => {
                 href="https://mail.google.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z" fill="#EA4335"/>
@@ -644,7 +644,7 @@ const OnboardingDashboard = () => {
                 href="https://outlook.live.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M7 9l5 3.5L17 9v11H7V9zm5-7l10 6v13H2V8l10-6z" fill="#0078D4"/>
@@ -656,7 +656,7 @@ const OnboardingDashboard = () => {
                 href="https://mail.yahoo.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2l3.5 8h8.5l-7 5 2.5 8-7.5-5.5L5 23l2.5-8-7-5h8.5L12 2z" fill="#6001D2"/>
@@ -668,7 +668,7 @@ const OnboardingDashboard = () => {
                 href="https://mail.proton.me"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7v10c0 5.5 3.8 10.7 10 12 6.2-1.3 10-6.5 10-12V7l-10-5z" fill="#6D4AFF"/>
@@ -727,7 +727,7 @@ const OnboardingDashboard = () => {
                   value={customObjective}
                   onChange={(e) => setCustomObjective(e.target.value)}
                   placeholder="Partagez-nous ici votre objectif !"
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-full text-sm focus:outline-none focus:border-color-2 transition-colors"
+                  className="w-full px-5 py-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:border-color-2 transition-colors"
                 />
               </div>
             )}
@@ -1056,7 +1056,7 @@ const OnboardingDashboard = () => {
                       </div>
                     )
                   ) : (
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                    <div className="w-6 h-6 rounded-full border border-gray-300 flex-shrink-0" />
                   )}
                   <span className={`text-sm ${task.auto ? 'text-gray-700' : 'text-gray-400'}`}>{task.label}</span>
                 </div>
@@ -1133,7 +1133,7 @@ const OnboardingDashboard = () => {
               {/* Pricing cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl">
                 {/* Starter */}
-                <div className="border-2 border-gray-200 rounded-2xl p-6 flex flex-col">
+                <div className="border border-gray-200 rounded-2xl p-6 flex flex-col">
                   <div className="min-h-[80px]">
                     <h3 className="text-lg font-bold text-color-1 mb-2">Starter</h3>
                     <p className="text-xs text-gray-400 leading-relaxed">
@@ -1470,7 +1470,7 @@ const OnboardingDashboard = () => {
                   value={customReferral}
                   onChange={(e) => setCustomReferral(e.target.value)}
                   placeholder="Précisez comment vous nous avez connus..."
-                  className="w-full px-5 py-3 border-2 border-gray-300 rounded-full text-sm focus:outline-none focus:border-color-2 transition-colors"
+                  className="w-full px-5 py-3 border border-gray-300 rounded-full text-sm focus:outline-none focus:border-color-2 transition-colors"
                 />
               </div>
             )}

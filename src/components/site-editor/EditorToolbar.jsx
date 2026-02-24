@@ -82,7 +82,7 @@ const EditorToolbar = ({
   };
 
   const BTN = "w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer";
-  const PILL = "bg-white border-2 border-gray-200 rounded-2xl px-1.5 py-1.5 flex items-center gap-0.5";
+  const PILL = "bg-white border border-gray-200 rounded-2xl px-1.5 py-1.5 flex items-center gap-0.5";
   const SHADOW = { boxShadow: '0 4px 24px rgba(0,0,0,0.06)' };
 
   return (
@@ -98,7 +98,7 @@ const EditorToolbar = ({
                 {pagesOpen && (
                   <div
                     ref={popoverRef}
-                    className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl border-2 border-gray-200 p-1.5 min-w-[200px]"
+                    className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl border border-gray-200 p-1.5 min-w-[200px]"
                     style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}
                   >
                     <button

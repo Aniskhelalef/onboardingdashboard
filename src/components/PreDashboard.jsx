@@ -293,90 +293,89 @@ const PreDashboard = () => {
             handleActionClick(action)
           }
         }}
-        className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border-2 text-left transition-all ${
-          done ? 'bg-green-50 border-green-200 hover:border-green-300 cursor-pointer'
-          : locked ? 'bg-gray-50/50 border-gray-100 opacity-40 cursor-default'
-          : 'bg-white border-gray-200 hover:border-gray-300 cursor-pointer'
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+          done
+            ? 'bg-white border-gray-200 cursor-pointer hover:bg-gray-50'
+            : locked
+            ? 'bg-white border-gray-100 opacity-40 cursor-default'
+            : 'bg-white border-gray-200 hover:border-color-2/50 hover:shadow-sm cursor-pointer'
         }`}
       >
-        {/* Icon */}
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-          done ? 'bg-green-100 text-green-600'
-          : locked ? 'bg-gray-100 text-gray-300'
-          : 'bg-color-2/10 text-color-2'
+        {/* Status indicator */}
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+          done
+            ? 'bg-green-500'
+            : locked
+            ? 'bg-gray-200'
+            : 'border-2 border-color-2'
         }`}>
           {done ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           ) : locked ? (
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          ) : action.icon}
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          ) : (
+            <div className="w-1.5 h-1.5 rounded-full bg-color-2" />
+          )}
         </div>
 
         {/* Label + desc */}
         <div className="flex-1 min-w-0">
-          <p className={`text-[13px] font-semibold leading-tight ${
-            done ? 'text-green-700' : locked ? 'text-gray-400' : 'text-color-1'
+          <p className={`text-sm font-semibold leading-none ${
+            done ? 'text-gray-500' : locked ? 'text-gray-400' : 'text-color-1'
           }`}>{action.label}</p>
-          {!done && <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{action.desc}</p>}
+          <p className={`text-[11px] leading-none mt-1 ${done ? 'text-gray-300' : 'text-gray-400'}`}>{action.desc}</p>
         </div>
 
-        {/* Progress dots */}
-        {totalCount > 0 && !done && !locked && (
-          <div className="flex items-center gap-1 shrink-0">
-            {action.subSteps.map(s => (
-              <div key={s.id} className={`w-2 h-2 rounded-full ${
-                isSubStepDone(action.id, s.id) ? 'bg-green-500' : 'bg-gray-200'
-              }`} />
-            ))}
+        {/* Sub-step chips — inline, compact */}
+        {totalCount > 0 && !locked && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            {action.subSteps.map(s => {
+              const subDone = done || isSubStepDone(action.id, s.id)
+              return <div key={s.id} className={`w-1.5 h-1.5 rounded-full ${subDone ? 'bg-green-400' : 'bg-gray-200'}`} />
+            })}
           </div>
         )}
 
         {/* Chevron for active */}
         {isActive && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2.5" strokeLinecap="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 18l6-6-6-6"/></svg>
         )}
       </button>
     )
   }
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+    <div className="h-screen bg-white overflow-hidden flex flex-col items-center">
       {/* Top bar */}
-      <div className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0">
-        <img src={theralysLogo} alt="Theralys" className="h-6" />
+      <div className="w-full border-b border-gray-100 shrink-0">
+        <div className="max-w-[600px] mx-auto px-8 py-4">
+          <img src={theralysLogo} alt="Theralys" className="h-7" />
+        </div>
       </div>
 
       {/* Centered content */}
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="w-full max-w-[480px]">
+      <div className="flex-1 flex flex-col justify-center px-6 min-h-0">
+        <div className="w-full max-w-[480px] mx-auto">
           {/* Welcome */}
           <div className="mb-5">
-            <h1 className="text-xl font-bold text-color-1">Bonjour {prenom}</h1>
-            <p className="text-[13px] text-gray-400 mt-0.5">Complétez ces étapes pour activer votre site</p>
+            <h1 className="text-xl font-bold text-color-1 tracking-tight">Bonjour {prenom}</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Complétez ces étapes pour activer votre site</p>
+          </div>
+
+          {/* All steps — single column, compact */}
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Configuration</p>
+            {SETUP_ACTIONS.map(renderCard)}
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-3 mb-0.5">Lancement</p>
+            {OTHER_ACTIONS.map(renderCard)}
           </div>
 
           {/* Progress bar */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-color-2 rounded-full transition-all duration-500" style={{ width: `${totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0}%` }} />
+          <div className="flex items-center gap-3 mt-5 pt-4 border-t border-gray-100">
+            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-color-2 rounded-full transition-all duration-500 ease-out" style={{ width: `${totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0}%` }} />
             </div>
-            <span className="text-[11px] font-semibold text-gray-400 shrink-0">{completedSteps}/{totalSteps}</span>
-          </div>
-
-          {/* Setup group */}
-          <div className="mb-2">
-            <p className="text-[10px] font-semibold text-gray-300 uppercase tracking-wider mb-1.5 px-1">Configuration</p>
-            <div className="flex flex-col gap-1.5">
-              {SETUP_ACTIONS.map(renderCard)}
-            </div>
-          </div>
-
-          {/* Other actions */}
-          <div>
-            <p className="text-[10px] font-semibold text-gray-300 uppercase tracking-wider mb-1.5 px-1 mt-3">Lancement</p>
-            <div className="flex flex-col gap-1.5">
-              {OTHER_ACTIONS.map(renderCard)}
-            </div>
+            <span className="text-[11px] font-semibold text-gray-400 tabular-nums shrink-0">{completedSteps}/{totalSteps}</span>
           </div>
         </div>
       </div>
@@ -608,12 +607,6 @@ const PreDashboard = () => {
                         </div>
                       </div>
                       <div className="mt-auto pt-3 shrink-0">
-                        <div className="pt-3 border-t border-gray-100 flex items-center gap-2 px-1 mb-3">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                          <p className="text-[11px] text-gray-400 leading-snug">
-                            La répartition choisie sera prise en compte pour la génération des articles à partir du <span className="font-semibold text-color-1">{(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) })()}</span>.
-                          </p>
-                        </div>
                         <button
                           onClick={() => {
                             localStorage.removeItem('seoSetupStep')

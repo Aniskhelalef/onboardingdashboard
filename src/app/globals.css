@@ -75,7 +75,7 @@ body {
 
   /* Secondary Button - Coral outlined */
   .btn-secondary {
-    @apply bg-white text-color-2 border-2 border-color-2 rounded-pill px-6 py-2.5 text-body font-medium transition-all hover:bg-color-3;
+    @apply bg-white text-color-2 border border-color-2 rounded-pill px-6 py-2.5 text-body font-medium transition-all hover:bg-color-3;
   }
 
   /* Tertiary Button - Light gray */

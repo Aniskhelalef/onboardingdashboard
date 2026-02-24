@@ -68,9 +68,14 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
   const [selectedDay, setSelectedDay] = useState(null) // set by useEffect after batch computed
   const [seoSearchQuery, setSeoSearchQuery] = useState('')
   const [stackedStatuses, setStackedStatuses] = useState(new Set()) // 'published' | 'programmed' | 'preProgrammed'
-  const [viewOffset, setViewOffset] = useState(null) // null = auto (today first)
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth())
+  const [viewYear, setViewYear] = useState(new Date().getFullYear())
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+  const prevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1) } else setViewMonth(viewMonth - 1) }
+  const nextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1) } else setViewMonth(viewMonth + 1) }
+  const goToCurrentMonth = () => { setViewMonth(new Date().getMonth()); setViewYear(new Date().getFullYear()) }
+  const isCurrentMonth = viewMonth === new Date().getMonth() && viewYear === new Date().getFullYear()
   const toggleStack = (key) => {
-    setViewOffset(null)
     setStackedStatuses(prev => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key); else next.add(key)
@@ -573,7 +578,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
 
 
   return (
-    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+    <div className="h-screen bg-gray-50 overflow-hidden flex flex-col items-center" style={{ backgroundImage: 'linear-gradient(rgba(252,109,65,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(252,109,65,0.12) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
       {/* Top nav */}
       <nav className="w-full max-w-[1200px] px-6 pt-4 pb-1 shrink-0">
         <div className="flex items-center justify-between relative h-10">
@@ -629,7 +634,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         <div key="referencement" className="w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
           {/* Article calendar */}
-          <div className="h-full bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
+          <div className="h-full bg-white border border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
             {/* Calendar board */}
             <div className="flex flex-col flex-1 min-h-0 transition-all rounded-xl">
               {(() => {
@@ -638,8 +643,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                   { key: 'programmed', label: 'Programmés', count: viewData.programmedArticles.length, dot: 'bg-amber-400', bg: 'bg-amber-50', borderActive: 'border-amber-300', text: 'text-amber-600' },
                   { key: 'preProgrammed', label: 'À venir', count: viewData.avenirArticles.length, dot: 'bg-gray-400', bg: 'bg-gray-50', borderActive: 'border-gray-300', text: 'text-gray-500' },
                 ]
-                // Grid only shows unstacked articles, max 28, with navigation
-                // Stacked statuses are hidden from the grid (toolbar buttons show counts)
+                // Filter articles by selected month
                 const unstackedArticles = []
                 const statusGroups = [
                   { key: 'published', articles: viewData.publishedArticles },
@@ -652,148 +656,159 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                   }
                 })
 
-                // Find today in unstacked list for default offset
-                const todayIdx = unstackedArticles.findIndex(a => a.isToday)
-                const defaultStart = todayIdx >= 0 ? Math.max(0, Math.min(todayIdx, unstackedArticles.length - 28)) : 0
-                const start = viewOffset !== null ? Math.min(viewOffset, Math.max(0, unstackedArticles.length - 1)) : defaultStart
-                const end = Math.min(start + 28, unstackedArticles.length)
-                const visibleItems = unstackedArticles.slice(start, end)
-                const hasPrev = start > 0
-                const hasNext = end < unstackedArticles.length
+                // Filter by current viewMonth/viewYear
+                const monthArticles = unstackedArticles.filter(a => a.date.getMonth() === viewMonth && a.date.getFullYear() === viewYear)
+
+                // Build calendar grid: find first day of month's weekday, pad with empty cells
+                const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay() // 0=Sun
+                const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+                // Convert to Mon=0 based: (day + 6) % 7
+                const startPad = (firstDayOfMonth + 6) % 7
+                const totalCells = startPad + daysInMonth
+                const rowCount = Math.ceil(totalCells / 7)
+
+                // Map articles by day number for quick lookup
+                const articlesByDay = {}
+                monthArticles.forEach(a => { articlesByDay[a.date.getDate()] = a })
+
+                // Build grid cells
+                const gridCells = []
+                for (let i = 0; i < rowCount * 7; i++) {
+                  const dayNum = i - startPad + 1
+                  if (dayNum < 1 || dayNum > daysInMonth) {
+                    gridCells.push({ empty: true })
+                  } else if (articlesByDay[dayNum]) {
+                    gridCells.push(articlesByDay[dayNum])
+                  } else {
+                    gridCells.push({ emptyDay: true, dayNum })
+                  }
+                }
+
+                // Check if prev/next months have articles
+                const hasPrevMonth = unstackedArticles.some(a => {
+                  const pm = viewMonth === 0 ? 11 : viewMonth - 1
+                  const py = viewMonth === 0 ? viewYear - 1 : viewYear
+                  return a.date.getMonth() === pm && a.date.getFullYear() === py
+                })
+                const hasNextMonth = unstackedArticles.some(a => {
+                  const nm = viewMonth === 11 ? 0 : viewMonth + 1
+                  const ny = viewMonth === 11 ? viewYear + 1 : viewYear
+                  return a.date.getMonth() === nm && a.date.getFullYear() === ny
+                })
 
                 return (
                   <div className="flex-1 min-h-0 flex flex-col">
                     {/* Toolbar */}
-                    <div className="flex items-center gap-2 mb-3 shrink-0">
-                      {/* Navigation buttons — always visible to prevent toolbar shift */}
-                      <button
-                        onClick={() => hasPrev && setViewOffset(Math.max(0, start - 7))}
-                        className={`text-xs font-medium transition-colors ${hasPrev ? 'text-gray-400 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
-                      >
-                        ← Semaine précédente
-                      </button>
-                      <button
-                        onClick={() => hasNext && setViewOffset(Math.min(unstackedArticles.length - 1, start + 7))}
-                        className={`text-xs font-medium transition-colors ${hasNext ? 'text-gray-400 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
-                      >
-                        Semaine suivante →
-                      </button>
-                      <div className="w-px h-4 bg-gray-200" />
-                      {/* Stack buttons */}
-                      {stackConfigs.map(cfg => (
+                    <div className="flex items-center gap-3 mb-3 shrink-0">
+                      {/* Month navigation */}
+                      <div className="flex items-center gap-1">
                         <button
-                          key={cfg.key}
-                          onClick={() => toggleStack(cfg.key)}
-                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border-2 ${
-                            !stackedStatuses.has(cfg.key)
-                              ? `${cfg.bg} ${cfg.borderActive} ${cfg.text}`
-                              : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
-                          }`}
+                          onClick={() => hasPrevMonth && prevMonth()}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${hasPrevMonth ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                          {cfg.label}
-                          <span className={`ml-0.5 px-1.5 py-0.5 rounded-md text-xs font-bold ${!stackedStatuses.has(cfg.key) ? 'bg-white/60' : 'bg-gray-100'}`}>{cfg.count}</span>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={`transition-transform ${stackedStatuses.has(cfg.key) ? 'rotate-180' : ''}`}><polyline points="18 15 12 9 6 15"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
                         </button>
-                      ))}
+                        <button
+                          onClick={() => hasNextMonth && nextMonth()}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${hasNextMonth ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 cursor-pointer' : 'text-gray-200 cursor-default'}`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                        </button>
+                        <span className="text-xs font-semibold text-color-1 ml-1">{monthNames[viewMonth]} {viewYear}</span>
+                        {!isCurrentMonth && (
+                          <button onClick={goToCurrentMonth} className="text-[11px] font-medium text-color-2 hover:text-color-2-dark transition-colors cursor-pointer ml-1.5">
+                            Aujourd'hui
+                          </button>
+                        )}
+                      </div>
 
-                      {/* Aujourd'hui reset button */}
-                      {viewOffset !== null && (
-                        <button onClick={() => setViewOffset(null)} className="text-xs font-medium text-[#FC6D41] hover:text-[#e55e35] transition-colors cursor-pointer ml-1">
-                          Aujourd'hui
-                        </button>
-                      )}
+                      {/* Filters */}
+                      <div className="flex items-center gap-1.5">
+                        {stackConfigs.map(cfg => {
+                          const active = !stackedStatuses.has(cfg.key)
+                          return (
+                            <button
+                              key={cfg.key}
+                              onClick={() => toggleStack(cfg.key)}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer ${
+                                active ? 'bg-gray-100 text-color-1' : 'text-gray-300 hover:text-gray-400'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${active ? cfg.dot : 'bg-gray-300'}`} />
+                              {cfg.label}
+                              <span className="font-semibold tabular-nums">{cfg.count}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
 
                       <div className="ml-auto flex items-center gap-1">
-                        {/* Collapsible search */}
-                        <div className="flex items-center">
-                          {searchExpanded ? (
-                            <div className="relative w-[160px]">
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                              <input
-                                autoFocus
-                                type="text"
-                                value={seoSearchQuery}
-                                onChange={e => setSeoSearchQuery(e.target.value)}
-                                onBlur={() => { if (!seoSearchQuery) setSearchExpanded(false) }}
-                                placeholder="Rechercher..."
-                                className="w-full pl-7 pr-6 py-1 rounded-lg bg-gray-100 text-xs text-color-1 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-color-2/30 transition-all"
-                              />
-                              {seoSearchQuery && (
-                                <button onClick={() => { setSeoSearchQuery(''); setSearchExpanded(false) }} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors">
-                                  <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setSearchExpanded(true)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                            </button>
-                          )}
-                        </div>
+                        {/* Search */}
+                        {searchExpanded ? (
+                          <div className="relative w-[140px]">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            <input
+                              autoFocus
+                              type="text"
+                              value={seoSearchQuery}
+                              onChange={e => setSeoSearchQuery(e.target.value)}
+                              onBlur={() => { if (!seoSearchQuery) setSearchExpanded(false) }}
+                              placeholder="Rechercher..."
+                              className="w-full pl-6 pr-5 py-1 rounded-full bg-gray-100 text-[11px] text-color-1 placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-color-2/30 transition-all"
+                            />
+                            {seoSearchQuery && (
+                              <button onClick={() => { setSeoSearchQuery(''); setSearchExpanded(false) }} className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full hover:bg-gray-200 flex items-center justify-center cursor-pointer transition-colors">
+                                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <button onClick={() => setSearchExpanded(true)} className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:bg-gray-100 hover:text-gray-500 transition-colors cursor-pointer">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                          </button>
+                        )}
 
-                        {/* Settings button */}
+                        {/* Settings */}
                         <button
                           onClick={() => { setSettingsInitial({ tone: redTone, style: redStyle, pronoun: redPronoun, prompt: redPrompt, checkedSpecs: [...checkedSpecs] }); setShowRedactorSettings(true) }}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer"
+                          className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:bg-gray-100 hover:text-gray-500 transition-colors cursor-pointer"
                           title="Paramètres du rédacteur IA"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                         </button>
 
-                        {/* Streak badge */}
-                        <div className="flex items-center gap-1 pl-2 border-l border-gray-200">
-                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1C8 1 3 5 3 9.5C3 12 5.2 14 8 14C10.8 14 13 12 13 9.5C13 7 11 5.5 11 5.5C11 5.5 10.5 8 9 8.5C9 8.5 10 4 8 1Z" fill="#FC6D41"/></svg>
-                          <span className="text-sm font-bold text-color-1 tabular-nums">{streakInfo.currentStreak}</span>
+                        {/* Streak */}
+                        <div className="flex items-center gap-1 pl-1.5 ml-0.5 border-l border-gray-200">
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 1C8 1 3 5 3 9.5C3 12 5.2 14 8 14C10.8 14 13 12 13 9.5C13 7 11 5.5 11 5.5C11 5.5 10.5 8 9 8.5C9 8.5 10 4 8 1Z" fill="#FC6D41"/></svg>
+                          <span className="text-xs font-bold text-color-1 tabular-nums">{streakInfo.currentStreak}</span>
                         </div>
                       </div>
                     </div>
-                    {seoSearchQuery.trim() ? (
-                      /* Search results list */
-                      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pt-1">
-                        {(() => {
-                          const q = seoSearchQuery.toLowerCase().trim()
-                          const results = viewData.articles.filter(item => {
-                            if (deletedArticles.has(item.index)) return false
-                            const titleMatch = (customArticleTitles[item.index] || item.articleTitle || '').toLowerCase().includes(q)
-                            const topicMatch = (item.title || '').toLowerCase().includes(q)
-                            return titleMatch || topicMatch
-                          })
-                          if (!results.length) return (
-                            <div className="flex-1 flex items-center justify-center">
-                              <p className="text-sm text-gray-300">Aucun résultat pour « {seoSearchQuery} »</p>
-                            </div>
-                          )
-                          return results.map(item => {
-                            const displayTitle = customArticleTitles[item.index] || item.articleTitle
-                            const dotColor = item.published ? 'bg-green-400' : item.programmed ? 'bg-amber-400' : 'bg-gray-400'
-                            const statusLabel = item.published ? 'Publié' : item.programmed ? 'Programmé' : 'À venir'
-                            return (
-                              <button
-                                key={item.index}
-                                onClick={() => { setSelectedDay(item.index); setSeoSearchQuery(''); setSearchExpanded(false) }}
-                                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer text-left"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-color-1 truncate">{displayTitle}</p>
-                                  <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-                                    <span className="text-xs text-gray-400">{statusLabel} · {item.dayNum} {item.monthShort}</span>
-                                  </div>
-                                </div>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                              </button>
-                            )
-                          })
-                        })()}
-                      </div>
-                    ) : (
+                    {/* Day-of-week headers */}
+                    <div className="grid grid-cols-7 gap-1.5 mb-1 shrink-0">
+                      {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+                        <span key={d} className="text-[10px] font-semibold text-gray-400 text-center">{d}</span>
+                      ))}
+                    </div>
                     <div className="flex-1 min-h-0">
-                    <div className="grid grid-cols-7 gap-1.5 h-full" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
-                      {visibleItems.map((item, idx) => {
+                    <div className="grid grid-cols-7 gap-1.5 h-full" style={{ gridTemplateRows: `repeat(${rowCount}, 1fr)` }}>
+                      {gridCells.map((cell, idx) => {
+                        // Empty padding cell (before day 1 or after last day)
+                        if (cell.empty) return <div key={`empty-${idx}`} />
+                        // Day without article
+                        if (cell.emptyDay) return (
+                          <div key={`noart-${idx}`} className="rounded-[10px] border border-dashed border-gray-100 flex items-center justify-center">
+                            <span className="text-[10px] text-gray-200 font-medium">{cell.dayNum}</span>
+                          </div>
+                        )
+                        // Article cell
+                        const item = cell
+                        const searchQ = seoSearchQuery.toLowerCase().trim()
+                        const isMatch = !searchQ || (
+                          (customArticleTitles[item.index] || item.articleTitle || '').toLowerCase().includes(searchQ) ||
+                          (item.title || '').toLowerCase().includes(searchQ)
+                        )
+                        const isDimmed = searchQ && !isMatch && !deletedArticles.has(item.index)
                         // Deleted article
                         const isDeleted = deletedArticles.has(item.index)
                         if (isDeleted) return (
@@ -822,9 +837,9 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                               setCardDirty(false)
                               setShowArticleCard(true)
                             }}
-                            className={`group relative rounded-[10px] overflow-hidden cursor-pointer transition-all duration-200 border-2 ${
+                            className={`group relative rounded-[10px] overflow-hidden cursor-pointer transition-all duration-200 border ${
                               item.isToday ? 'border-[#FC6D41]' : 'border-gray-200'
-                            } bg-gray-50 flex flex-col p-2`}
+                            } bg-gray-50 flex flex-col p-2 ${isDimmed ? 'opacity-20 pointer-events-none' : ''}`}
                           >
                             <div className="flex items-center justify-between">
                               <span className={`text-sm font-bold leading-none ${item.isToday ? 'text-[#FC6D41]' : 'text-color-1'}`}>{item.dayNum} {item.monthShort}</span>
@@ -919,7 +934,6 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                       })}
                     </div>
                     </div>
-                    )}
                   </div>
                 )
               })()}
@@ -961,7 +975,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                         <label className="text-xs font-semibold text-color-1 mb-1.5 block">Image</label>
                         <button
                           onClick={() => { setPexelsSearch(''); setShowPexels(true) }}
-                          className="w-full h-[100px] rounded-xl overflow-hidden relative cursor-pointer group/img border-2 border-gray-100 hover:border-gray-200 transition-colors"
+                          className="w-full h-[100px] rounded-xl overflow-hidden relative cursor-pointer group/img border border-gray-100 hover:border-gray-200 transition-colors"
                         >
                           <img src={displayImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors" />
@@ -1258,7 +1272,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         <div key="parrainage" className="flex flex-col gap-3 w-full h-full relative" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
 
           {/* Hero section — warm bg with floating emojis */}
-          <div className="relative border-2 border-gray-200 rounded-2xl flex flex-col items-center justify-center py-6 px-8 shrink-0 overflow-hidden" style={{ backgroundColor: '#fef4f1' }}>
+          <div className="relative border border-gray-200 rounded-2xl flex flex-col items-center justify-center py-6 px-8 shrink-0 overflow-hidden" style={{ backgroundColor: '#fef4f1' }}>
             {/* Floating emojis */}
             <span className="absolute text-2xl opacity-30" style={{ top: '10%', left: '8%' }}>🤩</span>
             <span className="absolute text-xl opacity-20" style={{ top: '15%', right: '12%' }}>👌</span>
@@ -1274,13 +1288,13 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
             <p className="text-sm text-gray-400 text-center mt-2 max-w-[480px]">Offrez 1 mois d'essai et recevez 2 mois offerts du montant de votre forfait.</p>
             {/* CTA buttons */}
             <div className="flex items-center gap-3 mt-4">
-              <button onClick={() => setShowParrainageVideo(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 bg-white text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
+              <button onClick={() => setShowParrainageVideo(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/></svg>
                 Voir la vidéo
               </button>
               <button
                 onClick={() => { navigator.clipboard.writeText('https://theralys.com/ref/theo-osteo') }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-color-2/30 bg-white text-sm font-medium text-color-1 hover:bg-color-2/5 transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-color-2/30 bg-white text-sm font-medium text-color-1 hover:bg-color-2/5 transition-colors cursor-pointer"
               >
                 Copier le lien
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
@@ -1303,7 +1317,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               { label: 'Parrainage activés', value: '3' },
               { label: 'Commission gagnée', value: '165 €' },
             ].map((kpi) => (
-              <div key={kpi.label} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl px-4 py-3">
+              <div key={kpi.label} className="flex-1 bg-white border border-gray-200 rounded-2xl px-4 py-3">
                 <p className="text-sm text-gray-400 font-medium">{kpi.label}</p>
                 <p className="text-2xl font-bold text-color-1 mt-1">{kpi.value}</p>
               </div>
@@ -1311,7 +1325,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
           </div>
 
           {/* Parrainage table */}
-          <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
+          <div className="flex-1 bg-white border border-gray-200 rounded-2xl p-5 flex flex-col min-h-0">
             <h2 className="text-base font-bold text-color-1 mb-3 shrink-0">Parrainage</h2>
             <div className="flex-1 min-h-0">
               <table className="w-full text-left">
@@ -1348,7 +1362,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>, title: 'Attendez qu\'il devienne client', desc: 'Votre ami doit s\'inscrire via votre lien et utiliser entièrement la période d\'essai.' },
               { icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FC6D41" strokeWidth="2" strokeLinecap="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>, title: 'Recevez vos commissions', desc: 'Une fois la période d\'essai écoulé, recevez 2 mensualités de votre abonnement en revenu.' },
             ].map((s, i) => (
-              <div key={i} className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-4 flex flex-col items-center text-center">
+              <div key={i} className="flex-1 bg-white border border-gray-200 rounded-2xl p-4 flex flex-col items-center text-center">
                 <div className="w-10 h-10 rounded-xl bg-color-2/10 flex items-center justify-center mb-2">
                   {s.icon}
                 </div>
@@ -1433,7 +1447,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
         ) : (
         <div key="dashboard" className="grid grid-cols-[2fr_1fr] grid-rows-[1fr_1fr] gap-3 w-full h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* 1 — Top left */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col relative">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-sm font-bold text-color-1">Bonjour {prenom}</h1>
@@ -1632,26 +1646,25 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               const seoScore = art ? 90 + (art.index % 10) : 0
               const seoLabel = seoScore >= 90 ? 'Excellent' : seoScore >= 75 ? 'Bon' : 'À améliorer'
               return (
-                <div className="bg-gradient-to-br from-color-2 to-[#e55e35] rounded-2xl p-3.5 flex-1 min-h-0 relative overflow-hidden flex flex-col" onDoubleClick={() => { localStorage.removeItem('preDashboardComplete'); localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')); router.push('/pre-dashboard') }}>
-                  <div className="absolute top-2 right-3 text-4xl opacity-15 pointer-events-none">🔥</div>
+                <div className="bg-white border border-gray-200 rounded-2xl p-5 flex-1 min-h-0 relative overflow-hidden flex flex-col" onDoubleClick={() => { localStorage.removeItem('preDashboardComplete'); localStorage.removeItem('completedActions'); localStorage.removeItem('seoSetupStep'); localStorage.removeItem('setupStep'); setCompletedActions([]); window.dispatchEvent(new Event('actionsUpdated')); router.push('/pre-dashboard') }}>
                   {/* Streak hero */}
-                  <div className="relative z-10">
+                  <div>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black text-white leading-none">{streakInfo.currentStreak}</span>
-                      <span className="text-xs font-bold text-white/80">articles</span>
+                      <span className="text-3xl font-black text-color-1 leading-none">{streakInfo.currentStreak}</span>
+                      <span className="text-xs font-bold text-gray-400">articles</span>
                     </div>
-                    <p className="text-[11px] text-white/60 mt-0.5">Publiés sans interruption</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Publiés sans interruption</p>
                   </div>
                   {/* Weekly bars — clickable */}
-                  <div className="flex gap-1 my-auto relative z-10">
+                  <div className="flex gap-1 my-auto">
                     {weekDays.map((w, i) => {
                       const isSelected = w.dayOffset === selectedStreakDay
                       const published = w.isPast || w.isToday
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center gap-1 cursor-pointer" onClick={() => { streakCyclePaused.current = true; setSelectedStreakDay(w.dayOffset); setTimeout(() => { streakCyclePaused.current = false }, 8000) }}>
-                          <span className={`text-[9px] font-semibold ${isSelected ? 'text-white' : 'text-white/40'}`}>{w.label}</span>
-                          <div className={`w-full h-6 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-white' : published ? 'bg-white/30 hover:bg-white/40' : 'bg-white/10'}`}>
-                            <span className={`text-[10px] font-bold ${isSelected ? 'text-color-2' : published ? 'text-white' : 'text-white/30'}`}>{w.dayNum}</span>
+                          <span className={`text-[9px] font-semibold ${isSelected ? 'text-color-1' : 'text-gray-300'}`}>{w.label}</span>
+                          <div className={`w-full h-6 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-color-2' : published ? 'bg-color-2/15 hover:bg-color-2/25' : 'bg-gray-100'}`}>
+                            <span className={`text-[10px] font-bold ${isSelected ? 'text-white' : published ? 'text-color-2' : 'text-gray-300'}`}>{w.dayNum}</span>
                           </div>
                         </div>
                       )
@@ -1659,13 +1672,13 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                   </div>
                   {/* Selected day's article */}
                   {art ? (
-                    <div className="relative z-10 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm mt-auto">
+                    <div className="bg-gray-50 rounded-xl px-3 py-2 mt-auto">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-xs">{spec?.icon || '📝'}</span>
-                        <p className="text-[11px] font-semibold text-white leading-snug truncate flex-1">{customArticleTitles[art.index] || art.articleTitle}</p>
+                        <p className="text-[11px] font-semibold text-color-1 leading-snug truncate flex-1">{customArticleTitles[art.index] || art.articleTitle}</p>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-white/50 font-medium">{art.dayNum} {art.monthShort} · {seoLabel} : {seoScore}/100</span>
+                        <span className="text-[10px] text-gray-400 font-medium">{art.dayNum} {art.monthShort} · {seoLabel} : {seoScore}/100</span>
                         <button
                           onClick={() => {
                             setSelectedDay(art.index)
@@ -1684,15 +1697,15 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                             )
                             setShowArticleEditor(true)
                           }}
-                          className="text-[11px] font-semibold text-white/70 hover:text-white transition-colors cursor-pointer"
+                          className="text-[11px] font-semibold text-color-2 hover:text-color-2-dark transition-colors cursor-pointer"
                         >
                           Lire →
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="relative z-10 bg-white/10 rounded-xl px-3 py-2 backdrop-blur-sm mt-auto">
-                      <p className="text-[11px] text-white/50 text-center">Aucun article ce jour</p>
+                    <div className="bg-gray-50 rounded-xl px-3 py-2 mt-auto">
+                      <p className="text-[11px] text-gray-400 text-center">Aucun article ce jour</p>
                     </div>
                   )}
                 </div>
@@ -1709,43 +1722,33 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
               const monthNames = ['jan.', 'fév.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
 
               return (
-                <div className="rounded-2xl p-3.5 flex-1 min-h-0 bg-gradient-to-br from-amber-500 to-orange-500 relative overflow-hidden flex flex-col justify-between">
+                <div className="rounded-2xl p-3.5 bg-white border border-gray-200 relative overflow-hidden flex flex-col justify-between gap-3">
                   {/* Top row: stats left, star right */}
-                  <div className="relative z-10 flex items-start justify-between">
+                  <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-3xl font-black text-white leading-none">{totalReviews}</span>
-                        <span className="text-xs font-bold text-white/80">avis Google</span>
+                        <span className="text-3xl font-black text-color-1 leading-none">{totalReviews}</span>
+                        <span className="text-xs font-bold text-gray-400">avis Google</span>
                       </div>
-                      <p className="text-[11px] text-white/60 mt-0.5">{monthlyCount} ce mois · record {personalBest}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{monthlyCount} ce mois · record {personalBest}</p>
                     </div>
-                    <div className="flex items-center gap-0.5 bg-white/15 rounded-lg px-2 py-1">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="white" fillOpacity="0.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      <span className="text-[11px] font-bold text-white">4.8</span>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="relative z-10">
-                    <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-                      <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progressPct}%` }} />
-                    </div>
-                    <div className="flex justify-between mt-0.5">
-                      <span className="text-[9px] text-white/40">{monthlyCount}/{personalBest} ce mois</span>
-                      <span className="text-[9px] text-white/50 font-semibold">{remaining > 0 ? `${remaining} pour battre` : 'Nouveau record !'}</span>
+                    <div className="flex items-center gap-0.5 bg-amber-50 rounded-lg px-2 py-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      <span className="text-[11px] font-bold text-amber-600">4.8</span>
                     </div>
                   </div>
                   {/* Bottom row: CTAs */}
-                  <div className="relative z-10 grid grid-cols-5 gap-1.5">
+                  <div className="grid grid-cols-5 gap-1.5">
                     {[
-                      { title: 'WhatsApp', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') } },
-                      { title: 'SMS', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.sms?.message || 'Merci pour votre visite ! Votre avis compte beaucoup pour nous.').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self') } },
-                      { title: 'Email', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const subject = tpl.email?.subject || 'Votre avis compte pour nous'; const msg = (tpl.email?.message || 'Merci pour votre visite au cabinet !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`, '_self') } },
-                      { title: copied ? 'Copié' : 'Copier', icon: copied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 2000) } },
-                      { title: 'Modifier', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, fn: () => setShowAvisModal(true) },
+                      { title: 'WhatsApp', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') } },
+                      { title: 'SMS', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.sms?.message || 'Merci pour votre visite ! Votre avis compte beaucoup pour nous.').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self') } },
+                      { title: 'Email', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const subject = tpl.email?.subject || 'Votre avis compte pour nous'; const msg = (tpl.email?.message || 'Merci pour votre visite au cabinet !').replace(/\{link\}/g, tpl.googleLink || ''); window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`, '_self') } },
+                      { title: copied ? 'Copié' : 'Copier', icon: copied ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, fn: () => { const tpl = JSON.parse(localStorage.getItem('setupData') || '{}')?.reviewTemplates || {}; const msg = (tpl.whatsapp?.message || 'Bonjour ! Merci pour votre visite. Un petit avis Google nous aiderait beaucoup !').replace(/\{link\}/g, tpl.googleLink || ''); navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 2000) } },
+                      { title: 'Modifier', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, fn: () => setShowAvisModal(true) },
                     ].map((btn, i) => (
-                      <button key={i} onClick={btn.fn} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors cursor-pointer ${i === 3 && copied ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`} title={btn.title}>
+                      <button key={i} onClick={btn.fn} className={`flex flex-col items-center gap-1 py-2 rounded-xl transition-colors cursor-pointer ${i === 3 && copied ? 'bg-green-50' : 'bg-gray-50 hover:bg-gray-100'}`} title={btn.title}>
                         {btn.icon}
-                        <span className="text-[8px] font-semibold text-white/70">{btn.title}</span>
+                        <span className="text-[8px] font-semibold text-gray-500">{btn.title}</span>
                       </button>
                     ))}
                   </div>
@@ -1754,50 +1757,48 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
             })()}
 
             {/* Partenaires */}
-            <div className="rounded-2xl p-4 flex-1 min-h-0 bg-gradient-to-br from-sky-500 to-blue-600 relative overflow-hidden flex flex-col">
-              <div className="absolute top-3 right-4 text-4xl opacity-15 pointer-events-none">🤝</div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-wider relative z-10">Nos partenaires</p>
-              <div className="relative z-10 flex flex-col gap-2 my-auto">
-                <button onClick={() => setShowNewsModal(0)} className="flex items-center gap-3 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-3 transition-colors cursor-pointer text-left w-full">
-                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-black text-white">C</span>
+            <div className="rounded-2xl p-3 bg-white border border-gray-200 relative overflow-hidden flex flex-col">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Nos partenaires</p>
+              <div className="flex flex-col gap-1.5">
+                <button onClick={() => setShowNewsModal(0)} className="flex items-center gap-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 px-3 py-2 transition-colors cursor-pointer text-left w-full">
+                  <div className="w-7 h-7 rounded-lg bg-color-2/10 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-black text-color-2">C</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white">Consulteo</p>
-                    <p className="text-[11px] text-white/60">Outils de réservation</p>
+                    <p className="text-xs font-bold text-color-1">Consulteo</p>
+                    <p className="text-[10px] text-gray-400 leading-tight">Outils de réservation</p>
                   </div>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
-                <button onClick={() => setShowNewsModal(1)} className="flex items-center gap-3 rounded-xl bg-white/15 hover:bg-white/25 px-4 py-3 transition-colors cursor-pointer text-left w-full">
-                  <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-black text-white">B</span>
+                <button onClick={() => setShowNewsModal(1)} className="flex items-center gap-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 px-3 py-2 transition-colors cursor-pointer text-left w-full">
+                  <div className="w-7 h-7 rounded-lg bg-color-2/10 flex items-center justify-center shrink-0">
+                    <span className="text-xs font-black text-color-2">B</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white">BoostTonCab</p>
-                    <p className="text-[11px] text-white/60">Aller chercher plus de clients plus rapidement</p>
+                    <p className="text-xs font-bold text-color-1">BoostTonCab</p>
+                    <p className="text-[10px] text-gray-400 leading-tight">Plus de clients rapidement</p>
                   </div>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeOpacity="0.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
               </div>
             </div>
 
             {/* Parrainage */}
-            <div className="rounded-2xl p-4 flex-1 min-h-0 relative overflow-hidden bg-gradient-to-br from-violet-500 to-purple-600 flex flex-col justify-between">
-              <div className="absolute top-3 right-4 text-4xl opacity-15 pointer-events-none">🎁</div>
-              <p className="text-xs font-bold text-white/50 uppercase tracking-wider relative z-10">Parrainage</p>
-              <div className="relative z-10 my-auto">
-                <p className="text-lg font-bold text-white leading-tight">Offrez <span className="text-yellow-300">1 mois</span>,</p>
-                <p className="text-lg font-bold text-white leading-tight">recevez <span className="text-yellow-300">2 gratuits</span></p>
+            <div className="rounded-2xl p-4 flex-1 min-h-0 relative overflow-hidden bg-white border border-gray-200 flex flex-col justify-between">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Parrainage</p>
+              <div className="my-auto">
+                <p className="text-lg font-bold text-color-1 leading-tight">Offrez <span className="text-color-2">1 mois</span>,</p>
+                <p className="text-lg font-bold text-color-1 leading-tight">recevez <span className="text-color-2">2 gratuits</span></p>
               </div>
-              <button onClick={() => router.push('/parrainage')} className="relative z-10 w-full py-2.5 rounded-xl bg-white hover:bg-white/90 transition-colors cursor-pointer">
-                <span className="text-sm font-bold text-purple-600">Inviter un confrère</span>
+              <button onClick={() => router.push('/parrainage')} className="w-full py-2.5 rounded-xl bg-color-2 hover:bg-color-2-dark transition-colors cursor-pointer">
+                <span className="text-sm font-bold text-white">Inviter un confrère</span>
               </button>
             </div>
 
           </div>
 
           {/* 3 — Bottom left — Ranking chart */}
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col relative overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between">
               <div>
@@ -2122,12 +2123,6 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                       </div>
                       {/* Footer pinned to bottom */}
                       <div className="mt-auto pt-3 shrink-0">
-                        <div className="pt-3 border-t border-gray-100 flex items-center gap-2 px-1 mb-3">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                          <p className="text-[11px] text-gray-400 leading-snug">
-                            La répartition choisie sera prise en compte pour la génération des articles à partir du <span className="font-semibold text-color-1">{(() => { const d = new Date(); d.setMonth(d.getMonth() + 1, 1); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) })()}</span>.
-                          </p>
-                        </div>
                         {(() => {
                           const repDirty = seoSetupMode || !settingsInitial || JSON.stringify([...checkedSpecs].sort()) !== JSON.stringify([...settingsInitial.checkedSpecs].sort())
                           return (
@@ -2171,7 +2166,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
       <div className="absolute inset-0 top-[52px] px-6 py-4 w-full max-w-[1200px] mx-auto">
         <div key="settings" className="flex gap-6 h-full" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {/* Left column — single unified card */}
-          <div className="w-[260px] shrink-0 bg-white border-2 border-gray-200 rounded-2xl p-5 flex flex-col">
+          <div className="w-[260px] shrink-0 bg-white border border-gray-200 rounded-2xl p-5 flex flex-col">
             {/* Settings nav */}
             <h2 className="text-base font-bold text-color-1 mb-4">Paramètres</h2>
             <div className="flex flex-col gap-0.5">
@@ -2226,7 +2221,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
           </div>
 
           {/* Settings content */}
-          <div className="flex-1 bg-white border-2 border-gray-200 rounded-2xl p-8 flex flex-col overflow-hidden">
+          <div className="flex-1 bg-white border border-gray-200 rounded-2xl p-8 flex flex-col overflow-hidden">
            <div key={settingsTab} className="flex-1 flex flex-col" style={{ animation: 'tab-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
             {/* Compte tab */}
             {settingsTab === 'compte' && (
@@ -2266,7 +2261,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                 <div className="flex items-center justify-between pt-4 mt-auto border-t border-gray-100">
                   <div className="flex items-center gap-3">
                     <button className="px-5 py-2 rounded-xl bg-color-2 text-white text-sm font-semibold hover:bg-orange-600 transition-colors cursor-pointer">Sauvegarder</button>
-                    <button className="px-5 py-2 rounded-xl border-2 border-gray-300 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Annuler</button>
+                    <button className="px-5 py-2 rounded-xl border border-gray-300 text-sm font-medium text-color-1 hover:bg-gray-50 transition-colors cursor-pointer">Annuler</button>
                   </div>
                   <button className="px-5 py-2 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 transition-colors cursor-pointer">Supprimer le compte</button>
                 </div>
@@ -2321,7 +2316,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab }) => {
                   {/* Pricing cards */}
                   <div className="flex-1 grid grid-cols-2 gap-5 min-h-0">
                     {/* Starter */}
-                    <div className="border-2 border-gray-200 rounded-2xl p-6 flex flex-col">
+                    <div className="border border-gray-200 rounded-2xl p-6 flex flex-col">
                       <div className="min-h-[70px]">
                         <h3 className="text-lg font-bold text-color-1 mb-2">Starter</h3>
                         <p className="text-sm text-gray-400 leading-relaxed">Idéal pour un site vitrine design et optimisé pour transformer vos visiteurs en rendez-vous.</p>

@@ -111,7 +111,7 @@ export default function SetupShell() {
 
         {/* Right content */}
         <div className="flex-1 min-h-0">
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 h-full flex flex-col">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 h-full flex flex-col">
             <div className="flex-1">
               {StepComponent ? <StepComponent /> : null}
             </div>
