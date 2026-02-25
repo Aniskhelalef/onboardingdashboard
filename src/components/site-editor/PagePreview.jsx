@@ -410,7 +410,7 @@ const PagePreview = ({
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-            <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")}>
+            <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "navbar")}>
               <button
                 className="bg-[hsl(var(--page-accent-dark))] text-white px-5 py-2.5 text-sm font-medium"
                 style={{ borderRadius: 'var(--page-radius, 9999px)' }}
@@ -457,7 +457,7 @@ const PagePreview = ({
             </p>
 
             <div className={cn("flex gap-3 mb-8", viewMode === "mobile" ? "flex-col items-start" : "items-center gap-4")}>
-              <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")}>
+              <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "hero")}>
                 <button
                   className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium"
                   style={{ borderRadius: 'var(--page-radius, 9999px)' }}
@@ -728,7 +728,7 @@ const PagePreview = ({
           </div>
         )}
 
-        <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")} className="inline-block mt-8">
+        <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "after_specialties")} className="inline-block mt-8">
           <button
             className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium"
             style={{ borderRadius: 'var(--page-radius, 9999px)' }}
@@ -1129,7 +1129,7 @@ const PagePreview = ({
 
         </div>
 
-        <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")} className="inline-block mt-8">
+        <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "after_deroulement")} className="inline-block mt-8">
           <button
             className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium"
             style={{ borderRadius: 'var(--page-radius, 9999px)' }}
@@ -1217,13 +1217,14 @@ const PagePreview = ({
 
         {isPreviewMode ? (
           <button
-            className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium mt-8"
+            onClick={() => onCTAClick?.("appointmentLink", "after_faq")}
+            className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium mt-8 cursor-pointer"
             style={{ borderRadius: 'var(--page-radius, 9999px)' }}
           >
             Prendre Rendez-Vous
           </button>
         ) : (
-          <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")} className="inline-block mt-8">
+          <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "after_faq")} className="inline-block mt-8">
             <button
               className="bg-[hsl(var(--page-accent))] text-white px-6 py-3 text-sm font-medium"
               style={{ borderRadius: 'var(--page-radius, 9999px)' }}
@@ -1246,13 +1247,13 @@ const PagePreview = ({
             </p>
           </div>
           <div className={cn("flex gap-3", viewMode === "mobile" ? "flex-col items-start" : "gap-4")}>
-            <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink")}>
+            <ClickableWrapper onClick={() => onCTAClick?.("appointmentLink", "sticky_footer")}>
               <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">
                 <Phone className="w-4 h-4" />
                 Prendre Rendez-Vous
               </button>
             </ClickableWrapper>
-            <button className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap">
+            <button onClick={() => onCTAClick?.("appointmentLink", "sticky_footer")} className="bg-[hsl(var(--page-accent))] text-white px-5 py-2 rounded-full text-sm flex items-center gap-2 whitespace-nowrap cursor-pointer">
               <Phone className="w-4 h-4" />
               {globalSettings.phoneNumber || "Appeler"}
             </button>

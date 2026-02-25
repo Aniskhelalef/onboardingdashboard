@@ -5,12 +5,21 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import PagePreview from "@/components/site-editor/PagePreview";
 import { colorPalettes, typographyPairs, radiusOptions } from "@/components/site-editor/StylePanel";
+import { useTrackCTA } from "@/hooks/useTrackCTA";
 
 export default function PublicSitePage() {
   const { slug } = useParams();
   const [siteData, setSiteData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const { trackClick } = useTrackCTA({ therapistId: slug, pageSlug: slug });
+
+  const handleCTAClick = (field, placement) => {
+    if (placement) trackClick(placement, "cta_rdv_click");
+    const link = siteData?.globalSettings?.appointmentLink || "https://doctolib.fr/";
+    window.open(link, "_blank");
+  };
 
   useEffect(() => {
     if (!slug) return;
@@ -87,6 +96,7 @@ export default function PublicSitePage() {
         content={siteData.content}
         viewMode="desktop"
         isPreviewMode={true}
+        onCTAClick={handleCTAClick}
         locations={siteData.locations || []}
         ratingBadge={siteData.ratingBadge}
         patientsBadge={siteData.patientsBadge}

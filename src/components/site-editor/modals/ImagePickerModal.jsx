@@ -173,13 +173,13 @@ export default function ImagePickerModal({ open, onOpenChange, onImageSelect }) 
               {/* Suggestions when empty */}
               {photos.length === 0 && !loading && !query && (
                 <div className="px-5 pb-3 shrink-0">
-                  <p className="text-[11px] text-gray-400 mb-2">Suggestions :</p>
+                  <p className="text-xs text-gray-500 mb-2.5">Parcourez des milliers de photos libres de droits via <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-700 hover:underline">Pexels</a></p>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestions.map((s) => (
                       <button
                         key={s}
                         onClick={() => { setQuery(s); searchPexels(s, 1); }}
-                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs text-gray-600 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-900 hover:text-white rounded-full text-xs font-medium text-gray-700 transition-colors cursor-pointer"
                       >
                         {s}
                       </button>
@@ -196,7 +196,8 @@ export default function ImagePickerModal({ open, onOpenChange, onImageSelect }) 
                   </div>
                 ) : photos.length > 0 ? (
                   <>
-                    <div className="grid grid-cols-4 gap-1.5">
+                    <p className="text-[10px] text-gray-500 mb-2">Photos fournies par <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-gray-700 hover:underline">Pexels</a></p>
+                    <div className="grid grid-cols-8 gap-1">
                       {photos.map((photo) => (
                         <button
                           key={photo.id}
@@ -204,17 +205,17 @@ export default function ImagePickerModal({ open, onOpenChange, onImageSelect }) 
                           className="group relative aspect-square rounded-md overflow-hidden cursor-pointer bg-gray-100"
                         >
                           <img
-                            src={photo.src.small || photo.src.medium}
+                            src={photo.src.medium}
                             alt={photo.alt}
                             className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                             loading="lazy"
                           />
                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                          {photo.photographer && (
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1.5 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <a href={photo.photographerUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[8px] text-white/80 truncate hover:text-white block">{photo.photographer}</a>
+                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-end">
+                            <div className="w-full bg-gradient-to-t from-black/60 to-transparent px-1.5 py-1">
+                              <a href={photo.url || photo.photographerUrl || "#"} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[7px] text-white/80 truncate hover:text-white block">{photo.photographer}</a>
                             </div>
-                          )}
+                          </div>
                         </button>
                       ))}
                     </div>
