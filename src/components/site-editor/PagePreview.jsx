@@ -1,5 +1,6 @@
 import { Star, ChevronDown, Phone, ChevronRight, Shield, ExternalLink, EyeOff, Monitor, Crop, Image as ImageIcon, Move } from "lucide-react";
 import HiddenOverlay from "./HiddenOverlay";
+import GoogleReviewsWidget from "./GoogleReviewsWidget";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -104,6 +105,9 @@ const PagePreview = ({
   onTherapistImageCrop,
   onTherapistImagePosition,
   therapistImagePosition = { x: 50, y: 50 },
+  googleReviews = null,
+  googleMapsUrl,
+  reviewsLayout = "carousel",
   isProofreadingActive = false,
   proofreadingElementId,
   onProofreadingElementClick,
@@ -922,30 +926,32 @@ const PagePreview = ({
 
       {/* Reviews Section - Avis */}
       <div id="page-avis" className={cn("py-12 bg-[hsl(var(--page-hero-bg))] scroll-mt-16", viewMode === "mobile" ? "px-5" : "px-8")}>
-        <div className="text-center mb-8">
-          <span
-            data-proofread-id="section-reviews-subtitle"
-            className={cn(
-              "text-[hsl(var(--page-accent))] text-sm font-medium",
+        {!(googleReviews && googleReviews.length > 0) && (
+          <div className="text-center mb-8">
+            <span
+              data-proofread-id="section-reviews-subtitle"
+              className={cn(
+                "text-[hsl(var(--page-accent))] text-sm font-medium",
 
-              getProofreadingClass("section-reviews-subtitle")
-            )}
-          >
-            {makeEditable("section-reviews-subtitle", "content.reviewsSectionSubtitle", content.reviewsSectionSubtitle ?? "Témoignages")}
-          </span>
-          <h2
-            data-proofread-id="section-reviews-title"
-            className={cn(
-              cn("font-display font-bold text-[hsl(var(--page-text))] mt-2", viewMode === "mobile" ? "text-2xl" : "text-3xl"),
+                getProofreadingClass("section-reviews-subtitle")
+              )}
+            >
+              {makeEditable("section-reviews-subtitle", "content.reviewsSectionSubtitle", content.reviewsSectionSubtitle ?? "Témoignages")}
+            </span>
+            <h2
+              data-proofread-id="section-reviews-title"
+              className={cn(
+                cn("font-display font-bold text-[hsl(var(--page-text))] mt-2", viewMode === "mobile" ? "text-2xl" : "text-3xl"),
 
-              getProofreadingClass("section-reviews-title", true)
-            )}
-          >
-            {makeEditable("section-reviews-title", "content.reviewsSectionTitle", content.reviewsSectionTitle ?? "Ce que disent nos patients")}
-          </h2>
-        </div>
+                getProofreadingClass("section-reviews-title", true)
+              )}
+            >
+              {makeEditable("section-reviews-title", "content.reviewsSectionTitle", content.reviewsSectionTitle ?? "Ce que disent nos patients")}
+            </h2>
+          </div>
+        )}
 
-        {isGoogleConnected && (
+        {isGoogleConnected && !(googleReviews && googleReviews.length > 0) && (
           <div className={cn(
             "grid gap-4 max-w-6xl mx-auto",
             viewMode === "desktop" ? "grid-cols-4" : "grid-cols-1"
@@ -1060,6 +1066,19 @@ const PagePreview = ({
             ))}
 
           </div>
+        )}
+
+        {/* Google Reviews Widget — scraped 5-star reviews */}
+        {googleReviews && googleReviews.length > 0 && (
+          <GoogleReviewsWidget
+            reviews={googleReviews}
+            layout={reviewsLayout}
+            heading={content.reviewsSectionTitle}
+            subtitle={content.reviewsSectionSubtitle}
+            googleMapsUrl={googleMapsUrl}
+            googleProfileName={googleProfileName}
+            viewMode={viewMode}
+          />
         )}
       </div>
 

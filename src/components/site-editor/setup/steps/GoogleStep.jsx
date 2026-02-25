@@ -1,6 +1,7 @@
 'use client';
 
-import { Building2, Search, Loader2, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Building2, Search, Loader2, Check, Star, X } from "lucide-react";
 import { useSetup } from "../SetupContext";
 import { useGooglePlaces } from "../useGooglePlaces";
 import { Input } from "@/components/ui/input";
@@ -11,31 +12,131 @@ export default function GoogleStep() {
   const { google } = state.data;
   const gp = useGooglePlaces();
 
+  // Supabase source state (actual scraped reviews connection)
+  const [liveSource, setLiveSource] = useState(null);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const headers = { "x-therapist-id": "demo-therapist" };
+
+  const fetchLiveSource = useCallback(async () => {
+    try {
+      const res = await fetch("/api/therapist/reviews", { headers });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setLiveSource(data.source);
+    } catch {
+      setLiveSource(null);
+    } finally {
+      setLiveLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isModal) fetchLiveSource();
+    else setLiveLoading(false);
+  }, [isModal, fetchLiveSource]);
+
+  const handleDisconnectLive = async () => {
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/therapist/reviews/disconnect", {
+        method: "POST",
+        headers,
+      });
+      if (res.ok) {
+        setLiveSource(null);
+        // Also clear localStorage google state
+        dispatch({ type: "SET_GOOGLE", payload: { connected: false, profile: null } });
+        handleValidateSection("google");
+      }
+    } catch {
+      // silent
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   const handleConnect = (result) => {
     const r = result || gp.selectedResult;
     dispatch({ type: "SET_GOOGLE", payload: { connected: true, profile: { name: r?.name || "Votre Cabinet", rating: r?.rating || null, reviewCount: r?.reviewCount || 0, address: r?.address || "", placeId: r?.placeId || null } } });
   };
+
+  // Determine connected state: either localStorage google OR live Supabase source
+  const isConnected = (google.connected && google.profile) || (liveSource && liveSource.status === "completed");
+  const profileName = google.profile?.name || "Votre établissement";
+  const profileAddress = google.profile?.address || "";
+  const profileRating = google.profile?.rating;
+  const profileReviewCount = google.profile?.reviewCount || liveSource?.totalReviewsFound || 0;
 
   return (
     <div className={isModal ? "space-y-2.5" : "space-y-4"} style={{ animation: "tab-fade-in 0.3s ease" }}>
       {!isModal && (
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-1">Google Business</h2>
-          <p className="text-sm text-muted-foreground">{google.connected ? "Votre fiche Google est connectée." : "Recherchez votre établissement pour le connecter."}</p>
+          <p className="text-sm text-muted-foreground">{isConnected ? "Votre fiche Google est connectée." : "Recherchez votre établissement pour le connecter."}</p>
         </div>
       )}
 
-      {google.connected && google.profile ? (
-        <div className={cn("flex items-center gap-3 bg-green-50/50 border border-green-200 rounded-xl", isModal ? "p-3" : "p-4")}>
-          <div className={cn("rounded-lg bg-emerald-100 flex items-center justify-center shrink-0", isModal ? "w-8 h-8" : "w-10 h-10")}>
-            <Building2 className={isModal ? "w-4 h-4 text-emerald-600" : "w-5 h-5 text-emerald-600"} />
+      {liveLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
+        </div>
+      ) : isConnected ? (
+        <div className="space-y-2">
+          <div className={cn("flex items-center gap-3 bg-green-50/50 border border-green-200 rounded-xl", isModal ? "p-3" : "p-4")}>
+            <div className={cn("rounded-lg bg-emerald-100 flex items-center justify-center shrink-0", isModal ? "w-8 h-8" : "w-10 h-10")}>
+              <Building2 className={isModal ? "w-4 h-4 text-emerald-600" : "w-5 h-5 text-emerald-600"} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn("font-medium text-foreground truncate", isModal ? "text-xs" : "text-sm")}>{profileName}</p>
+              {profileAddress && <p className={cn("text-muted-foreground truncate", isModal ? "text-[11px]" : "text-sm")}>{profileAddress}</p>}
+              {profileRating && <p className="text-[11px] text-muted-foreground">{profileRating}/5 · {profileReviewCount} avis</p>}
+            </div>
+            <span className={cn("inline-flex items-center rounded-full bg-green-100 text-green-700 font-semibold shrink-0", isModal ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-sm")}>Connecté</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn("font-medium text-foreground truncate", isModal ? "text-xs" : "text-sm")}>{google.profile.name}</p>
-            {google.profile.address && <p className={cn("text-muted-foreground truncate", isModal ? "text-[11px]" : "text-sm")}>{google.profile.address}</p>}
-            {google.profile.rating && <p className="text-[11px] text-muted-foreground">{google.profile.rating}/5 · {google.profile.reviewCount} avis</p>}
-          </div>
-          <span className={cn("inline-flex items-center rounded-full bg-green-100 text-green-700 font-semibold shrink-0", isModal ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-sm")}>Connecté</span>
+
+          {/* Live source stats */}
+          {liveSource && liveSource.status === "completed" && (
+            <div className={cn("flex items-center gap-3 bg-amber-50/50 border border-amber-100 rounded-xl", isModal ? "p-2.5" : "p-3")}>
+              <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="#F59E0B" />
+              <p className="text-[11px] text-amber-700 font-medium">
+                {liveSource.totalReviewsFound} avis importés
+                {liveSource.lastScrapedAt && (
+                  <span className="text-amber-500 font-normal"> · Mis à jour le {new Date(liveSource.lastScrapedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}</span>
+                )}
+              </p>
+            </div>
+          )}
+
+          {liveSource && (liveSource.status === "pending" || liveSource.status === "scraping") && (
+            <div className={cn("flex items-center gap-2.5 bg-blue-50/50 border border-blue-100 rounded-xl", isModal ? "p-2.5" : "p-3")}>
+              <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin shrink-0" />
+              <p className="text-[11px] text-blue-600 font-medium">Importation des avis en cours...</p>
+            </div>
+          )}
+
+          <button
+            onClick={async () => {
+              // Disconnect from both localStorage and Supabase
+              if (liveSource) await handleDisconnectLive();
+              else {
+                dispatch({ type: "SET_GOOGLE", payload: { connected: false, profile: null } });
+                handleValidateSection("google");
+              }
+            }}
+            disabled={disconnecting}
+            className={cn("w-full rounded-xl font-semibold transition-colors cursor-pointer border border-gray-200 text-gray-500 hover:bg-red-50 hover:border-red-200 hover:text-red-500", isModal ? "px-4 py-2 text-xs" : "px-6 py-2.5 text-sm")}
+          >
+            {disconnecting ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Déconnexion...
+              </span>
+            ) : (
+              "Déconnecter cet établissement"
+            )}
+          </button>
         </div>
       ) : (
         <>

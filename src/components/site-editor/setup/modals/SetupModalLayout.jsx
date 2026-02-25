@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 
-export default function SetupModalLayout({ title, icon, tabs, activeTab, onTabChange, onClose, children }) {
+export default function SetupModalLayout({ title, icon, tabs, activeTab, onTabChange, onClose, children, freeNav = false }) {
   const tabIdx = tabs.findIndex(t => t.id === activeTab)
 
   return (
@@ -36,16 +36,18 @@ export default function SetupModalLayout({ title, icon, tabs, activeTab, onTabCh
                     : 'text-gray-300 hover:text-gray-500 hover:bg-gray-50'
                   )}
                 >
-                  <span className={cn(
-                    'w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0',
-                    isCurrent ? 'bg-color-2 text-white'
-                    : isDone ? 'bg-green-500 text-white'
-                    : 'bg-gray-100 text-gray-400'
-                  )}>
-                    {isDone && !isCurrent ? (
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    ) : i + 1}
-                  </span>
+                  {!freeNav && (
+                    <span className={cn(
+                      'w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0',
+                      isCurrent ? 'bg-color-2 text-white'
+                      : isDone ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-400'
+                    )}>
+                      {isDone && !isCurrent ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      ) : i + 1}
+                    </span>
+                  )}
                   {tab.label}
                 </button>
               )
@@ -61,7 +63,7 @@ export default function SetupModalLayout({ title, icon, tabs, activeTab, onTabCh
               <h3 className="text-base font-bold text-color-1">
                 {tabs[tabIdx]?.label || title}
               </h3>
-              {tabs.length > 1 && (
+              {!freeNav && tabs.length > 1 && (
                 <span className="text-[11px] font-medium text-gray-300">
                   Étape {tabIdx + 1} / {tabs.length}
                 </span>
@@ -78,26 +80,28 @@ export default function SetupModalLayout({ title, icon, tabs, activeTab, onTabCh
               {children}
             </div>
 
-            {/* Footer CTA */}
-            <div className="shrink-0 pt-3">
-              {tabs.length > 1 && tabIdx < tabs.length - 1 ? (
-                <button
-                  onClick={() => onTabChange(tabs[tabIdx + 1].id)}
-                  className="w-full py-2.5 rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 bg-[#FC6D41] text-white hover:bg-[#e55e35] cursor-pointer transition-all"
-                >
-                  Suivant
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                </button>
-              ) : (
-                <button
-                  onClick={onClose}
-                  className="w-full py-2.5 rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 bg-green-500 text-white hover:bg-green-600 cursor-pointer transition-all"
-                >
-                  Terminer
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </button>
-              )}
-            </div>
+            {/* Footer CTA — hidden in freeNav mode */}
+            {!freeNav && (
+              <div className="shrink-0 pt-3">
+                {tabs.length > 1 && tabIdx < tabs.length - 1 ? (
+                  <button
+                    onClick={() => onTabChange(tabs[tabIdx + 1].id)}
+                    className="w-full py-2.5 rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 bg-[#FC6D41] text-white hover:bg-[#e55e35] cursor-pointer transition-all"
+                  >
+                    Suivant
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="w-full py-2.5 rounded-xl text-[13px] font-medium flex items-center justify-center gap-2 bg-green-500 text-white hover:bg-green-600 cursor-pointer transition-all"
+                  >
+                    Terminer
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

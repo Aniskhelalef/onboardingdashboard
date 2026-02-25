@@ -142,6 +142,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   const [styleSettings, setStyleSettings] = useState(() => loadSaved("styleSettings", defaultStyleSettings));
   const [reviews, setReviews] = useState([]);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [googleReviews, setGoogleReviews] = useState(null);
+  const [googleMapsUrl, setGoogleMapsUrl] = useState(null);
   const [googleProfileName, setGoogleProfileName] = useState(undefined);
   const [googleProfilePhoto, setGoogleProfilePhoto] = useState(undefined);
   const [sessionInfo, setSessionInfo] = useState(() => loadSaved("sessionInfo", {
@@ -173,6 +175,25 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   const isLastValidationStep = validationStepIndex === VALIDATION_SEQUENCE.length - 1;
 
   // Auto-save editor data to localStorage
+  // Fetch Google Reviews for the widget preview
+  useEffect(() => {
+    const therapistId = "demo-therapist"; // TODO: replace with real therapist ID from auth
+    fetch(`/api/therapist/reviews`, { headers: { "X-Therapist-Id": therapistId } })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.source) {
+          setGoogleMapsUrl(data.source.googleMapsUrl);
+          if (data.source.status === "completed" || data.reviews?.length > 0) {
+            setIsGoogleConnected(true);
+          }
+        }
+        if (data?.reviews?.length > 0) {
+          setGoogleReviews(data.reviews);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const isFirstRender = useRef(true);
   const mountedAt = useRef(Date.now());
   useEffect(() => {
@@ -1472,6 +1493,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
             sessionInfo={sessionInfo}
             reviews={reviews.length > 0 ? reviews.map(r => ({ id: r.id, name: r.name, rating: r.rating, date: r.date, text: r.text, hidden: !r.isVisible })) : undefined}
             isGoogleConnected={isGoogleConnected}
+            googleReviews={googleReviews}
+            googleMapsUrl={googleMapsUrl}
             googleProfileName={googleProfileName}
             googleProfilePhoto={googleProfilePhoto}
             onFeatureClick={(id) => id && handleProofreadingElementClick(`feature-${features.findIndex(f => f.id === id)}`)}

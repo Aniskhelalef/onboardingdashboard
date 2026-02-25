@@ -19,6 +19,8 @@ const EditorCanvas = ({
   sessionInfo,
   reviews,
   isGoogleConnected,
+  googleReviews,
+  googleMapsUrl,
   googleProfileName,
   googleProfilePhoto,
   onLocationClick,
@@ -93,6 +95,8 @@ const EditorCanvas = ({
         sessionInfo={sessionInfo}
         reviews={reviews}
         isGoogleConnected={isGoogleConnected}
+        googleReviews={googleReviews}
+        googleMapsUrl={googleMapsUrl}
         googleProfileName={googleProfileName}
         googleProfilePhoto={googleProfilePhoto}
         onLocationClick={onLocationClick}

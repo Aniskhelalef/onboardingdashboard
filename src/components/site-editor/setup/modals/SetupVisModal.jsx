@@ -13,7 +13,7 @@ const TABS = [
   { id: 'email', label: 'Email', sectionId: 'reviewTemplates' },
 ]
 
-export default function SetupVisModal({ onClose }) {
+export default function SetupVisModal({ onClose, freeNav = false }) {
   const { state, goToStep, handleValidateSection } = useSetup()
   const { completedActionIds } = state
 
@@ -46,6 +46,7 @@ export default function SetupVisModal({ onClose }) {
       activeTab={tab}
       onTabChange={saveAndSwitch}
       onClose={handleClose}
+      freeNav={freeNav}
     >
       {tab === 'google' ? (
         <GoogleStep />
