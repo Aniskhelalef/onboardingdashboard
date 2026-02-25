@@ -14,6 +14,7 @@ import EditorToolbar from "./EditorToolbar";
 import Setup from "./setup";
 import ImageCropModal from "./modals/ImageCropModal";
 import ImagePositionModal from "./modals/ImagePositionModal";
+import ImagePickerModal from "./modals/ImagePickerModal";
 import BadgeItemModal from "./modals/BadgeItemModal";
 import LocationItemModal from "./modals/LocationItemModal";
 import ReviewItemModal from "./modals/ReviewItemModal";
@@ -68,6 +69,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   const [isSitePublished, setIsSitePublished] = useState(() => typeof window !== 'undefined' && localStorage.getItem("sitePublished") === "true");
   const [hasChanges, setHasChanges] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [publishSlug, setPublishSlug] = useState(() => typeof window !== 'undefined' ? localStorage.getItem("editor_publishSlug") || "" : "");
+  const [isPublishing, setIsPublishing] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingNavAction, setPendingNavAction] = useState(null);
   const [showStyleModal, setShowStyleModal] = useState(!!initialOpenStyle);
@@ -87,6 +90,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   const [cropTarget, setCropTarget] = useState(null);
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [positionTarget, setPositionTarget] = useState(null);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+  const [imagePickerTarget, setImagePickerTarget] = useState(null);
   const [heroImagePosition, setHeroImagePosition] = useState(() => loadSaved("heroImagePosition", { x: 50, y: 50 }));
   const [aboutImagePosition, setAboutImagePosition] = useState(() => loadSaved("aboutImagePosition", { x: 50, y: 50 }));
 
@@ -502,6 +507,72 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
     setHasChanges(false);
   };
 
+  // Publish site data to Supabase and open public preview
+  const handlePublishAndPreview = async () => {
+    if (isPublishing) return;
+    setIsPublishing(true);
+    try {
+      const siteData = {
+        content,
+        globalSettings,
+        features,
+        painTypes,
+        sessionSteps,
+        faqItems,
+        locations,
+        ratingBadge,
+        patientsBadge,
+        sessionInfo,
+        heroImage,
+        aboutImage,
+        heroImagePosition,
+        aboutImagePosition,
+        identitySettings,
+        styleSettings,
+        legalContent,
+        reviews,
+        googleReviews,
+        googleMapsUrl,
+        googleProfileName,
+        googleProfilePhoto,
+        logo: identitySettings.logo || null,
+      };
+
+      console.log("[Publish] heroImage:", heroImage?.substring(0, 100));
+      console.log("[Publish] aboutImage:", aboutImage?.substring(0, 100));
+
+      // Use state slug, or fallback to localStorage in case state was lost
+      const slug = publishSlug || localStorage.getItem("editor_publishSlug") || undefined;
+      console.log("[Publish] slug:", slug);
+
+      const res = await fetch("/api/therapist/site/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug: slug || undefined,
+          data: siteData,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erreur");
+
+      // Remember slug for future publishes
+      if (json.slug) {
+        setPublishSlug(json.slug);
+        localStorage.setItem("editor_publishSlug", json.slug);
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://theralys-onboarding.vercel.app";
+      window.open(`${baseUrl}/site/${json.slug}`, "_blank");
+    } catch (err) {
+      console.error("Publish error:", err);
+      alert("Erreur lors de la publication. Veuillez réessayer.");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   // Map editor page to its review action ID
   const getReviewActionId = (page) => {
     if (page === "accueil") return "review-home";
@@ -693,18 +764,21 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   };
 
   // Hero image handlers
-  const handleHeroImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result;
-        pushHistory();
-        setHeroImage(dataUrl);
-        setHeroImageOriginal(dataUrl);
-      };
-      reader.readAsDataURL(file);
+  const handleHeroImageUpload = () => {
+    setImagePickerTarget("hero");
+    setShowImagePickerModal(true);
+  };
+
+  const handleImagePickerSelect = (imageUrl) => {
+    pushHistory();
+    if (imagePickerTarget === "hero") {
+      setHeroImage(imageUrl);
+      setHeroImageOriginal(imageUrl);
+    } else {
+      setAboutImage(imageUrl);
+      setAboutImageOriginal(imageUrl);
     }
+    setImagePickerTarget(null);
   };
 
   const handleHeroImageCrop = () => {
@@ -718,18 +792,9 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
   };
 
   // About/therapist image handlers
-  const handleTherapistImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result;
-        pushHistory();
-        setAboutImage(dataUrl);
-        setAboutImageOriginal(dataUrl);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleTherapistImageUpload = () => {
+    setImagePickerTarget("about");
+    setShowImagePickerModal(true);
   };
 
   const handleTherapistImageCrop = () => {
@@ -838,11 +903,16 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
           </button>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.open('https://theralys-web.fr/', '_blank')}
+              onClick={handlePublishAndPreview}
+              disabled={isPublishing}
               title="Voir ma page"
-              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-color-1 hover:border-gray-300 transition-all cursor-pointer"
+              className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-color-1 hover:border-gray-300 transition-all cursor-pointer disabled:opacity-50"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              {isPublishing ? (
+                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="31.4 31.4" strokeLinecap="round"/></svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
             </button>
             <button
               onClick={() => setShowSettingsModal(true)}
@@ -1793,6 +1863,13 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
           </div>
         </div>
       )}
+
+      {/* Image Picker Modal (Pexels + Upload) */}
+      <ImagePickerModal
+        open={showImagePickerModal}
+        onOpenChange={(open) => { if (!open) { setShowImagePickerModal(false); setImagePickerTarget(null); } }}
+        onImageSelect={handleImagePickerSelect}
+      />
 
       {/* Image Crop Modal */}
       <ImageCropModal

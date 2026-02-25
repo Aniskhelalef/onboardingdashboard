@@ -85,6 +85,12 @@ const HomeDashboard = ({ initialTab, initialSettingsTab, mvpMode }) => {
   }
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [showPexels, setShowPexels] = useState(false)
+  const [pexelsPhotos, setPexelsPhotos] = useState([])
+  const [pexelsLoading, setPexelsLoading] = useState(false)
+  const [pexelsPage, setPexelsPage] = useState(1)
+  const [pexelsHasMore, setPexelsHasMore] = useState(false)
+  const [pexelsLoadingMore, setPexelsLoadingMore] = useState(false)
+  const pexelsDebounceRef = useRef(null)
   // Article modal states removed — Voir/Modifier/Créer navigate to SiteEditor
   const [showParrainageVideo, setShowParrainageVideo] = useState(false)
   const [showNewsModal, setShowNewsModal] = useState(null) // index of news item or null
@@ -1075,44 +1081,38 @@ const HomeDashboard = ({ initialTab, initialSettingsTab, mvpMode }) => {
 
           {/* Pexels image library modal */}
           {showPexels && (() => {
-            const pexelsImages = [
-              { id: 1, src: articleImg1, label: 'Physiothérapie épaule' },
-              { id: 2, src: articleImg2, label: 'Consultation ostéo' },
-              { id: 3, src: articleImg3, label: 'Massage thérapeutique' },
-              { id: 4, src: articleImg4, label: 'Rééducation sportive' },
-              { id: 5, src: pexGrab1, label: 'Massage du dos' },
-              { id: 6, src: pexGrab2, label: 'Soin cervical' },
-              { id: 7, src: pexGrab3, label: 'Thérapie manuelle' },
-              { id: 8, src: pexGrab4, label: 'Consultation cabinet' },
-              { id: 9, src: pexGrab5, label: 'Palpation dorsale' },
-              { id: 10, src: pexGrab6, label: 'Traitement articulaire' },
-              { id: 11, src: pexGrab7, label: 'Mobilisation épaule' },
-              { id: 12, src: pexGrab8, label: 'Étirement guidé' },
-              { id: 13, src: pexRyu1, label: 'Rééducation posturale' },
-              { id: 14, src: pexRyu2, label: 'Exercice thérapeutique' },
-              { id: 15, src: pexRyu3, label: 'Renforcement musculaire' },
-              { id: 16, src: pexRyu4, label: 'Séance de kiné' },
-              { id: 17, src: pexYank5, label: 'Soin du patient' },
-              { id: 18, src: pexYank6, label: 'Bilan postural' },
-              { id: 19, src: pexYank7, label: 'Récupération sportive' },
-              { id: 20, src: pexYank8, label: 'Traitement en cabinet' },
-              { id: 21, src: pexYank9, label: 'Manipulation douce' },
-              { id: 22, src: pexPolina, label: 'Bien-être et détente' },
-            ]
-            const filtered = pexelsSearch
-              ? pexelsImages.filter(img => img.label.toLowerCase().includes(pexelsSearch.toLowerCase()))
-              : pexelsImages
+            const searchPexelsApi = async (q, pageNum = 1, append = false) => {
+              if (!q || q.trim().length < 2) return
+              if (pageNum === 1) setPexelsLoading(true)
+              else setPexelsLoadingMore(true)
+              try {
+                const res = await fetch(`/api/pexels/search?query=${encodeURIComponent(q.trim())}&page=${pageNum}&per_page=20`)
+                const data = await res.json()
+                const newPhotos = data.photos || []
+                setPexelsPhotos(prev => append ? [...prev, ...newPhotos] : newPhotos)
+                setPexelsHasMore(newPhotos.length === 20 && (data.total_results || 0) > pageNum * 20)
+                setPexelsPage(pageNum)
+              } catch { /* silent */ }
+              finally { setPexelsLoading(false); setPexelsLoadingMore(false) }
+            }
+            const handlePexelsInput = (val) => {
+              setPexelsSearch(val)
+              if (pexelsDebounceRef.current) clearTimeout(pexelsDebounceRef.current)
+              if (val.trim().length < 2) { setPexelsPhotos([]); setPexelsHasMore(false); return }
+              pexelsDebounceRef.current = setTimeout(() => searchPexelsApi(val, 1), 500)
+            }
+            const suggestions = ['thérapie', 'cabinet médical', 'bien-être', 'massage', 'ostéopathie', 'santé']
             return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowPexels(false)}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => { setShowPexels(false); setPexelsPhotos([]); setPexelsSearch('') }}>
                 <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-                <div className="relative bg-white rounded-2xl shadow-xl w-[440px] max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
+                <div className="relative bg-white rounded-2xl shadow-xl w-[500px] max-h-[75vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()} style={{ animation: 'tab-fade-in 0.15s ease-out' }}>
                   <div className="px-5 pt-5 pb-3 shrink-0">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#05A081"/><path d="M13.5 10.2h-3.3v11.6h3.3v-4.6c0-1.7 1-2.6 2.3-2.6 1.2 0 2 .8 2 2.4v4.8h3.3v-5.5c0-3-1.7-4.7-4.2-4.7-1.5 0-2.5.7-3.1 1.5l-.3-1.3z" fill="white"/></svg>
                         <h2 className="text-base font-bold text-color-1">Pexels</h2>
                       </div>
-                      <button onClick={() => setShowPexels(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
+                      <button onClick={() => { setShowPexels(false); setPexelsPhotos([]); setPexelsSearch('') }} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center cursor-pointer transition-colors">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </button>
                     </div>
@@ -1121,44 +1121,69 @@ const HomeDashboard = ({ initialTab, initialSettingsTab, mvpMode }) => {
                       <input
                         type="text"
                         value={pexelsSearch}
-                        onChange={e => setPexelsSearch(e.target.value)}
+                        onChange={e => handlePexelsInput(e.target.value)}
                         placeholder="Rechercher des photos..."
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-50 text-[13px] text-color-1 placeholder:text-gray-300 outline-none focus:ring-2 focus:ring-color-2/30 transition-shadow"
+                        autoFocus
                       />
+                      {pexelsLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2"><div className="w-4 h-4 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" /></div>}
                     </div>
-                  </div>
-                  <div className="px-5 pb-5 flex-1 min-h-0 overflow-y-auto">
-                    {filtered.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {filtered.map(img => (
-                          <button
-                            key={img.id}
-                            onClick={() => {
-                              if (selectedDay !== null) {
-                                setCustomArticleImages(prev => ({ ...prev, [selectedDay]: img.src }))
-                                setCardDirty(true)
-                              }
-                              setShowPexels(false)
-                            }}
-                            className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group/pex"
-                          >
-                            <img src={img.src} alt={img.label} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover/pex:scale-105" />
-                            <div className="absolute inset-0 bg-black/0 group-hover/pex:bg-black/30 transition-colors" />
-                            <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover/pex:opacity-100 transition-opacity">
-                              <p className="text-white text-[11px] font-medium">{img.label}</p>
-                            </div>
-                          </button>
+                    {pexelsPhotos.length === 0 && !pexelsLoading && !pexelsSearch && (
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        {suggestions.map(s => (
+                          <button key={s} onClick={() => { setPexelsSearch(s); searchPexelsApi(s, 1) }} className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-[11px] text-gray-500 transition-colors cursor-pointer">{s}</button>
                         ))}
                       </div>
-                    ) : (
+                    )}
+                  </div>
+                  <div className="px-5 pb-5 flex-1 min-h-0 overflow-y-auto">
+                    {pexelsLoading && pexelsPhotos.length === 0 ? (
+                      <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" /></div>
+                    ) : pexelsPhotos.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {pexelsPhotos.map(photo => (
+                            <button
+                              key={photo.id}
+                              onClick={() => {
+                                if (showArticleEditor) {
+                                  setEditorImage(photo.src.large2x || photo.src.original)
+                                } else if (selectedDay !== null) {
+                                  setCustomArticleImages(prev => ({ ...prev, [selectedDay]: photo.src.large2x || photo.src.original }))
+                                  setCardDirty(true)
+                                }
+                                setShowPexels(false); setPexelsPhotos([]); setPexelsSearch('')
+                              }}
+                              className="relative aspect-[4/3] rounded-xl overflow-hidden cursor-pointer group/pex bg-gray-100"
+                            >
+                              <img src={photo.src.medium} alt={photo.alt} className="absolute inset-0 w-full h-full object-cover transition-transform group-hover/pex:scale-105" loading="lazy" />
+                              <div className="absolute inset-0 bg-black/0 group-hover/pex:bg-black/20 transition-colors" />
+                              {photo.photographer && (
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 opacity-0 group-hover/pex:opacity-100 transition-opacity">
+                                  <a href={photo.photographerUrl || '#'} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-white text-[9px] truncate hover:text-white/80 block">{photo.photographer}</a>
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        {pexelsHasMore && (
+                          <div className="flex justify-center pt-3">
+                            <button onClick={() => searchPexelsApi(pexelsSearch, pexelsPage + 1, true)} disabled={pexelsLoadingMore} className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-medium text-gray-600 transition-colors cursor-pointer">
+                              {pexelsLoadingMore && <div className="w-3.5 h-3.5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />}
+                              {pexelsLoadingMore ? 'Chargement...' : 'Voir plus'}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    ) : pexelsSearch.trim().length >= 2 && !pexelsLoading ? (
                       <div className="flex flex-col items-center justify-center py-10 text-center">
                         <p className="text-sm text-gray-300">Aucune photo trouvée</p>
                         <p className="text-[11px] text-gray-300 mt-1">Essayez un autre terme</p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                   <div className="px-5 py-2 border-t border-gray-100 shrink-0">
-                    <p className="text-[10px] text-gray-300 text-center">Photos gratuites fournies par Pexels</p>
+                    <p className="text-[10px] text-gray-300 text-center">Photos fournies par <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-400">Pexels</a></p>
                   </div>
                 </div>
               </div>
@@ -1186,10 +1211,7 @@ const HomeDashboard = ({ initialTab, initialSettingsTab, mvpMode }) => {
                   <label className="text-xs font-semibold text-color-1 mb-1.5 block">Image</label>
                   <div
                     className="relative w-full h-[80px] rounded-xl overflow-hidden border-2 border-gray-200 cursor-pointer group/img hover:border-gray-300 transition-colors"
-                    onClick={() => {
-                      const url = prompt('URL de l\'image (Pexels, Unsplash...)', editorImage)
-                      if (url) setEditorImage(url)
-                    }}
+                    onClick={() => { setPexelsSearch(''); setPexelsPhotos([]); setShowPexels(true) }}
                   >
                     {editorImage ? (
                       <img src={editorImage} alt="" className="w-full h-full object-cover" />

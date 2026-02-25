@@ -538,14 +538,11 @@ const PagePreview = ({
               {/* Hover Toolkit (appears on image hover) */}
               {!isPreviewMode && onHeroImageUpload && onHeroImageCrop && (
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/hero:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  {/* Upload Button */}
+                  {/* Image Picker Button */}
                   <button
-                    onClick={() => {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = "image/*";
-                      input.onchange = (e) => onHeroImageUpload(e);
-                      input.click();
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onHeroImageUpload();
                     }}
                     className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
                   >
@@ -783,14 +780,11 @@ const PagePreview = ({
                     {/* Hover Toolkit (appears on image hover) */}
                     {!isPreviewMode && onTherapistImageUpload && onTherapistImageCrop && (
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        {/* Upload Button */}
+                        {/* Image Picker Button */}
                         <button
-                          onClick={() => {
-                            const input = document.createElement("input");
-                            input.type = "file";
-                            input.accept = "image/*";
-                            input.onchange = (e) => onTherapistImageUpload(e);
-                            input.click();
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTherapistImageUpload();
                           }}
                           className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
                         >

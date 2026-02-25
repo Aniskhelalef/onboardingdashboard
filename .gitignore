@@ -27,3 +27,4 @@ out
 
 # Service account keys
 config/
+.vercel
