@@ -54,6 +54,18 @@ export default function GoogleReviewsSection({ therapistId, compact = false, onE
     fetchReviews();
   }, [fetchReviews]);
 
+  // ── Listen for connect/disconnect from modal ────────────────
+  useEffect(() => {
+    const onDisconnect = () => { setSource(null); setReviews([]); };
+    const onConnect = () => { setSource({ status: "scraping", canRefresh: false }); };
+    window.addEventListener("googleReviewsDisconnected", onDisconnect);
+    window.addEventListener("googleReviewsConnected", onConnect);
+    return () => {
+      window.removeEventListener("googleReviewsDisconnected", onDisconnect);
+      window.removeEventListener("googleReviewsConnected", onConnect);
+    };
+  }, []);
+
   // ── Polling while scraping ───────────────────────────────
   const isScraping = source?.status === "pending" || source?.status === "scraping";
 
