@@ -11,7 +11,6 @@ import ContactStep from "./steps/ContactStep";
 import CabinetStep from "./steps/CabinetStep";
 import TherapistsStep from "./steps/TherapistsStep";
 import SpecialtiesStep from "./steps/SpecialtiesStep";
-import GoogleStep from "./steps/GoogleStep";
 import AvisStep from "./steps/AvisStep";
 import DomainStep from "./steps/DomainStep";
 import CodeStep from "./steps/CodeStep";
@@ -21,7 +20,6 @@ const STEP_COMPONENTS = {
   cabinet: CabinetStep,
   therapists: TherapistsStep,
   specialties: SpecialtiesStep,
-  google: GoogleStep,
   avis: AvisStep,
   domain: DomainStep,
   code: CodeStep,

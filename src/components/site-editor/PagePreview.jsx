@@ -490,12 +490,16 @@ const PagePreview = ({
 
             {/* Locations */}
             {locations.length > 0 && (
-              <ClickableWrapper onClick={() => onLocationClick?.()}>
+              <ClickableWrapper onClick={isPreviewMode ? undefined : () => onLocationClick?.()}>
                 <div className={cn("flex gap-4", viewMode === "mobile" ? "flex-col items-start" : "items-center")}>
                   {locations.map((location, index) => (
                     <div
                       key={location.id}
-                      className="flex items-center gap-3 p-2"
+                      className={cn("flex items-center gap-3 p-2", isPreviewMode && "cursor-pointer")}
+                      onClick={isPreviewMode ? () => {
+                        const link = location.bookingLink || globalSettings.appointmentLink || "https://doctolib.fr/";
+                        window.open(link, "_blank");
+                      } : undefined}
                     >
                       <div
                         className="w-12 h-12 bg-[hsl(var(--page-accent))]/20 flex items-center justify-center overflow-hidden"
@@ -1259,6 +1263,30 @@ const PagePreview = ({
             </button>
           </div>
         </div>
+
+        {/* Google Maps Embed — from locations with placeId */}
+        {locations.length > 0 && locations.some(loc => loc.placeId) && (
+          <div className={cn(
+            "mt-6",
+            locations.filter(l => l.placeId).length === 2 && viewMode !== "mobile"
+              ? "grid grid-cols-2 gap-4"
+              : "space-y-4"
+          )}>
+            {locations.filter(loc => loc.placeId).map((loc) => (
+              <div key={loc.id} className="rounded-2xl overflow-hidden border border-[hsl(var(--page-text-muted)/0.15)]">
+                <iframe
+                  src={`https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=place_id:${loc.placeId}`}
+                  width="100%"
+                  height={viewMode === "mobile" ? "200" : "250"}
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className={cn("mt-8 pt-6 border-t text-sm text-[hsl(var(--page-text-muted))]", viewMode === "mobile" ? "flex flex-col items-start gap-4" : "flex items-center justify-between")}>
           <ClickableWrapper onClick={() => onLocationClick?.()} className="inline-flex">

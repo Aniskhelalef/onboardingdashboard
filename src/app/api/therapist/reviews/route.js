@@ -29,6 +29,8 @@ export async function GET(request) {
       source: source
         ? {
             googleMapsUrl: source.google_maps_url,
+            placeName: source.place_name || null,
+            imageUrl: source.image_url || null,
             status: source.status,
             lastScrapedAt: source.last_scraped_at,
             nextRefreshAvailableAt: source.next_refresh_available_at,

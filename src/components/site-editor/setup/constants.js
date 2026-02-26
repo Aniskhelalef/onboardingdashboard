@@ -13,7 +13,7 @@ export const STEP_REGISTRY = {
   code:        { label: "Code",          icon: Code,          group: "advanced", dataKey: "customCode" },
 };
 
-export const MAIN_STEP_IDS = ["contact", "cabinet", "therapists", "specialties", "google", "avis"];
+export const MAIN_STEP_IDS = ["contact", "cabinet", "therapists", "specialties", "avis"];
 export const ADVANCED_STEP_IDS = ["domain", "code"];
 export const ALL_STEP_IDS = [...MAIN_STEP_IDS, ...ADVANCED_STEP_IDS];
 

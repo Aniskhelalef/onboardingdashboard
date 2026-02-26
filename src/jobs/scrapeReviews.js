@@ -5,11 +5,12 @@
  * It updates the source status in DB throughout the process.
  */
 
-import { scrapeGoogleReviews } from "@/services/googleReviews";
+import { scrapeGoogleReviews, searchGooglePlace } from "@/services/googleReviews";
 import {
   updateSourceStatus,
   markScraped,
   saveReviews,
+  updateSourceImage,
 } from "@/repositories/googleReviews";
 import { supabase } from "@/lib/supabase";
 
@@ -64,6 +65,20 @@ export async function runScrapeJob(sourceId) {
       : null;
     await markScraped(sourceId, totalFiveStar, infoMsg, googleTotal, googleRating);
     log(`Scrape completed: stored ${reviews.length} reviews`);
+
+    // Fetch cover image via Apify places search (fire-and-forget)
+    if (source.place_name || source.google_place_id) {
+      try {
+        const query = source.place_name || source.google_place_id;
+        const place = await searchGooglePlace(query);
+        if (place?.imageUrl) {
+          await updateSourceImage(sourceId, place.imageUrl);
+          log(`Cover image saved: ${place.imageUrl}`);
+        }
+      } catch (imgErr) {
+        log("Image fetch failed (non-blocking):", imgErr.message);
+      }
+    }
   } catch (err) {
     log("Scrape FAILED:", err.message);
 

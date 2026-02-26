@@ -1,7 +1,9 @@
 'use client'
 
 import { useSearchParams, useParams } from 'next/navigation'
-import SiteEditor from '@/components/site-editor/SiteEditor'
+import dynamic from 'next/dynamic'
+
+const SiteEditor = dynamic(() => import('@/components/site-editor/SiteEditor'), { ssr: false })
 
 export default function EditorPage() {
   const params = useParams()

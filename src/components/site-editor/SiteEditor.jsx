@@ -403,8 +403,8 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
             phoneNumber: parsed.contact.phoneNumber || prev.phoneNumber,
           }));
         }
-        if (parsed.cabinet?.locations) {
-          setLocations(parsed.cabinet.locations);
+        if (parsed.locations) {
+          setLocations(parsed.locations);
         }
         if (parsed.style) {
           if (parsed.style.logo) setIdentitySettings(prev => ({ ...prev, logo: parsed.style.logo }));
@@ -421,6 +421,31 @@ const SiteEditorContent = ({ initialOpenStyle, initialPage, initialValidationMod
         console.error("Failed to parse setupData", e);
       }
     }
+  }, []);
+
+  // Live-sync when setup data changes (e.g. from setup modal)
+  useEffect(() => {
+    const handleSetupUpdate = () => {
+      const raw = localStorage.getItem("setupData");
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.locations) setLocations(parsed.locations);
+        if (parsed.contact) {
+          setGlobalSettings(prev => ({
+            ...prev,
+            firstName: parsed.contact.firstName || prev.firstName,
+            lastName: parsed.contact.lastName || prev.lastName,
+            profession: parsed.contact.profession || prev.profession,
+            city: parsed.contact.city || prev.city,
+            appointmentLink: parsed.contact.appointmentLink || prev.appointmentLink,
+            phoneNumber: parsed.contact.phoneNumber || prev.phoneNumber,
+          }));
+        }
+      } catch {}
+    };
+    window.addEventListener("setupDataUpdated", handleSetupUpdate);
+    return () => window.removeEventListener("setupDataUpdated", handleSetupUpdate);
   }, []);
 
   // Check if setup was actually completed (verify data, not just flag)

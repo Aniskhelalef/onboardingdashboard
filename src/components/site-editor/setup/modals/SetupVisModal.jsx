@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSetup } from '../SetupContext'
 import SetupModalLayout from './SetupModalLayout'
-import GoogleStep from '../steps/GoogleStep'
+import CabinetStep from '../steps/CabinetStep'
 import AvisStep from '../steps/AvisStep'
 
 const TABS = [
@@ -49,7 +49,7 @@ export default function SetupVisModal({ onClose, freeNav = false }) {
       freeNav={freeNav}
     >
       {tab === 'google' ? (
-        <GoogleStep />
+        <CabinetStep />
       ) : (
         <AvisStep channelId={tab} />
       )}

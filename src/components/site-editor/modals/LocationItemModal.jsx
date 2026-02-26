@@ -52,6 +52,7 @@ const LocationItemModal = ({
       title: title.trim(),
       address: address.trim(),
       icon: icon || "📍",
+      placeId: location?.placeId || undefined,
     });
     onOpenChange(false);
   };

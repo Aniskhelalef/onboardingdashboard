@@ -16,19 +16,21 @@ const REFRESH_COOLDOWN_DAYS = 15;
  * Creates a new review source for a therapist.
  * If one already exists, returns the existing record.
  */
-export async function createSource(therapistId, googleMapsUrl, googlePlaceId = null) {
+export async function createSource(therapistId, googleMapsUrl, googlePlaceId = null, placeName = null) {
   // Check if source already exists
   const existing = await getSourceByTherapistId(therapistId);
   if (existing) {
     // Update the URL / place ID if changed
+    const update = {
+      google_maps_url: googleMapsUrl,
+      google_place_id: googlePlaceId,
+      status: "pending",
+      error_message: null,
+    };
+    if (placeName) update.place_name = placeName;
     const { data, error } = await supabase
       .from("google_review_sources")
-      .update({
-        google_maps_url: googleMapsUrl,
-        google_place_id: googlePlaceId,
-        status: "pending",
-        error_message: null,
-      })
+      .update(update)
       .eq("therapist_id", therapistId)
       .select()
       .single();
@@ -43,6 +45,7 @@ export async function createSource(therapistId, googleMapsUrl, googlePlaceId = n
       therapist_id: therapistId,
       google_maps_url: googleMapsUrl,
       google_place_id: googlePlaceId,
+      place_name: placeName,
       status: "pending",
     })
     .select()
@@ -120,6 +123,18 @@ export async function markScraped(sourceId, totalFound, infoMessage = null, goog
 
   if (error) throw new Error(`Erreur markScraped : ${error.message}`);
   return data;
+}
+
+/**
+ * Updates the image_url on a source record.
+ */
+export async function updateSourceImage(sourceId, imageUrl) {
+  const { error } = await supabase
+    .from("google_review_sources")
+    .update({ image_url: imageUrl })
+    .eq("id", sourceId);
+
+  if (error) throw new Error(`Erreur mise à jour image : ${error.message}`);
 }
 
 // ─── Reviews CRUD ────────────────────────────────────────────

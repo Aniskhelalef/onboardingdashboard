@@ -21,7 +21,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { googleMapsUrl, placeId: providedPlaceId } = body;
+    const { googleMapsUrl, placeId: providedPlaceId, placeName } = body;
 
     if (!googleMapsUrl || typeof googleMapsUrl !== "string") {
       return NextResponse.json(
@@ -45,7 +45,8 @@ export async function POST(request) {
     const source = await createSource(
       therapistId,
       urlData.url,
-      finalPlaceId
+      finalPlaceId,
+      placeName || null
     );
 
     // Fire-and-forget: trigger scrape in background
